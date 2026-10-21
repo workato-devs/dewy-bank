@@ -1,14 +1,16 @@
 {
   title: 'Dewy Bank Support API',
 
-  # The support agent's credential (Station C). Participants paste one thing:
-  # the support code their facilitator gives them (the support-agent key).
-  # Everything about the deployment is discovered from the bank app's public
-  # config.json: the Support API URL. The API limits this key to the support
+  # The support agent's credential (Station C). Both support_api_url and
+  # support_api_key are stamped connection fields; participants do not need to
+  # enter anything for this connector. The API limits this key to the support
   # routes and to the fictional customers, so it can't reach a real
   # participant's accounts.
   connection: {
     fields: [
+      { name: 'support_api_url', label: 'Support API URL',
+        hint: 'API Gateway URL — set by stamping, do not edit',
+        default: 'https://j6k87ieapj.execute-api.us-west-2.amazonaws.com' }, # support_api_url stamped before the workshop by scripts/stamp_bank_app_url.py
       { name: 'support_api_key', label: 'Support API key', control_type: 'password', optional: false,
         default: 'dwk_60966da72eeeb749c7776d2f2411a521fb5ae8fb7abdc77a39f6758668f77d4a' }, # stamped before the workshop by scripts/stamp_bank_app_url.py
     ],
@@ -21,8 +23,7 @@
         if bank_app_url.include?('NOT_STAMPED')
           error('This connector has not been set up for a workshop yet: ask your facilitator.')
         end
-        support_api_url = 'https://j6k87ieapj.execute-api.us-west-2.amazonaws.com' # stamped before the workshop by scripts/stamp_bank_app_url.py
-        { support_api_url: support_api_url }
+        {}
       end,
 
       refresh_on: [401],

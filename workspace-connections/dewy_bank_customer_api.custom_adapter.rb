@@ -2,20 +2,23 @@
   title: 'Dewy Bank Customer API',
 
   # Each participant signs in as themselves, with their own Dewy Bank login and
-  # nothing else. The bank_app_url connection field points to the deployed Dewy
-  # Bank app; its default value is stamped before the workshop by
-  # scripts/stamp_bank_app_url.py, but a facilitator can override it per-workspace
-  # without touching the connector code. Everything else (Cognito region, app client
-  # ID, customer API URL) is discovered from the bank app's public config.json at
-  # auth time. The connector exchanges the login for a Cognito ID token, and gets a
-  # new one (rediscovering the config) whenever the customer API rejects the current
-  # token (ID tokens last 1 hour). The customer API scopes every route to the
-  # token's customer, so nothing here can reach another customer's accounts.
+  # nothing else. The bank_app_url and customer_api_url connection fields point to
+  # the deployed Dewy Bank app; their default values are stamped before the workshop
+  # by scripts/stamp_bank_app_url.py, but a facilitator can override them
+  # per-workspace without touching the connector code. Cognito region and app client
+  # ID are still discovered from the bank app's public config.json at auth time.
+  # The connector exchanges the login for a Cognito ID token, and gets a new one
+  # (rediscovering the config) whenever the customer API rejects the current token
+  # (ID tokens last 1 hour). The customer API scopes every route to the token's
+  # customer, so nothing here can reach another customer's accounts.
   connection: {
     fields: [
       { name: 'bank_app_url', label: 'Bank app URL', optional: false,
         hint: 'CloudFront URL of the deployed Dewy Bank app',
         default: 'https://d2c3w0ptk29gf8.cloudfront.net' }, # stamped before the workshop by scripts/stamp_bank_app_url.py
+      { name: 'customer_api_url', label: 'Customer API URL',
+        hint: 'API Gateway URL — set by stamping, do not edit',
+        default: 'https://m1rxf0usw7.execute-api.us-west-2.amazonaws.com' }, # customer_api_url stamped before the workshop by scripts/stamp_bank_app_url.py
       { name: 'email', label: 'Dewy Bank email', optional: false,
         hint: 'The email you sign in to the Dewy Bank app with' },
       { name: 'password', label: 'Dewy Bank password', control_type: 'password', optional: false,
@@ -44,7 +47,7 @@
                    .response_format_json
         id_token = response.dig('AuthenticationResult', 'IdToken') ||
                    response.dig('authentication_result', 'id_token')
-        { id_token: id_token, customer_api_url: config['customerApiUrl'] }
+        { id_token: id_token }
       end,
 
       refresh_on: [401],
