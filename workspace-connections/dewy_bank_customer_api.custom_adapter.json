@@ -3,6 +3,6 @@
   "description": "Dewy Bank workshop: the customer API, signed in as the participant (Cognito ID token, refreshed on 401). Plain calls, no checks: decisions belong to the recipes.",
   "logo_file_name": null,
   "logo_content_type": null,
-  "version_no": 2,
-  "note": "Stamped for https://d2c3w0ptk29gf8.cloudfront.net (2026-10-21)"
+  "version_no": 3,
+  "note": "bank_app_url exposed as connection field (stamped default); region, userPoolClientId, and customerApiUrl fetched from config.json at runtime"
 }
