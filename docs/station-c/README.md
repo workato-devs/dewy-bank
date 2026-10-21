@@ -44,7 +44,7 @@ The support tools call the **"Dewy Bank Support API" custom connector** (`worksp
 
 ## Genie instructions
 
-Built by `scripts/build_station_c.py` from [`genie-instructions.md`](genie-instructions.md) and Station A's customer text:
+Built by `scripts/build/build_station_c.py` from [`genie-instructions.md`](genie-instructions.md) and Station A's customer text:
 
 | Genie | Instructions |
 |---|---|
@@ -60,18 +60,18 @@ This is the one station where the instructions differ between variants, because 
 |---|---|
 | The Workato assets, synced to `Dewy Bank Station C` (generated) | `dewy-bank-station-c/`: `project.json`, `shared/` (all five tools), `c1_flaw_shared_namespace_prompt_acl/` (one Genie), `c2_fix_namespace_per_role/` (two Genies) |
 | This README, `AGENTS.md`, `REQUIREMENTS.md`, `genie-instructions.md` | `docs/station-c/` |
-| The generator and the invariant check | `scripts/build_station_c.py`, `scripts/check_station_c.py` |
+| The generator and the invariant check | `scripts/build/build_station_c.py`, `scripts/build/check_station_c.py` |
 | The Support API connector and its connection | `workspace-connections/dewy_bank_support_api.custom_adapter.{json,rb}`, `workspace-connections/dewy_bank_support_api.connection.json` |
 
-`dewy-bank-station-c/` is generated. To change Station C, change Station A (customer tools), `docs/station-c/genie-instructions.md` or `scripts/build_station_c.py`, then, from the workshop root:
+`dewy-bank-station-c/` is generated. To change Station C, change Station A (customer tools), `docs/station-c/genie-instructions.md` or `scripts/build/build_station_c.py`, then, from the workshop root:
 
 ```bash
-python3 scripts/build_station_c.py && python3 scripts/check_station_c.py
+python3 scripts/build/build_station_c.py && python3 scripts/build/check_station_c.py
 ```
 
 ## Setup
 
-Push from the workshop root ([workshop README](../../README.md#setup)). Then, for this station:
+Push from the workshop root ([workshop README](../../README.md#setting-up-participant)). Then, for this station:
 
 1. **Connect the `Dewy Bank Support API` connection** (in `Workspace Connections`): paste the **support code** the facilitator hands out. That's the only field. The connector finds the Support API itself, in the bank app's `config.json`. The code is the support-agent key; it's safe to hand to participants, because the API limits it to the support routes and the fictional customers (C-P3).
 2. **Start** the five recipes, then confirm the Genies' skills: C1 has five, the C2 customer Genie three, the C2 support Genie two.

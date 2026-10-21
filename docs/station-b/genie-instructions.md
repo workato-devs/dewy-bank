@@ -1,6 +1,6 @@
 # Genie instructions (Station B)
 
-Both Station B Genies (B1 flaw, B2 fix) use the instructions below, byte for byte, and they are the same text as Station A. `scripts/build_station_b.py` reads the copy in `docs/station-a/genie-instructions.md`, so edit that file and rebuild; this copy is for reference and must match it. Don't edit the Genies separately in the UI.
+Both Station B Genies (B1 flaw, B2 fix) use the instructions below, byte for byte, and they are the same text as Station A. `scripts/build/build_station_b.py` reads the copy in `docs/station-a/genie-instructions.md`, so edit that file and rebuild; this copy is for reference and must match it. Don't edit the Genies separately in the UI.
 
 Ground rules for this text:
 

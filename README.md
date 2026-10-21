@@ -21,12 +21,13 @@ dewy-bank/
 ├── infra/                     # the bank: AWS CDK stack, Lambdas, the bank app and facilitator console
 ├── workspace-connections/     # Workato: the two custom connectors and their connections (pushed first)
 ├── dewy-bank-station-a/       # Workato: Station A's recipes, skills and Genies
-├── dewy-bank-station-b/       # Workato: Station B (generated from A by scripts/build_station_b.py)
-├── dewy-bank-station-c/       # Workato: Station C (generated from A by scripts/build_station_c.py)
+├── dewy-bank-station-b/       # Workato: Station B (generated from A by scripts/build/build_station_b.py)
+├── dewy-bank-station-c/       # Workato: Station C (generated from A by scripts/build/build_station_c.py)
 ├── docs/                      # station guides, the design, the shared memo, the backend spec
-├── scripts/                   # station builders, invariant checks, connector stamping, chat setup
+├── scripts/                   # workshop tools: connector stamping (facilitator), chat setup (participant)
+│   └── build/                 # content build: the station builders and invariant checks (authors and CI only)
 ├── .wk/wk.toml                # the one wk sync config (link your own profile)
-└── .github/workflows/         # CI (build, test, synth) and deploy for infra/
+└── .github/workflows/         # CI for infra/ and the stations, and the infra deploy
 ```
 
 - **The bank** ([`infra/`](infra/README.md)): a Customer API (Cognito sign-in), a Support API (one shared support code, reaching only three fictional customers), a chat proxy to each participant's Genies, the bank app with its chat panel, and a facilitator console. What the stations need from it is specified in [`docs/backend-requirements.md`](docs/backend-requirements.md).
@@ -77,5 +78,5 @@ Each participant works in their own Workato workspace and their own bank login. 
 
 ## Developing
 
-- **Workato assets:** before every push, run the checks in [`AGENTS.md`](AGENTS.md#before-every-push) (build Stations B and C from A, check their invariants, lint, dry-run). Don't hand-edit `dewy-bank-station-b/` or `dewy-bank-station-c/`; edit the build scripts.
+- **Workato stations:** Stations B and C are built from Station A by `scripts/build/`, so each differs from A in exactly one layer. To change the workshop content, change Station A or a builder, rebuild, and commit the result; the steps are in [`AGENTS.md`](AGENTS.md#before-you-change-a-station-content-authors). CI rebuilds the stations on every pull request, fails if the committed files are stale, and runs the invariant checks. None of this is part of running the workshop.
 - **The bank:** `cd infra && npm ci && npm test` runs the stack assertions and handler tests; `npx cdk synth` needs no AWS credentials. CI runs both on every pull request.

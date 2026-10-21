@@ -69,7 +69,7 @@ Synced folders hold only Workato assets. The sync config, lint profile and share
 
 ## Setup
 
-Push and authorize the connection from the workshop root ([workshop README](../../README.md#setup)). Then, for this station:
+Push and authorize the connection from the workshop root ([workshop README](../../README.md#setting-up-participant)). Then, for this station:
 
 1. **Start** the five recipes, then open each Genie in Agent Studio and confirm it lists exactly three skills.
 

@@ -1,0 +1,59 @@
+name: stations
+
+# Content build for the Workato stations. Stations B and C are generated from
+# Station A by scripts/build/ so each one differs from A in exactly one layer
+# (its factor). This job rebuilds them, fails if the committed files are stale
+# (someone changed A, or a builder, without rebuilding), and runs the invariant
+# checks. Workshop participants never run any of this.
+#
+# `wk lint` isn't run here: it needs the wk CLI and the recipe-skills checkout.
+# Content authors run it locally (AGENTS.md, "Before you change a station").
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dewy-bank-station-*/**'
+      - 'workspace-connections/**'
+      - 'scripts/build/**'
+      - '.github/workflows/stations.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'dewy-bank-station-*/**'
+      - 'workspace-connections/**'
+      - 'scripts/build/**'
+      - '.github/workflows/stations.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stations-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stations:
+    name: Build · Check stations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # The build scripts use only the Python standard library.
+      - name: Build Stations B and C from A
+        run: |
+          python3 scripts/build/build_station_b.py
+          python3 scripts/build/build_station_c.py
+
+      - name: Generated stations are up to date
+        run: |
+          git add -N dewy-bank-station-b dewy-bank-station-c
+          if ! git diff --exit-code --stat -- dewy-bank-station-b dewy-bank-station-c; then
+            echo "::error::Stations B or C are stale. Run scripts/build/build_station_b.py and build_station_c.py, then commit the result."
+            exit 1
+          fi
+
+      - name: Check invariants
+        run: |
+          python3 scripts/build/check_invariants.py
+          python3 scripts/build/check_station_c.py

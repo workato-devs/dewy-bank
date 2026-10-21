@@ -4,11 +4,11 @@ This is a teaching sample. Its whole job is to show that **one factor changes wh
 
 ## `dewy-bank-station-b/` is generated
 
-`scripts/build_station_b.py` deletes and rewrites `dewy-bank-station-b/` from `dewy-bank-station-a/`. Never hand-edit the generated JSON; the next build overwrites it.
+`scripts/build/build_station_b.py` deletes and rewrites `dewy-bank-station-b/` from `dewy-bank-station-a/`. Never hand-edit the generated JSON; the next build overwrites it.
 
 - **A change to the shared logic** (scope checks, the rule block, the B2 interface, the Genie instructions) goes into **Station A**, then you rebuild. Station A and Station B stay in lockstep that way.
 - **A change to the B1 interface or to Station B's labels** goes into `build_station_b.py`.
-- After every build: `python3 scripts/check_invariants.py`, then strict `wk lint`.
+- After every build: `python3 scripts/build/check_invariants.py`, then strict `wk lint`.
 
 ## Invariants (don't break these)
 
@@ -32,7 +32,7 @@ Station B shares Station A's connection: `Workspace Connections/dewy_bank_custom
 ## Workflow
 
 ```bash
-python3 scripts/build_station_b.py && python3 scripts/check_invariants.py
+python3 scripts/build/build_station_b.py && python3 scripts/build/check_invariants.py
 # then from the workshop root (dewy-bank/), which holds the one .wk/wk.toml
 wk lint --skills-path <path-to>/recipe-skills/skills $(find dewy-bank-station-* -name '*.recipe.json')   # strict, via .wklintrc.json
 wk push --dry-run -p <profile>   # read it for `deleted` rows

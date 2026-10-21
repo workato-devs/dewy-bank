@@ -46,19 +46,19 @@ The rules themselves are the same steps as B2's. Only the shape of the result di
 | The Workato assets, synced to `Dewy Bank Station B` (generated) | `dewy-bank-station-b/`: `project.json`, `b1_flaw_wrapped_api_leaky_response/`, `b2_fix_intent_interface/` |
 | This README, `AGENTS.md`, `REQUIREMENTS.md` | `docs/station-b/` |
 | Genie instructions (reference copy; the source is Station A's) | `docs/station-b/genie-instructions.md` |
-| The generator and the invariant check | `scripts/build_station_b.py`, `scripts/check_invariants.py` |
+| The generator and the invariant check | `scripts/build/build_station_b.py`, `scripts/build/check_invariants.py` |
 
 Synced folders hold only Workato assets. The sync config, lint profile and shared connection live at the workshop root; see the [workshop README](../../README.md).
 
-`dewy-bank-station-b/` is generated. To change Station B, change Station A or `scripts/build_station_b.py`, then, from the workshop root:
+`dewy-bank-station-b/` is generated. To change Station B, change Station A or `scripts/build/build_station_b.py`, then, from the workshop root:
 
 ```bash
-python3 scripts/build_station_b.py && python3 scripts/check_invariants.py
+python3 scripts/build/build_station_b.py && python3 scripts/build/check_invariants.py
 ```
 
 ## Setup
 
-Push and authorize the connection from the workshop root ([workshop README](../../README.md#setup)). Then, for this station:
+Push and authorize the connection from the workshop root ([workshop README](../../README.md#setting-up-participant)). Then, for this station:
 
 1. **Start** the six recipes, then open each Genie in Agent Studio and confirm it lists exactly three skills.
 

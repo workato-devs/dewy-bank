@@ -1,6 +1,6 @@
 """Generate dewy-bank-station-c/ (the synced Station C folder) from dewy-bank-station-a/.
 
-Run from anywhere: python3 scripts/build_station_c.py
+Run from anywhere: python3 scripts/build/build_station_c.py
 It deletes and rewrites dewy-bank-station-c/, so edit this script, not the generated JSON.
 
 Every tool lives in shared/ and is identical in C1 and C2:
@@ -14,7 +14,7 @@ Only the Genies differ (Factor IV): which skills each holds, and its instruction
 import copy, json, os, re, shutil
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.join(HERE, '..')
+ROOT = os.path.join(HERE, '..', '..')
 A = os.path.join(ROOT, 'dewy-bank-station-a')
 C = os.path.join(ROOT, 'dewy-bank-station-c')
 SHARED, C1, C2 = 'shared', 'c1_flaw_shared_namespace_prompt_acl', 'c2_fix_namespace_per_role'

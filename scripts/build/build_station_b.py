@@ -1,6 +1,6 @@
 """Generate dewy-bank-station-b/ (the synced Station B folder) from dewy-bank-station-a/.
 
-Run from anywhere: python3 scripts/build_station_b.py
+Run from anywhere: python3 scripts/build/build_station_b.py
 It deletes and rewrites dewy-bank-station-b/, so edit this script, not the generated JSON.
 
 B2 = Station A's intent-shaped tools (shared/list_my_accounts + A2's read and
@@ -11,7 +11,7 @@ B1 = the same recipes with only the Factor III layer swapped: raw IDs in,
 import copy, json, os, re, shutil, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.join(HERE, '..')
+ROOT = os.path.join(HERE, '..', '..')
 A = os.path.join(ROOT, 'dewy-bank-station-a')
 B = os.path.join(ROOT, 'dewy-bank-station-b')
 B1, B2 = 'b1_flaw_wrapped_api_leaky_response', 'b2_fix_intent_interface'

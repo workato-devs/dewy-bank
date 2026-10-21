@@ -1,6 +1,6 @@
 # Dewy Bank, Station B: Intent-Based Communication (Factor III): requirements
 
-**Status:** ✅ Built 2026-10-20 with the recommended defaults for D1–D5. It passes strict lint and `scripts/check_invariants.py`, but it isn't live-tested yet. See `README.md`.
+**Status:** ✅ Built 2026-10-20 with the recommended defaults for D1–D5. It passes strict lint and `scripts/build/check_invariants.py`, but it isn't live-tested yet. See `README.md`.
 **Sources:** [`docs/factor-matrix.md`](../factor-matrix.md) (the Station B column), `seven-factors/factors/iii-intent-based-communication/` (principle and guidance), the Admin API and customer API handlers in `infra/lambda/` (then in `dewy-bank-internal`), and the Station A rebuild (`dewy-bank-station-a`).
 
 ## 1. What this station teaches

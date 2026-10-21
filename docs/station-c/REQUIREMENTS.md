@@ -1,6 +1,6 @@
 # Dewy Bank, Station C: Bounded Access (Factor IV): requirements
 
-**Status:** decisions D1–D6 made, and **built 2026-10-20** (`dewy-bank-station-c/`, `scripts/build_station_c.py`, `scripts/check_station_c.py`): strict lint clean, pushed to the test workspace, not run. The support tools are built against the Support API contract (C-P3), which doesn't exist yet. See [`README.md`](README.md).
+**Status:** decisions D1–D6 made, and **built 2026-10-20** (`dewy-bank-station-c/`, `scripts/build/build_station_c.py`, `scripts/build/check_station_c.py`): strict lint clean, pushed to the test workspace, not run. The support tools are built against the Support API contract (C-P3), which doesn't exist yet. See [`README.md`](README.md).
 **Sources:** [`docs/factor-matrix.md`](../factor-matrix.md) (the Station C column), `seven-factors/factors/iv-bounded-access/` (principle and guidance), the Admin API and customer API handlers in `infra/lambda/` (then in `dewy-bank-internal`), and the Station A and B builds.
 
 ## 1. What this station teaches

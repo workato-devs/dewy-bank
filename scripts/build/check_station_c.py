@@ -1,11 +1,11 @@
 """Check Station C's invariants (docs/station-c/REQUIREMENTS.md §4) against Station A. Read-only.
 
-Run from anywhere: python3 scripts/check_station_c.py
+Run from anywhere: python3 scripts/build/check_station_c.py
 """
 import copy, json, os, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.join(HERE, '..')
+ROOT = os.path.join(HERE, '..', '..')
 A = os.path.join(ROOT, 'dewy-bank-station-a')
 C = os.path.join(ROOT, 'dewy-bank-station-c')
 SHARED = os.path.join(C, 'shared')

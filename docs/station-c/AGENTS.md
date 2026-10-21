@@ -4,12 +4,12 @@ This is a teaching sample. Its whole job is to show that **one factor changes wh
 
 ## `dewy-bank-station-c/` is generated
 
-`scripts/build_station_c.py` deletes and rewrites `dewy-bank-station-c/`: the customer tools from `dewy-bank-station-a/`, the support-agent tools from the script itself, and the Genie instructions from `docs/station-a/genie-instructions.md` and `docs/station-c/genie-instructions.md`. Never hand-edit the generated JSON.
+`scripts/build/build_station_c.py` deletes and rewrites `dewy-bank-station-c/`: the customer tools from `dewy-bank-station-a/`, the support-agent tools from the script itself, and the Genie instructions from `docs/station-a/genie-instructions.md` and `docs/station-c/genie-instructions.md`. Never hand-edit the generated JSON.
 
 - **A change to the customer tools** goes into **Station A**, then you rebuild Stations B and C.
 - **A change to the support tools, the Genies or Station C's labels** goes into `build_station_c.py`.
 - **A change to the instructions** goes into the `genie-instructions.md` files.
-- After every build: `python3 scripts/check_station_c.py`, then strict `wk lint`.
+- After every build: `python3 scripts/build/check_station_c.py`, then strict `wk lint`.
 
 ## Invariants (don't break these)
 
@@ -28,7 +28,7 @@ The same as `docs/station-a/AGENTS.md`. At Station C, `FLAW` and `FIX` mean Fact
 ## Workflow
 
 ```bash
-python3 scripts/build_station_c.py && python3 scripts/check_station_c.py
+python3 scripts/build/build_station_c.py && python3 scripts/build/check_station_c.py
 # then from the workshop root (dewy-bank/)
 wk lint --skills-path <path-to>/recipe-skills/skills $(find dewy-bank-station-* -name '*.recipe.json')
 wk push --dry-run -p <profile>

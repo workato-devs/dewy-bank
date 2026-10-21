@@ -1,6 +1,6 @@
 # Genie instructions (Station C)
 
-`scripts/build_station_c.py` builds every Station C Genie's instructions from the blocks below, plus the customer text in `docs/station-a/genie-instructions.md` (the same at every station). Edit these files and rebuild; don't edit the Genies separately in the UI.
+`scripts/build/build_station_c.py` builds every Station C Genie's instructions from the blocks below, plus the customer text in `docs/station-a/genie-instructions.md` (the same at every station). Edit these files and rebuild; don't edit the Genies separately in the UI.
 
 | Genie | Instructions |
 |---|---|

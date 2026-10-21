@@ -16,7 +16,7 @@ This is a teaching sample. Its whole job is to show that **one factor changes wh
 
 ## Station B is generated from Station A
 
-`scripts/build_station_b.py` copies Station A's `shared/` tool, A2's `review_my_recent_activity` and `move_between_my_accounts`, and the Genie instructions into Station B. `scripts/build_station_c.py` copies the same three customer tools into Station C. After you change any of them, rebuild Stations B and C and run `scripts/check_invariants.py` and `scripts/check_station_c.py`.
+`scripts/build/build_station_b.py` copies Station A's `shared/` tool, A2's `review_my_recent_activity` and `move_between_my_accounts`, and the Genie instructions into Station B. `scripts/build/build_station_c.py` copies the same three customer tools into Station C. After you change any of them, rebuild Stations B and C and run `scripts/build/check_invariants.py` and `scripts/build/check_station_c.py`.
 
 ## Conventions
 
