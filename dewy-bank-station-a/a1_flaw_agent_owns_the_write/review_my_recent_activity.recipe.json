@@ -234,7 +234,7 @@
                     },
                     {
                       "operand": "is_true",
-                      "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"name\"]}').to_s.strip.downcase == _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"account\"]}').to_s.strip.downcase",
+                      "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"name\"]}').to_s.strip.downcase == _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"account\"]}').to_s.strip.downcase",
                       "uuid": "account-name-matches"
                     }
                   ]
@@ -246,7 +246,7 @@
                     "as": "get_account_activity",
                     "keyword": "action",
                     "input": {
-                      "account_id": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"accountId\"]}')}"
+                      "account_id": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"accountId\"]}')}"
                     },
                     "comment": "Read this account's history.",
                     "uuid": "get-account-activity-006",
@@ -357,7 +357,84 @@
                     "comment": "FLAW: as many entries as the model asked for.",
                     "uuid": "for-each-transaction-007",
                     "skip": false,
-                    "number": 7
+                    "number": 7,
+                    "repeat_mode": "simple",
+                    "source": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\"]}').first(_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').present? ? _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').to_i : 100)",
+                    "extended_output_schema": [
+                      {
+                        "control_type": "text",
+                        "label": "Transaction ID",
+                        "type": "string",
+                        "name": "txnId",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Account ID",
+                        "type": "string",
+                        "name": "accountId",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Type",
+                        "type": "string",
+                        "name": "type",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "number",
+                        "label": "Amount",
+                        "type": "number",
+                        "name": "amount",
+                        "optional": true,
+                        "extends_schema": false,
+                        "parse_output": "float_conversion"
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Counterparty",
+                        "type": "string",
+                        "name": "counterparty",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Memo",
+                        "type": "string",
+                        "name": "memo",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Channel",
+                        "type": "string",
+                        "name": "channel",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Category",
+                        "type": "string",
+                        "name": "category",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Created at",
+                        "type": "string",
+                        "name": "createdAt",
+                        "optional": true,
+                        "extends_schema": false
+                      }
+                    ]
                   }
                 ],
                 "comment": "FLAW (Station A, Factor II): the agent owns the read (rubber stamp). No account named means every account; nothing in the recipe decides.",
@@ -369,7 +446,9 @@
             "comment": "Read every account the model asked for.",
             "uuid": "for-each-account-004",
             "skip": false,
-            "number": 4
+            "number": 4,
+            "repeat_mode": "simple",
+            "source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}')}"
           },
           {
             "provider": "workato_skill",
