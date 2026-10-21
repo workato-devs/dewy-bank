@@ -13,6 +13,8 @@ Only the Genies differ (Factor IV): which skills each holds, and its instruction
 """
 import copy, json, os, re, shutil
 
+from recipe_shapes import SUPPORT_ACCOUNT, complete_foreach, repoint_items, to_source_current_item
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..', '..')
 A = os.path.join(ROOT, 'dewy-bank-station-a')
@@ -33,6 +35,8 @@ def load(p):
 def save(rel, obj):
     p = os.path.join(C, rel)
     os.makedirs(os.path.dirname(p), exist_ok=True)
+    if rel.endswith('.recipe.json'):
+        obj = to_source_current_item(obj)  # Workato's exported form for loop items (recipe_shapes.py)
     with open(p, 'w') as f:
         json.dump(obj, f, indent=2, ensure_ascii=False)
         f.write('\n')
@@ -158,9 +162,10 @@ def else_step(alias, block):
     return {'keyword': 'else', 'as': alias, 'input': {}, 'block': block, 'uuid': step_uuid(alias), 'skip': False, 'number': 0}
 
 
-def foreach(alias, source, comment, block):
-    return {'keyword': 'foreach', 'as': alias, 'input': {'source': source}, 'block': block, 'comment': comment,
-            'uuid': step_uuid(alias), 'skip': False, 'number': 0}
+def foreach(alias, source, comment, block, fields):
+    """A complete loop: repeat mode, top-level source, and the item fields the body may read."""
+    return complete_foreach({'keyword': 'foreach', 'as': alias, 'input': {'source': source}, 'block': block,
+                             'comment': comment, 'uuid': step_uuid(alias), 'skip': False, 'number': 0}, fields)
 
 
 def try_catch(try_uuid, body, catch_alias, catch_block):
@@ -318,7 +323,8 @@ def refusal(alias, message, comment):
                                            'account': param('account'), 'amount': param('amount')}, CREDIT_VIS, comment)
 
 
-set_sel = copy.deepcopy(T_SET_SEL)
+# Copied from A2's review, whose loop iterates the customer's own accounts: point it at this recipe's list.
+set_sel = repoint_items(copy.deepcopy(T_SET_SEL), 'get_my_accounts', SUPPORT_GEN, 'get_customer_accounts')
 set_sel['comment'] = "Remember the customer's account."
 declare_sel = copy.deepcopy(T_DECLARE_SEL)
 declare_sel['comment'] = 'The account the support agent named, resolved among the customer\'s accounts. The model never supplies an account ID; the recipe looks it up.'
@@ -331,7 +337,7 @@ r['code']['block'] = [
                 "Resolve the account name among the customer's accounts.", [
             if_step('if_account_match', 'and', [cond('is_true', NAME_MATCH, 'account-name-matches')],
                     'Find the account by the name the support agent used.', [set_sel]),
-        ]),
+        ], SUPPORT_ACCOUNT),
         if_step('if_account_found', 'and', [cond('present', SEL_ID, 'account-found', '')],
                 'The name must resolve to one of the customer\'s accounts before anything else happens.', [
             if_step('if_amount_positive', 'and', [cond('is_true', '=' + AMOUNT + '.to_f > 0', 'amount-positive')],

@@ -285,49 +285,6 @@
           "source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}')}"
         },
         "source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}')}",
-        "extended_output_schema": [
-          {
-            "control_type": "text",
-            "label": "Account ID",
-            "type": "string",
-            "name": "accountId",
-            "optional": true,
-            "extends_schema": false
-          },
-          {
-            "control_type": "text",
-            "label": "Customer ID",
-            "type": "string",
-            "name": "customerId",
-            "optional": true,
-            "extends_schema": false
-          },
-          {
-            "control_type": "text",
-            "label": "Name",
-            "type": "string",
-            "name": "name",
-            "optional": true,
-            "extends_schema": false
-          },
-          {
-            "control_type": "text",
-            "label": "Currency",
-            "type": "string",
-            "name": "currency",
-            "optional": true,
-            "extends_schema": false
-          },
-          {
-            "control_type": "number",
-            "label": "Balance",
-            "type": "number",
-            "name": "balance",
-            "optional": true,
-            "extends_schema": false,
-            "parse_output": "float_conversion"
-          }
-        ],
         "block": [
           {
             "as": "if_from_account_match",
@@ -338,7 +295,7 @@
               "conditions": [
                 {
                   "operand": "is_true",
-                  "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"name\"]}').to_s.strip.downcase == _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}').to_s.strip.downcase",
+                  "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"name\"]}').to_s.strip.downcase == _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}').to_s.strip.downcase",
                   "uuid": "from-account-name-matches"
                 }
               ]
@@ -352,9 +309,9 @@
                 "input": {
                   "input_mode": "raw",
                   "name": "declare-resolved-accounts-002:declare_resolved_accounts:from_account_id\ndeclare-resolved-accounts-002:declare_resolved_accounts:from_account_name\ndeclare-resolved-accounts-002:declare_resolved_accounts:from_balance",
-                  "from_account_id": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"accountId\"]}')}",
-                  "from_account_name": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"name\"]}')}",
-                  "from_balance": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"balance\"]}')}"
+                  "from_account_id": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"accountId\"]}')}",
+                  "from_account_name": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"name\"]}')}",
+                  "from_balance": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"balance\"]}')}"
                 },
                 "extended_input_schema": [
                   {
@@ -399,7 +356,7 @@
               "conditions": [
                 {
                   "operand": "is_true",
-                  "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"name\"]}').to_s.strip.downcase == _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_account\"]}').to_s.strip.downcase",
+                  "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"name\"]}').to_s.strip.downcase == _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_account\"]}').to_s.strip.downcase",
                   "uuid": "to-account-name-matches"
                 }
               ]
@@ -413,8 +370,8 @@
                 "input": {
                   "input_mode": "raw",
                   "name": "declare-resolved-accounts-002:declare_resolved_accounts:to_account_id\ndeclare-resolved-accounts-002:declare_resolved_accounts:to_account_name",
-                  "to_account_id": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"accountId\"]}')}",
-                  "to_account_name": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"name\"]}')}"
+                  "to_account_id": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"accountId\"]}')}",
+                  "to_account_name": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"name\"]}')}"
                 },
                 "extended_input_schema": [
                   {
