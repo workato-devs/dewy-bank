@@ -16,7 +16,7 @@ Changing either connector's code also needs its .custom_adapter.json to change, 
 the push fails with "Package doesn't contain any assets", so this bumps each version
 note too.
 """
-import datetime, json, os, re, subprocess, sys, urllib.request
+import datetime, ipaddress, json, os, re, socket, subprocess, sys, urllib.parse, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -59,6 +59,20 @@ if len(sys.argv) != 2 or not re.match(r'^https://[^/\s]+(/[^\s]*)?$', sys.argv[1
     sys.exit('usage: python3 scripts/stamp_bank_app_url.py https://<bank app host>')
 url = sys.argv[1].rstrip('/')
 
+# Validate URL scheme and hostname to prevent SSRF
+_parsed = urllib.parse.urlparse(url)
+if _parsed.scheme != 'https':
+    sys.exit('Only https:// URLs are allowed.')
+if not _parsed.hostname:
+    sys.exit('Could not parse hostname from URL.')
+try:
+    _resolved_ip = socket.gethostbyname(_parsed.hostname)
+    _ip = ipaddress.ip_address(_resolved_ip)
+    if _ip.is_private or _ip.is_loopback or _ip.is_link_local or _ip.is_reserved:
+        sys.exit(f'Hostname {_parsed.hostname} resolves to a private/reserved IP ({_resolved_ip}). Aborting.')
+except socket.gaierror:
+    sys.exit(f'Could not resolve hostname: {_parsed.hostname}')
+
 # Fetch config.json to validate the URL and to get supportApiUrl for the support connector
 config_url = f'{url}/config.json'
 try:
@@ -95,7 +109,10 @@ code = CUSTOMER_LINE.sub(lambda m: m.group(1) + url + m.group(2), code)
 code = CUSTOMER_API_URL_LINE.sub(lambda m: m.group(1) + config['customerApiUrl'] + m.group(2), code)
 open(rb_customer, 'w').write(code)
 meta_path = os.path.join(CONN, 'dewy_bank_customer_api.custom_adapter.json')
-meta = json.load(open(meta_path))
+try:
+    meta = json.load(open(meta_path))
+except ValueError as e:
+    sys.exit(f'Could not parse {meta_path}: {e}')
 meta['note'] = f'Stamped for {url} ({datetime.date.today().isoformat()})'
 with open(meta_path, 'w') as f:
     json.dump(meta, f, indent=2, ensure_ascii=False)
@@ -109,7 +126,10 @@ code = SUPPORT_API_URL_LINE.sub(
 code = SUPPORT_KEY_LINE.sub(lambda m: m.group(1) + support_api_key + m.group(2), code)
 open(rb_support, 'w').write(code)
 meta_path = os.path.join(CONN, 'dewy_bank_support_api.custom_adapter.json')
-meta = json.load(open(meta_path))
+try:
+    meta = json.load(open(meta_path))
+except ValueError as e:
+    sys.exit(f'Could not parse {meta_path}: {e}')
 meta['note'] = f'Stamped for {url} ({datetime.date.today().isoformat()})'
 with open(meta_path, 'w') as f:
     json.dump(meta, f, indent=2, ensure_ascii=False)
