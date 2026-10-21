@@ -1,8 +1,8 @@
 {
-  "title": "Dewy Bank Customer API",
   "description": "Dewy Bank workshop: the customer API, signed in as the participant (Cognito ID token, refreshed on 401). Plain calls, no checks: decisions belong to the recipes.",
-  "logo_file_name": null,
   "logo_content_type": null,
-  "version_no": 6,
-  "note": "Stamped for https://d2c3w0ptk29gf8.cloudfront.net (2026-10-21)"
+  "logo_file_name": null,
+  "note": "Stamped for https://d2c3w0ptk29gf8.cloudfront.net (2026-10-21)",
+  "title": "Dewy Bank Customer API",
+  "version_no": 4
 }

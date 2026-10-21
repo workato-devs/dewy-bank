@@ -1,8 +1,8 @@
 {
-  "title": "Dewy Bank Support API",
   "description": "Dewy Bank workshop, Station C: the Support API with the support-agent key (a support code the facilitator hands out). Plain calls, no checks: decisions belong to the recipes.",
-  "logo_file_name": null,
   "logo_content_type": null,
-  "version_no": 4,
-  "note": "Stamped for https://d2c3w0ptk29gf8.cloudfront.net (2026-10-21)"
+  "logo_file_name": null,
+  "note": "Stamped for https://d2c3w0ptk29gf8.cloudfront.net (2026-10-21)",
+  "title": "Dewy Bank Support API",
+  "version_no": 2
 }
