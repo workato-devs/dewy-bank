@@ -12,7 +12,14 @@
   var $ = function (id) { return document.getElementById(id); };
   function show(el) { el && el.classList.remove('hide'); }
   function hide(el) { el && el.classList.add('hide'); }
-  function msg(el, text, ok) { el.innerHTML = text ? '<div class="msg ' + (ok ? 'ok' : 'err') + '">' + text + '</div>' : ''; }
+  // Escape text before it goes into innerHTML: emails, names and server
+  // messages all come from outside this page.
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+  function msg(el, text, ok) { el.innerHTML = text ? '<div class="msg ' + (ok ? 'ok' : 'err') + '">' + esc(text) + '</div>' : ''; }
   function money(n) { var neg = n < 0; return (neg ? '−' : '') + '$' + Math.abs(Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
   function cognito(action, body) {
@@ -81,14 +88,62 @@
       var accts = res.accounts || [];
       renderLeaderboard(accts);
       renderAccounts(accts);
-    }).catch(function (e) { if (!quiet) $('accounts').innerHTML = '<div class="msg err">' + e.message + '</div>'; });
+      loadSupportFeed(accts, quiet);
+    }).catch(function (e) { if (!quiet) $('accounts').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
+  }
+
+  // Holders (keyed by email, like the leaderboard) whose accounts are fictional (C-P4).
+  function fictionalHolders(accts) {
+    var set = {};
+    accts.forEach(function (a) { if (a.fictional) set[a.email || a.customerId] = true; });
+    return set;
+  }
+  var FICTIONAL_TAG = '<span class="tag-fictional">fictional</span>';
+
+  // ---- support activity (fictional customers) --------------------------
+  // Every change made through the Support API writes a row with channel
+  // `support-adjustment` (C-P3). Read each fictional account's history and show
+  // those rows, newest first.
+  function loadSupportFeed(accts, quiet) {
+    var fictional = accts.filter(function (a) { return a.fictional; });
+    if (!fictional.length) { $('supportFeed').textContent = 'No fictional customers yet. They are created at deploy, or by a workshop reset.'; return; }
+    Promise.all(fictional.map(function (a) {
+      return api('GET', '/admin/accounts/' + encodeURIComponent(a.accountId) + '/transactions').then(function (r) {
+        return (r.transactions || [])
+          .filter(function (t) { return t.channel === 'support-adjustment'; })
+          .map(function (t) { return { t: t, acct: a }; });
+      });
+    })).then(function (lists) {
+      var rows = [].concat.apply([], lists).sort(function (x, y) {
+        return String(y.t.createdAt).localeCompare(String(x.t.createdAt));
+      }).slice(0, 25);
+      renderSupportFeed(rows);
+    }).catch(function (e) { if (!quiet) msg($('supportFeed'), e.message, false); });
+  }
+
+  function renderSupportFeed(rows) {
+    if (!rows.length) { $('supportFeed').textContent = 'No support activity yet.'; return; }
+    var html = '<table class="feed"><thead><tr><th>When</th><th>Customer</th><th>Account</th><th>Reason</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+    rows.forEach(function (r) {
+      var amt = Number(r.t.amount || 0);
+      var when = r.t.createdAt ? new Date(r.t.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '';
+      html += '<tr>' +
+        '<td class="when">' + esc(when) + '</td>' +
+        '<td>' + esc(r.acct.email || r.acct.customerId) + '</td>' +
+        '<td>' + esc(r.acct.name) + '</td>' +
+        '<td class="reason">' + esc(r.t.memo || '(no reason)') + '</td>' +
+        '<td class="amt ' + (amt >= 0 ? 'up' : 'down') + '">' + (amt >= 0 ? '+' : '') + money(amt) + '</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table>';
+    $('supportFeed').innerHTML = html;
   }
 
   // ---- leaderboard -----------------------------------------------------
   var lastTotals = {}; // holder -> total, to detect movement
   function renderLeaderboard(accts) {
     if (!accts.length) { $('leaderboard').textContent = 'No account holders yet.'; return; }
-    var totals = {}, counts = {};
+    var totals = {}, counts = {}, fictional = fictionalHolders(accts);
     accts.forEach(function (a) {
       var k = a.email || a.customerId;
       totals[k] = (totals[k] || 0) + Number(a.balance || 0);
@@ -107,7 +162,7 @@
         : '';
       html += '<div class="lb-row' + flash + '" data-h="' + encodeURIComponent(h) + '">' +
         '<div class="lb-rank">' + (i + 1) + '</div>' +
-        '<div class="lb-name">' + h + '<div class="sub">' + counts[h] + ' account' + (counts[h] > 1 ? 's' : '') + '</div></div>' +
+        '<div class="lb-name">' + esc(h) + (fictional[h] ? FICTIONAL_TAG : '') + '<div class="sub">' + counts[h] + ' account' + (counts[h] > 1 ? 's' : '') + '</div></div>' +
         '<div class="lb-bar"><div class="lb-fill" style="width:' + pct + '%"></div></div>' +
         '<div><div class="lb-amt' + (v < 0 ? ' neg' : '') + '">' + money(v) + '</div>' + deltaHtml + '</div>' +
         '</div>';
@@ -126,22 +181,22 @@
   function renderAccounts(accts) {
     if (!accts.length) { $('accounts').textContent = 'No accounts yet. Have a customer sign up in the banking app.'; return; }
     // group by email/customer
-    var groups = {};
+    var groups = {}, fictional = fictionalHolders(accts);
     accts.forEach(function (a) { var k = a.email || a.customerId; (groups[k] = groups[k] || []).push(a); });
     var html = '<table><thead><tr><th>Account</th><th>Name</th><th>Balance</th><th>Actions</th></tr></thead><tbody>';
     Object.keys(groups).forEach(function (k) {
-      html += '<tr class="cust-head"><td colspan="4">👤 ' + k + '</td></tr>';
+      html += '<tr class="cust-head"><td colspan="4">👤 ' + esc(k) + (fictional[k] ? FICTIONAL_TAG : '') + '</td></tr>';
       groups[k].forEach(function (a) {
         var neg = a.balance < 0;
         html += '<tr>' +
-          '<td class="mono">' + a.accountId + '</td>' +
-          '<td>' + a.name + '</td>' +
+          '<td class="mono">' + esc(a.accountId) + '</td>' +
+          '<td>' + esc(a.name) + '</td>' +
           '<td class="bal' + (neg ? ' neg' : '') + '">' + money(a.balance) + '</td>' +
           '<td><div class="acts">' +
-            '<button class="ghost sm" data-act="credit" data-id="' + a.accountId + '">+$100</button>' +
-            '<button class="ghost sm" data-act="debit" data-id="' + a.accountId + '">−$100</button>' +
-            '<button class="ghost sm" data-act="set" data-id="' + a.accountId + '">Set…</button>' +
-            '<button class="danger sm" data-act="reset" data-id="' + a.accountId + '">Reset $1000</button>' +
+            '<button class="ghost sm" data-act="credit" data-id="' + esc(a.accountId) + '">+$100</button>' +
+            '<button class="ghost sm" data-act="debit" data-id="' + esc(a.accountId) + '">−$100</button>' +
+            '<button class="ghost sm" data-act="set" data-id="' + esc(a.accountId) + '">Set…</button>' +
+            '<button class="danger sm" data-act="reset" data-id="' + esc(a.accountId) + '">Reset $1000</button>' +
           '</div></td></tr>';
       });
     });
@@ -181,10 +236,25 @@
     var from = $('xFrom').value.trim(), to = $('xTo').value.trim(), amount = parseFloat($('xAmt').value);
     if (!from || !to) { msg($('xMsg'), 'Both account IDs are required', false); return; }
     if (!(amount > 0)) { msg($('xMsg'), 'Enter a positive amount', false); return; }
+    var memo = $('xMemo').value;
     msg($('xMsg'), 'Sending…', true);
-    api('POST', '/admin/transfer', { from: from, to: to, amount: amount })
-      .then(function () { msg($('xMsg'), 'Transfer complete ✓', true); $('xAmt').value = ''; loadAll(); })
+    api('POST', '/admin/transfer', { from: from, to: to, amount: amount, memo: memo || undefined })
+      .then(function () { msg($('xMsg'), 'Transfer complete ✓', true); $('xAmt').value = ''; $('xMemo').value = ''; loadAll(); })
       .catch(function (e) { msg($('xMsg'), e.message, false); });
+  };
+
+  // ---- reset (P10) -----------------------------------------------------
+  $('rBtn').onclick = function () {
+    var email = $('rEmail').value.trim();
+    var scope = email || 'the whole workshop';
+    if (!window.confirm('Reset ' + scope + '? Balances and activity go back to the starting seed.')) return;
+    msg($('rMsg'), 'Starting…', true);
+    api('POST', '/admin/reseed', email ? { email: email } : {})
+      .then(function () {
+        msg($('rMsg'), 'Reset started for ' + scope + '. Refresh in a few seconds.', true);
+        setTimeout(loadAll, 4000);
+      })
+      .catch(function (e) { msg($('rMsg'), e.message, false); });
   };
 
   // ---- boot ------------------------------------------------------------

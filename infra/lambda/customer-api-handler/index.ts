@@ -1,18 +1,24 @@
 /**
- * Dewy Bank — Customer API handler (Phase 1).
+ * Dewy Bank — Customer API handler.
  *
- * The HONEST, non-vulnerable path: an API Gateway HTTP API with a Cognito JWT
- * authorizer sits in front of this Lambda. EVERY query is scoped server-side to
- * the Cognito `sub` taken from the VALIDATED JWT claims (event.requestContext.
- * authorizer.jwt.claims.sub) — caller-supplied ids are NEVER trusted for
- * ownership. {id} path params are ownership-checked against the caller's sub.
+ * An API Gateway HTTP API with a Cognito JWT authorizer sits in front of this
+ * Lambda. EVERY query is scoped server-side to the Cognito `sub` taken from the
+ * VALIDATED JWT claims (event.requestContext.authorizer.jwt.claims.sub) —
+ * caller-supplied ids are NEVER trusted for ownership. {id} path params are
+ * ownership-checked against the caller's sub.
+ *
+ * The API makes no business decisions (Seven Factors, Factor II): it keeps who
+ * the caller is and which accounts they can reach, and checks that a request is
+ * well-formed. Limits, refusals and funds checks belong to the control plane
+ * (the Workato recipe). See docs/backend-requirements.md (P2, P5, P6).
  *
  * Routes:
  *   GET  /me                             profile (customer record for sub)
  *   GET  /accounts                       caller's accounts (owner-index GSI on sub)
  *   GET  /accounts/{id}                  account detail (ownership-checked)
  *   GET  /accounts/{id}/transactions     transactions for an owned account
- *   POST /transfers {from,to,amount}     transfer between caller-OWNED accounts only
+ *   POST /transfers {from,to,amount,memo?}          between caller-OWNED accounts only
+ *   POST /payments {from,to_email,amount,memo?}     to another customer's checking (P5)
  *   GET  /statements/{id}                statement (ownership-checked via its account)
  *
  * Money is stored in integer CENTS to avoid float drift; the API speaks decimal
@@ -29,17 +35,22 @@ import {
   TransactWriteCommand,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import { randomUUID } from 'crypto';
+import { parseMemo } from '../shared/memo';
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
   marshallOptions: { removeUndefinedValues: true },
 });
+const lambdaClient = new LambdaClient({});
 
 const CUSTOMERS_TABLE = process.env.CUSTOMERS_TABLE!;
 const ACCOUNTS_TABLE = process.env.ACCOUNTS_TABLE!;
 const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE!;
 const STATEMENTS_TABLE = process.env.STATEMENTS_TABLE!;
+const PROVISIONING_FN = process.env.PROVISIONING_FN ?? '';
 const OWNER_INDEX = 'owner-index';
+const EMAIL_INDEX = 'email-index';
 
 type ApiEvent = {
   requestContext?: {
@@ -73,6 +84,21 @@ function viewAccount(a: Record<string, any>) {
     type: a.type ?? 'checking',
     currency: a.currency ?? 'USD',
     balance: toDollars(a.balanceCents ?? 0),
+  };
+}
+
+/** Shape a transaction row. `memo` is what the sender wrote; `channel` is which route wrote it (P2). */
+function viewTxn(t: Record<string, any>) {
+  return {
+    txnId: t.txnId,
+    accountId: t.accountId,
+    type: t.type,
+    amount: toDollars(t.amountCents ?? 0),
+    counterparty: t.counterparty ?? null,
+    memo: t.memo ?? null,
+    channel: t.channel ?? null,
+    category: t.category ?? null,
+    createdAt: t.createdAt ?? null,
   };
 }
 
@@ -126,40 +152,24 @@ export const handler = async (event: ApiEvent): Promise<Resp> => {
     if (method === 'GET' && m) {
       const acct = await getOwnedAccount(m[1], sub);
       if (!acct) return json(404, { message: 'Account not found' });
-      const r = await ddb.send(
-        new QueryCommand({
-          TableName: TRANSACTIONS_TABLE,
-          KeyConditionExpression: 'accountId = :a',
-          ExpressionAttributeValues: { ':a': m[1] },
-          ScanIndexForward: false,
-          Limit: 100,
-        }),
-      );
-      const txns = (r.Items ?? []).map((t) => ({
-        txnId: t.txnId,
-        accountId: t.accountId,
-        type: t.type,
-        amount: toDollars(t.amountCents ?? 0),
-        counterparty: t.counterparty ?? null,
-        memo: t.memo ?? null,
-        category: t.category ?? null,
-        createdAt: t.createdAt ?? null,
-      }));
-      return json(200, { transactions: txns });
+      return json(200, { transactions: await listTransactions(m[1]) });
     }
 
-    // POST /transfers {from,to,amount} — between caller-OWNED accounts only
+    // POST /transfers {from,to,amount,memo?} — between caller-OWNED accounts only.
+    // No amount, same-account or funds checks (P6): those are the recipe's rules.
     if (method === 'POST' && path === '/transfers') {
       const body = parseBody(event);
       const from = String(body.from ?? '');
       const to = String(body.to ?? '');
       const amount = Number(body.amount);
-      if (!from || !to || !Number.isFinite(amount) || amount <= 0) {
-        return json(400, { message: 'from, to and a positive amount are required' });
+      if (!from || !to || !Number.isFinite(amount)) {
+        return json(400, { message: 'from, to and a numeric amount are required' });
       }
-      if (from === to) return json(400, { message: 'from and to must differ' });
+      const memo = parseMemo(body.memo);
+      if (!memo.ok) return json(400, { message: memo.message });
 
-      // OWNERSHIP: both accounts must belong to the caller's sub.
+      // OWNERSHIP: both accounts must belong to the caller's sub. That's scope,
+      // not a business rule, so the API keeps it.
       const [src, dst] = await Promise.all([
         getOwnedAccount(from, sub),
         getOwnedAccount(to, sub),
@@ -168,14 +178,55 @@ export const handler = async (event: ApiEvent): Promise<Resp> => {
         return json(403, { message: 'Both accounts must be owned by the caller' });
       }
       const cents = toCents(amount);
-      if ((src.balanceCents ?? 0) < cents) {
-        return json(422, { message: 'Insufficient funds' });
-      }
-      await moveFunds(from, to, cents, 'customer-transfer');
+      await moveFunds({ from, to, cents, channel: 'customer-transfer', memo: memo.memo });
       return json(200, {
         message: 'Transfer complete',
         from,
         to,
+        amount: toDollars(cents),
+      });
+    }
+
+    // POST /payments {from,to_email,amount,memo?} — pay another customer (P5).
+    // The money lands in the recipient's checking. No business checks: no
+    // positive-amount, funds, limit, payee or confirmation rules. A negative
+    // amount moves money the other way; that's deliberate (P5, "Negative
+    // amounts"): a caller who skips the control plane gets no rules at all.
+    if (method === 'POST' && path === '/payments') {
+      const body = parseBody(event);
+      const from = String(body.from ?? '');
+      const toEmail = String(body.to_email ?? '').trim();
+      const amount = Number(body.amount);
+      if (!from || !toEmail || !Number.isFinite(amount)) {
+        return json(400, { message: 'from, to_email and a numeric amount are required' });
+      }
+      const memo = parseMemo(body.memo);
+      if (!memo.ok) return json(400, { message: memo.message });
+
+      const src = await getOwnedAccount(from, sub);
+      if (!src) return json(403, { message: 'You can only pay from your own accounts' });
+
+      const recipient = await findCustomerByEmail(toEmail);
+      if (!recipient) return json(404, { message: 'Customer not found' });
+      const recipientAccounts = await listOwnedAccounts(recipient.customerId);
+      const checking = recipientAccounts.find((a) => a.type === 'checking');
+      if (!checking) return json(404, { message: 'Customer has no checking account' });
+
+      const payerEmail = (claims.email as string | undefined) ?? (await getCustomerEmail(sub)) ?? sub;
+      const cents = toCents(amount);
+      await moveFunds({
+        from,
+        to: checking.accountId,
+        cents,
+        channel: 'customer-payment',
+        memo: memo.memo,
+        debitCounterparty: recipient.email,
+        creditCounterparty: payerEmail,
+      });
+      return json(200, {
+        message: 'Payment sent',
+        from,
+        to_email: recipient.email,
         amount: toDollars(cents),
       });
     }
@@ -211,8 +262,6 @@ export const handler = async (event: ApiEvent): Promise<Resp> => {
     // ADMIN / FACILITATOR routes — gated by the `facilitators` Cognito group.
     // These power the admin console UI. Auth is the SAME Cognito JWT (no static
     // API key in the browser); the group claim is the authorization boundary.
-    // This is the HONEST, authenticated admin surface — distinct from the
-    // intentionally-insecure x-api-key Admin API consumed by Workato.
     // =====================================================================
     if (path.startsWith('/admin/')) {
       if (!isFacilitator) {
@@ -239,7 +288,8 @@ export const handler = async (event: ApiEvent): Promise<Resp> => {
         const emailBySub: Record<string, string> = {};
         for (const c of customers) emailBySub[c.customerId] = c.email ?? '';
         const view = accounts
-          .map((a) => ({ ...viewAccount(a), email: emailBySub[a.customerId] ?? null }))
+          // `fictional` lets the console badge the C-P4 customers.
+          .map((a) => ({ ...viewAccount(a), email: emailBySub[a.customerId] ?? null, fictional: a.fictional === true }))
           .sort((x, y) => (x.email ?? '').localeCompare(y.email ?? ''));
         return json(200, { accounts: view });
       }
@@ -247,25 +297,7 @@ export const handler = async (event: ApiEvent): Promise<Resp> => {
       // GET /admin/accounts/{id}/transactions — any account's history.
       let am = path.match(/^\/admin\/accounts\/([^/]+)\/transactions$/);
       if (method === 'GET' && am) {
-        const r = await ddb.send(
-          new QueryCommand({
-            TableName: TRANSACTIONS_TABLE,
-            KeyConditionExpression: 'accountId = :a',
-            ExpressionAttributeValues: { ':a': am[1] },
-            ScanIndexForward: false,
-            Limit: 100,
-          }),
-        );
-        const txns = (r.Items ?? []).map((t) => ({
-          txnId: t.txnId,
-          type: t.type,
-          amount: toDollars(t.amountCents ?? 0),
-          counterparty: t.counterparty ?? null,
-          memo: t.memo ?? null,
-          category: t.category ?? null,
-          createdAt: t.createdAt ?? null,
-        }));
-        return json(200, { transactions: txns });
+        return json(200, { transactions: await listTransactions(am[1]) });
       }
 
       // POST /admin/adjust-balance {id, amount} — mint/seed/reset (delta in $).
@@ -318,7 +350,9 @@ export const handler = async (event: ApiEvent): Promise<Resp> => {
         });
       }
 
-      // POST /admin/transfer {from,to,amount} — facilitator-driven raw transfer.
+      // POST /admin/transfer {from,to,amount,memo?} — facilitator-driven raw
+      // transfer: the live vector for a poisoned memo (P2). The facilitator's
+      // own tool keeps its sanity checks; it isn't a station's control plane.
       if (method === 'POST' && path === '/admin/transfer') {
         const b = parseBody(event);
         const from = String(b.from ?? '');
@@ -328,8 +362,28 @@ export const handler = async (event: ApiEvent): Promise<Resp> => {
           return json(400, { message: 'from, to and a positive amount are required' });
         }
         if (from === to) return json(400, { message: 'from and to must differ' });
-        await moveFunds(from, to, toCents(amount), 'admin-console-transfer');
+        const memo = parseMemo(b.memo);
+        if (!memo.ok) return json(400, { message: memo.message });
+        await moveFunds({ from, to, cents: toCents(amount), channel: 'admin-console-transfer', memo: memo.memo });
         return json(200, { message: 'Transfer complete', from, to, amount });
+      }
+
+      // POST /admin/reseed {email?} — reset the whole workshop, or one
+      // participant (P10). Runs in the provisioning Lambda, asynchronously,
+      // so a big room doesn't hit the API's 30-second limit.
+      if (method === 'POST' && path === '/admin/reseed') {
+        const b = parseBody(event);
+        const email = b.email === undefined || b.email === null ? undefined : String(b.email).trim();
+        if (email !== undefined && !email) return json(400, { message: 'email, if given, must not be empty' });
+        if (!PROVISIONING_FN) return json(500, { message: 'Provisioning function not configured' });
+        await lambdaClient.send(
+          new InvokeCommand({
+            FunctionName: PROVISIONING_FN,
+            InvocationType: 'Event',
+            Payload: Buffer.from(JSON.stringify({ action: 'reseed', email })),
+          }),
+        );
+        return json(202, { message: 'Reset started', scope: email ?? 'workshop' });
       }
 
       return json(404, { message: `No admin route for ${method} ${path}` });
@@ -371,6 +425,46 @@ async function listOwnedAccounts(sub: string): Promise<Record<string, any>[]> {
     }),
   );
   return r.Items ?? [];
+}
+
+async function listTransactions(accountId: string) {
+  const r = await ddb.send(
+    new QueryCommand({
+      TableName: TRANSACTIONS_TABLE,
+      KeyConditionExpression: 'accountId = :a',
+      ExpressionAttributeValues: { ':a': accountId },
+      ScanIndexForward: false,
+      Limit: 100,
+    }),
+  );
+  return (r.Items ?? []).map(viewTxn);
+}
+
+/**
+ * Find a customer by email (C-P1), via the email-index GSI. Tries the email as
+ * given, then lower-cased, since Cognito keeps the case the customer typed.
+ */
+async function findCustomerByEmail(email: string): Promise<Record<string, any> | null> {
+  for (const candidate of new Set([email, email.toLowerCase()])) {
+    const r = await ddb.send(
+      new QueryCommand({
+        TableName: CUSTOMERS_TABLE,
+        IndexName: EMAIL_INDEX,
+        KeyConditionExpression: 'email = :e',
+        ExpressionAttributeValues: { ':e': candidate },
+        Limit: 1,
+      }),
+    );
+    if (r.Items?.[0]) return r.Items[0];
+  }
+  return null;
+}
+
+async function getCustomerEmail(sub: string): Promise<string | undefined> {
+  const r = await ddb.send(
+    new GetCommand({ TableName: CUSTOMERS_TABLE, Key: { customerId: sub } }),
+  );
+  return r.Item?.email;
 }
 
 /**
@@ -428,67 +522,74 @@ async function getOwnedAccount(
   return r.Item;
 }
 
+type Move = {
+  from: string;
+  to: string;
+  cents: number;
+  /** Which route wrote the rows (audit data, P2). */
+  channel: string;
+  /** What the sender wrote, stored exactly as sent (P2). */
+  memo?: string;
+  /** Shown on each row as the other side; defaults to the other account's id. */
+  debitCounterparty?: string;
+  creditCounterparty?: string;
+};
+
 /**
- * Atomically move `cents` from one account to another and write both txn legs,
- * using a single DynamoDB transaction with a balance guard on the source.
+ * Atomically move `cents` from one account to another and write both txn
+ * legs, in a single DynamoDB transaction. There's no balance guard (P6): the
+ * amount is applied as given, including a negative one.
+ *
+ * A same-account move (from === to) writes both rows and leaves the balance
+ * unchanged: DynamoDB can't update one item twice in a transaction, and the
+ * net change is zero anyway.
  */
-async function moveFunds(
-  from: string,
-  to: string,
-  cents: number,
-  kind: string,
-): Promise<void> {
+async function moveFunds(mv: Move): Promise<void> {
   const now = new Date().toISOString();
   const debitId = randomUUID();
   const creditId = randomUUID();
+  const row = (accountId: string, id: string, type: 'debit' | 'credit', counterparty: string) => ({
+    Put: {
+      TableName: TRANSACTIONS_TABLE,
+      Item: {
+        accountId,
+        txnId: `${now}#${id}`,
+        type,
+        amountCents: mv.cents,
+        counterparty,
+        memo: mv.memo,
+        channel: mv.channel,
+        createdAt: now,
+      },
+    },
+  });
+  const balanceUpdates =
+    mv.from === mv.to
+      ? []
+      : [
+          {
+            Update: {
+              TableName: ACCOUNTS_TABLE,
+              Key: { accountId: mv.from },
+              UpdateExpression: 'SET balanceCents = balanceCents - :amt',
+              ExpressionAttributeValues: { ':amt': mv.cents },
+            },
+          },
+          {
+            Update: {
+              TableName: ACCOUNTS_TABLE,
+              Key: { accountId: mv.to },
+              UpdateExpression: 'SET balanceCents = balanceCents + :amt',
+              ExpressionAttributeValues: { ':amt': mv.cents },
+            },
+          },
+        ];
   await ddb.send(
     new TransactWriteCommand({
       TransactItems: [
-        {
-          Update: {
-            TableName: ACCOUNTS_TABLE,
-            Key: { accountId: from },
-            UpdateExpression: 'SET balanceCents = balanceCents - :amt',
-            ConditionExpression: 'balanceCents >= :amt',
-            ExpressionAttributeValues: { ':amt': cents },
-          },
-        },
-        {
-          Update: {
-            TableName: ACCOUNTS_TABLE,
-            Key: { accountId: to },
-            UpdateExpression: 'SET balanceCents = balanceCents + :amt',
-            ExpressionAttributeValues: { ':amt': cents },
-          },
-        },
-        {
-          Put: {
-            TableName: TRANSACTIONS_TABLE,
-            Item: {
-              accountId: from,
-              txnId: `${now}#${debitId}`,
-              type: 'debit',
-              amountCents: cents,
-              counterparty: to,
-              memo: kind,
-              createdAt: now,
-            },
-          },
-        },
-        {
-          Put: {
-            TableName: TRANSACTIONS_TABLE,
-            Item: {
-              accountId: to,
-              txnId: `${now}#${creditId}`,
-              type: 'credit',
-              amountCents: cents,
-              counterparty: from,
-              memo: kind,
-              createdAt: now,
-            },
-          },
-        },
+        ...balanceUpdates,
+        row(mv.from, debitId, 'debit', mv.debitCounterparty ?? mv.to),
+        row(mv.to, creditId, 'credit', mv.creditCounterparty ?? mv.from),
       ],
     }),
   );

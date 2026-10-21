@@ -1,6 +1,6 @@
 # Dewy Bank backend requirements
 
-**Status:** collecting. Nothing here is built. The bank moved into this repo's `infra/` (2026-10-20), so this file is its work plan: each item becomes the code change it describes (`infra/lambda/…`, `infra/lib/dewybank-stack.ts`, tests in `infra/test/`).
+**Status:** built in `infra/` (2026-10-20): every Needed item below, verified by `tsc`, the stack tests and handler tests (positive paths), and a full `cdk synth`. Nothing is deployed yet, so nothing has run end to end. The bank moved into this repo's `infra/` (2026-10-20), so this file is its work plan: each item becomes the code change it describes (`infra/lambda/…`, `infra/lib/dewybank-stack.ts`, tests in `infra/test/`).
 **Owner of the decisions and the code:** the workshop author.
 
 **The rule these follow (Seven Factors, Factor II).** The bank's API is the system of record: it doesn't make business decisions. Validation, limits, refusals and error handling belong to the control plane, which in this workshop is the Workato recipe. The API keeps what any sensible API keeps: who the caller is, and which accounts they can reach. That's what blocks one customer from reaching another's data. One documented exception: `/payments` accepts negative amounts, so a caller can debit another customer's checking (P5).
@@ -12,19 +12,19 @@
 | ID | Change | Needed by | Status |
 |---|---|---|---|
 | P1 | A transactions read route on the Admin API | — | **Superseded** (2026-10-20): customer tools call the customer API, which already has `GET /accounts/{id}/transactions` |
-| P2 | **Memos are free text from end to end** | every station (the attack channel) | Needed |
-| P2b | **A seeded poisoned transaction** in every participant's history, restored on reset | every station | Needed; blocked on P3 |
+| P2 | **Memos are free text from end to end** | every station (the attack channel) | **Built** (2026-10-20, in `infra/`; not yet deployed): `memo` on `/transfers`, `/payments`, `/admin/transfer`; route name in `channel`; 280-character cap; the bank app escapes memos on display |
+| P2b | **A seeded poisoned transaction** in every participant's history, restored on reset | every station | **Built** (2026-10-20, in `infra/`; not yet deployed): in `lambda/shared/seed.ts`; a test checks it matches `memo-list.md` |
 | P3 | The shared memo-injection payload (content, not code), in [`docs/memo-list.md`](memo-list.md) | every station | **Written** (2026-10-20): one shared payload, $50, placeholder facilitator email |
 | P4 | The `customer_id` stand-in identity | — | **Superseded** (2026-10-20): the participant's own Cognito token, through the "Dewy Bank Customer API" connector |
-| P5 | **Pay another customer:** `POST /payments` | Station A's theft attack; the pay tool at every station | Needed; open points below |
-| P6 | **Remove the business checks from the customer API's writes** | Station A | Needed |
-| P8 | **A chat panel in the bank app**, talking to the participant's own Genies through a bank-side proxy | every station (participants work only in the bank app) | Needed; open points below |
-| P9 | **Publish the bank app's config as `config.json`** | every station (the customer connector discovers the deployment from it) | Needed |
-| P10 | **Build provisioning and reset** (the provisioning Lambda is a stub today) | every station (P2b, P5 and C-P4 all need restoring) | Needed (found in the 2026-10-20 audit) |
-| P7 | **Retire the full-access Admin API; reuse its gateway as the Support API** | every station (removes an unused, all-powerful key) | Needed |
-| C-P1 | **Look up a customer by email** | Station C's support tools; P5 | Needed |
-| C-P3 | **A support-agent key, limited to the support routes and the fictional customers** | Station C | Needed (D6) |
-| C-P4 | **Seed the fictional customers**, restored on reset | Station C | Needed (D6) |
+| P5 | **Pay another customer:** `POST /payments` | Station A's theft attack; the pay tool at every station | **Built** (2026-10-20, in `infra/`; not yet deployed). Open point 1 (confirmation) uses option (a), Workato's skill confirmation, through the chat panel |
+| P6 | **Remove the business checks from the customer API's writes** | Station A | **Built** (2026-10-20, in `infra/`; not yet deployed). Same-account transfers write both rows and leave the balance unchanged (the spec's suggestion) |
+| P8 | **A chat panel in the bank app**, talking to the participant's own Genies through a bank-side proxy | every station (participants work only in the bank app) | **Built** (2026-10-20, in `infra/`; not yet deployed): `chat-handler` and the panel in `index.html`. The proxy has no handler tests yet, and the panel hasn't run against a live Genie |
+| P9 | **Publish the bank app's config as `config.json`** | every station (the customer connector discovers the deployment from it) | **Built** (2026-10-20, in `infra/`; not yet deployed). The connectors' check for an HTML fallback is still to do (workshop side) |
+| P10 | **Build provisioning and reset** (the provisioning Lambda is a stub today) | every station (P2b, P5 and C-P4 all need restoring) | **Built** (2026-10-20, in `infra/`; not yet deployed): `setup` and `reseed`; the console's Reset card calls `/admin/reseed` |
+| P7 | **Retire the full-access Admin API; reuse its gateway as the Support API** | every station (removes an unused, all-powerful key) | **Built** (2026-10-20, in `infra/`; not yet deployed) |
+| C-P1 | **Look up a customer by email** | Station C's support tools; P5 | **Built** (2026-10-20, in `infra/`; not yet deployed): `email-index` GSI on Customers |
+| C-P3 | **A support-agent key, limited to the support routes and the fictional customers** | Station C | **Built** (2026-10-20, in `infra/`; not yet deployed) |
+| C-P4 | **Seed the fictional customers**, restored on reset | Station C | **Built** (2026-10-20, in `infra/`; not yet deployed), and created at deploy by a custom resource |
 | C-P2 | A support-agent credential | — | **Not needed** (D1, 2026-10-20): customer tools moved to the customer API, and the support tools keep the Admin API key |
 | R1 | Risk: participants hold the cohort's full-access Admin API key | — | **Closed** (D6, 2026-10-20): no station uses the full key, and P7 retires it; Station C's tools get the scoped support-agent key (C-P3) |
 

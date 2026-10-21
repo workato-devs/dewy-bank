@@ -5,6 +5,12 @@ name: deploy
 # Runs after a push to main (a merged PR) or a manual dispatch, and is gated by
 # the `production` GitHub Environment (which carries the manual-approval
 # reviewer). No AWS keys are stored — the job assumes an IAM role via OIDC.
+#
+# Configure in Settings → Secrets and variables → Actions → Variables:
+#   DEPLOY_ROLE_ARN  the role from the DewyBank-GithubOidc stack (required;
+#                    without it the deploy job is skipped, e.g. in forks)
+#   AWS_REGION       optional, default us-west-2
+# See infra/README.md, "CI deploy role".
 
 on:
   push:
@@ -25,15 +31,16 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AWS_REGION: us-west-2
-  # Change these two in repo Settings → Variables if the role/workshop changes.
-  DEPLOY_ROLE_ARN: arn:aws:iam::<your-account-id>:role/dewybank-github-deploy
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-west-2' }}
+  DEPLOY_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
   WORKSHOP_ID: ${{ github.event.inputs.workshopId || 'demo01' }}
   NPM_CONFIG_IGNORE_SCRIPTS: "true"
 
 jobs:
   deploy:
     name: Deploy to AWS
+    # Skip (rather than fail) where no deploy role is configured, e.g. forks.
+    if: ${{ vars.DEPLOY_ROLE_ARN != '' }}
     runs-on: ubuntu-latest
     environment: production
     permissions:

@@ -17,30 +17,45 @@ const approvedSenderEmails = approvedSendersRaw
   ? approvedSendersRaw.split(',').map((s) => s.trim()).filter(Boolean)
   : [];
 
+// Target account/region: whatever the active AWS profile resolves to
+// (`--profile`, or the AWS_* environment). CDK fills CDK_DEFAULT_* from it.
+// With no profile (e.g. CI's synth-only job), the stacks synth
+// environment-agnostic, and a deploy fails for lack of credentials.
+const env =
+  process.env.CDK_DEFAULT_ACCOUNT && process.env.CDK_DEFAULT_REGION
+    ? { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION }
+    : undefined;
+
 new DewyBankStack(app, `DewyBank-${workshopId}`, {
   workshopId,
   approvedSenderEmails,
-  // Target account/region (plan: your account, us-west-2). CDK_DEFAULT_*
-  // are populated from the active `--profile` at synth/deploy time; the literals
-  // are the fallback so synth is deterministic without env plumbing.
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT ?? '000000000000',
-    region: process.env.CDK_DEFAULT_REGION ?? 'us-west-2',
-  },
-  description: `Dewy Bank security-education workshop — Phase 0 foundations (workshop ${workshopId}).`,
+  env,
+  description: `Dewy Bank security-education workshop (workshop ${workshopId}).`,
 });
 
-// GitHub Actions OIDC deploy role (CI/CD infra). Deployed once, independent of
-// the per-workshop app stack. Imports the account's EXISTING GitHub OIDC
-// provider. Override repo/provider/subjects via context if they ever change:
-//   -c githubOwnerRepo=owner/repo -c oidcProviderArn=arn:... \
-//   -c extraTrustedSubjects=repo:owner/repo:environment:production
+// GitHub Actions OIDC deploy role (CI/CD infra). Deployed once per account,
+// independent of the per-workshop app stack. Imports the account's EXISTING
+// GitHub OIDC provider. Pass these for your repo:
+//   -c githubOwnerRepo=owner/repo
+//   -c githubSubjectPrefix=<the repo's sub-claim prefix>   (see below)
+//   -c oidcProviderArn=arn:...                               (optional)
+//   -c extraTrustedSubjects=<sub>,<sub>                      (optional, replaces the default)
+//
+// githubSubjectPrefix: GitHub prefixes every OIDC `sub` claim with either the
+// classic `repo:owner/repo` or, when the repo uses immutable subjects,
+// `repo:owner@<ownerId>/repo@<repoId>`. The role only trusts subjects that
+// match exactly, so pass what this returns:
+//   gh api repos/<owner>/<repo>/actions/oidc/customization/sub   (sub_claim_prefix)
+// It defaults to the classic form.
 const githubOwnerRepo =
   (app.node.tryGetContext('githubOwnerRepo') as string | undefined) ??
-  'workato-devs/dewy-bank-internal';
+  'workato-devs/dewy-bank';
+const subjectPrefix =
+  (app.node.tryGetContext('githubSubjectPrefix') as string | undefined) ??
+  `repo:${githubOwnerRepo}`;
 const oidcProviderArn =
   (app.node.tryGetContext('oidcProviderArn') as string | undefined) ??
-  `arn:aws:iam::${process.env.CDK_DEFAULT_ACCOUNT ?? '000000000000'}:oidc-provider/token.actions.githubusercontent.com`;
+  `arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com`;
 const extraTrustedSubjectsRaw = app.node.tryGetContext('extraTrustedSubjects') as
   | string
   | undefined;
@@ -48,16 +63,14 @@ const additionalTrustedSubjects = extraTrustedSubjectsRaw
   ? extraTrustedSubjectsRaw.split(',').map((s) => s.trim()).filter(Boolean)
   : // Default: also trust the `production` GitHub Environment subject, so an
     // Environment-gated deploy job (with a manual approval reviewer) is accepted.
-    [`repo:${githubOwnerRepo}:environment:production`];
+    [`${subjectPrefix}:environment:production`];
 
 new GithubOidcStack(app, 'DewyBank-GithubOidc', {
   githubOwnerRepo,
+  subjectPrefix,
   oidcProviderArn,
   additionalTrustedSubjects,
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT ?? '000000000000',
-    region: process.env.CDK_DEFAULT_REGION ?? 'us-west-2',
-  },
+  env,
   description: 'Dewy Bank — GitHub Actions OIDC deploy role (CI/CD infra, deploy once).',
 });
 

@@ -148,6 +148,25 @@
     }
     .card h2 { font-size:16px; margin:0 0 16px; display:flex; align-items:center; gap:9px; }
     .row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+    /* Chat panel (P8) */
+    .chat { margin-bottom:22px; }
+    .chat h2 { flex-wrap:wrap; }
+    .chat-station { width:auto; font-size:13px; padding:6px 10px; }
+    .chat-setup { background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
+    .chat-setup textarea { width:100%; border:1px solid var(--line); border-radius:10px; padding:10px; resize:vertical; margin-bottom:10px; }
+    .chat-log { max-height:340px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:4px 2px 12px; }
+    .chat-empty { color:var(--faint); font-size:13px; }
+    .bubble { max-width:80%; padding:10px 14px; border-radius:14px; font-size:14px; line-height:1.45; white-space:pre-wrap; word-wrap:break-word; }
+    .bubble.me { align-self:flex-end; background:var(--brand); color:#fff; border-bottom-right-radius:4px; }
+    .bubble.dewy { align-self:flex-start; background:var(--surface-2); border:1px solid var(--line); border-bottom-left-radius:4px; }
+    .bubble.status { align-self:center; background:none; color:var(--faint); font-size:12px; padding:2px; }
+    .bubble.confirm { align-self:flex-start; background:var(--brand-050); border:1px solid var(--line); }
+    .bubble.confirm .acts { display:flex; gap:8px; margin-top:10px; }
+    .chat-input { display:flex; gap:10px; }
+    .chat-input input { flex:1; }
+    .chat button.sm { padding:6px 10px; font-size:12px; }
+    .chat .note { font-size:12px; color:var(--muted); margin:0 0 10px; }
+    .chat-setup .wide { width:100%; }
     .row > .field { flex:1; min-width:150px; margin:0; }
 
     table { width:100%; border-collapse:collapse; }
@@ -273,6 +292,25 @@
       </section>
 
       <div class="grid cards" id="accountCards" style="margin-bottom:22px"></div>
+
+      <div class="card chat" id="chatCard">
+        <h2><img class="dewy" src="dewy-genie.png" alt="" style="width:22px;height:22px" /> Ask Dewy
+          <select id="chatStation" class="chat-station" aria-label="Station"></select>
+          <button id="chatSetupToggle" class="ghost sm" style="margin-left:auto">Set up chat</button>
+        </h2>
+        <div id="chatSetup" class="chat-setup hide">
+          <p class="note" style="margin-top:0">Paste the setup text your facilitator's script printed for you (it starts with <span class="mono">{"version": 1</span>). You only need to do this once.</p>
+          <textarea id="chatBlob" rows="4" class="mono" placeholder='{"version": 1, "genie_api_host": "…", "idp_user_id": "…", "stations": {…}}'></textarea>
+          <button id="chatSaveBlob" class="wide">Save</button>
+          <div id="chatSetupMsg"></div>
+        </div>
+        <div id="chatLog" class="chat-log" aria-live="polite"><div class="chat-empty">Pick a station and say hello.</div></div>
+        <div class="chat-input">
+          <input id="chatText" placeholder="Ask about your accounts…" maxlength="4000" />
+          <button id="chatSend">Send</button>
+        </div>
+        <div id="chatMsg"></div>
+      </div>
 
       <div class="cols">
         <div>

@@ -19,8 +19,16 @@ import * as iam from 'aws-cdk-lib/aws-iam';
  * workflow running from any other repo/branch cannot assume this role.
  */
 export interface GithubOidcStackProps extends cdk.StackProps {
-  /** `owner/repo`, e.g. `workato-devs/dewy-bank-internal`. */
+  /** `owner/repo`, e.g. `workato-devs/dewy-bank`. */
   readonly githubOwnerRepo: string;
+
+  /**
+   * The prefix GitHub puts on the repo's OIDC `sub` claims: the classic
+   * `repo:owner/repo` (the default), or `repo:owner@<id>/repo@<id>` when the
+   * repo uses immutable subjects. Trust matches the claim exactly, so this
+   * must be the repo's real prefix.
+   */
+  readonly subjectPrefix?: string;
 
   /**
    * ARN of the EXISTING GitHub OIDC provider in this account. We import it
@@ -57,8 +65,9 @@ export class GithubOidcStack extends cdk.Stack {
 
     // The subjects (`sub` claim) GitHub's OIDC token will carry. main is always
     // trusted; callers add Environment / dispatch subjects as needed.
+    const prefix = props.subjectPrefix ?? `repo:${props.githubOwnerRepo}`;
     const subjects = [
-      `repo:${props.githubOwnerRepo}:ref:refs/heads/main`,
+      `${prefix}:ref:refs/heads/main`,
       ...(props.additionalTrustedSubjects ?? []),
     ];
 

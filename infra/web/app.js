@@ -15,8 +15,16 @@
   var $ = function (id) { return document.getElementById(id); };
   function show(el) { el && el.classList.remove('hide'); }
   function hide(el) { el && el.classList.add('hide'); }
+  // Escape text before it goes into innerHTML. Memos are free text from whoever
+  // sent the money (P2), so everything from the API is escaped on display; the
+  // backend still stores it exactly as sent.
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
   function msg(el, text, ok) {
-    el.innerHTML = text ? '<div class="msg ' + (ok ? 'ok' : 'err') + '">' + text + '</div>' : '';
+    el.innerHTML = text ? '<div class="msg ' + (ok ? 'ok' : 'err') + '">' + esc(text) + '</div>' : '';
   }
   function money(n, opts) {
     var neg = n < 0; var v = Math.abs(Number(n) || 0);
@@ -108,6 +116,7 @@
   $('logout').onclick = function (e) { e.preventDefault(); logout(); };
   function logout() {
     idToken = null; sessionStorage.removeItem('dewy_id_token');
+    if (typeof chatReset === 'function') chatReset();
     hide($('appShell')); show($('authScreen'));
   }
 
@@ -124,6 +133,7 @@
       $('hello').textContent = 'Welcome back' + (me.email ? ', ' + me.email.split('@')[0] : '');
     }).catch(function () {});
     loadAccounts();
+    chatLoad();
   }
 
   function loadAccounts() {
@@ -131,7 +141,7 @@
       accountsCache = res.accounts || [];
       renderNet(); renderCards(); renderTransferOptions();
       if (accountsCache.length) { openDetail((selectedAcct && find(selectedAcct)) ? selectedAcct : accountsCache[0].accountId); }
-    }).catch(function (e) { $('accountCards').innerHTML = '<div class="msg err">' + e.message + '</div>'; });
+    }).catch(function (e) { $('accountCards').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
   }
   function find(id) { return accountsCache.filter(function (a) { return a.accountId === id; })[0]; }
 
@@ -147,11 +157,11 @@
     $('accountCards').innerHTML = accountsCache.map(function (a) {
       var t = acctType(a), neg = a.balance < 0;
       var last4 = (a.accountId || '').slice(-4);
-      return '<div class="acct-card" data-id="' + a.accountId + '">' +
-        '<span class="tag">' + t + '</span>' +
-        '<div class="ic ' + t + '">' + (ACCT_ICON[t] || '💳') + '</div>' +
-        '<div class="nm">' + a.name + '</div>' +
-        '<div class="no mono">•••• ' + last4 + '</div>' +
+      return '<div class="acct-card" data-id="' + esc(a.accountId) + '">' +
+        '<span class="tag">' + esc(t) + '</span>' +
+        '<div class="ic ' + esc(t) + '">' + (ACCT_ICON[t] || '💳') + '</div>' +
+        '<div class="nm">' + esc(a.name) + '</div>' +
+        '<div class="no mono">•••• ' + esc(last4) + '</div>' +
         '<div class="bal' + (neg ? ' neg' : '') + '">' + money(a.balance) + '</div>' +
         '</div>';
     }).join('');
@@ -162,7 +172,7 @@
 
   function renderTransferOptions() {
     var opts = accountsCache.map(function (a) {
-      return '<option value="' + a.accountId + '">' + a.name + ' — ' + money(a.balance) + '</option>';
+      return '<option value="' + esc(a.accountId) + '">' + esc(a.name) + ' — ' + money(a.balance) + '</option>';
     }).join('');
     $('xferFrom').innerHTML = opts;
     $('xferTo').innerHTML = opts;
@@ -188,7 +198,7 @@
     api('GET', '/accounts/' + encodeURIComponent(id) + '/transactions').then(function (res) {
       renderTxns(res.transactions || []);
       renderSpend(res.transactions || []);
-    }).catch(function (e) { $('txns').innerHTML = '<div class="msg err">' + e.message + '</div>'; });
+    }).catch(function (e) { $('txns').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
   }
 
   function fmtDate(iso) {
@@ -205,9 +215,9 @@
       var cat = t.category || 'Other';
       var credit = t.type === 'credit';
       html += '<tr class="txn"><td style="width:46px"><div class="catdot">' + (CAT_ICON[cat] || '•') + '</div></td>' +
-        '<td><div class="tdesc">' + (t.memo || t.counterparty || cat) + '</div>' +
-        '<div class="tsub">' + fmtDate(t.createdAt) + ' · ' + cat + '</div></td>' +
-        '<td style="width:90px"><span class="badge ' + (credit ? 'credit' : 'debit') + '">' + t.type + '</span></td>' +
+        '<td><div class="tdesc">' + esc(t.memo || t.counterparty || cat) + '</div>' +
+        '<div class="tsub">' + esc(fmtDate(t.createdAt)) + ' · ' + esc(cat) + '</div></td>' +
+        '<td style="width:90px"><span class="badge ' + (credit ? 'credit' : 'debit') + '">' + esc(t.type) + '</span></td>' +
         '<td class="amt-cell ' + (credit ? 'credit' : 'debit') + '">' + money(t.amount, { sign: credit }) + '</td></tr>';
     });
     html += '</tbody></table>';
@@ -225,11 +235,188 @@
     $('spend').innerHTML = cats.map(function (c) {
       var pct = Math.max(6, Math.round((by[c] / max) * 100));
       var color = CAT_COLOR[c] || CAT_COLOR.Other;
-      return '<div class="bar-row"><div>' + (CAT_ICON[c] || '•') + ' ' + c + '</div>' +
+      return '<div class="bar-row"><div>' + (CAT_ICON[c] || '•') + ' ' + esc(c) + '</div>' +
         '<div class="track"><div class="fill" style="width:' + pct + '%;background:' + color + '"></div></div>' +
         '<div class="val">' + money(by[c]) + '</div></div>';
     }).join('');
   }
+
+  // ---- Chat panel (P8) -------------------------------------------------
+  // Talks to the participant's own Genies through the bank's /chat proxy; the
+  // browser never holds a Workato key. Sending is asynchronous, so after each
+  // send the panel polls /chat/events until the turn finishes. Every Genie
+  // reply is set with textContent, never as HTML.
+  var STATIONS = [
+    ['A1', 'A1 · Station A, flaw'], ['A2', 'A2 · Station A, fix'],
+    ['B1', 'B1 · Station B, flaw'], ['B2', 'B2 · Station B, fix'],
+    ['C1', 'C1 · Station C, flaw'], ['C2', 'C2 · Station C, fix'],
+  ];
+  var chat = { configured: {}, conversations: {}, since: {}, seen: {}, polling: null, busy: false };
+
+  function chatLoad() {
+    api('GET', '/me/genie-clients').then(function (r) {
+      chat.configured = r.stations || {};
+      renderStations();
+    }).catch(function (e) { msg($('chatMsg'), e.message, false); });
+  }
+
+  function renderStations() {
+    var sel = $('chatStation'), current = sel.value;
+    var ready = STATIONS.filter(function (s) { return chat.configured[s[0]]; });
+    sel.innerHTML = ready.map(function (s) { return '<option value="' + esc(s[0]) + '">' + esc(s[1]) + '</option>'; }).join('');
+    if (ready.some(function (s) { return s[0] === current; })) sel.value = current;
+    var any = ready.length > 0;
+    sel.classList.toggle('hide', !any);
+    $('chatText').disabled = $('chatSend').disabled = !any;
+    if (!any) { show($('chatSetup')); chatStatusOnly('Set up chat to talk to your stations.'); }
+    else { chatRedraw(); }
+  }
+
+  function bubble(kind, text) {
+    var empty = $('chatLog').querySelector('.chat-empty');
+    if (empty) empty.remove();
+    var el = document.createElement('div');
+    el.className = 'bubble ' + kind;
+    el.textContent = text;
+    $('chatLog').appendChild(el);
+    $('chatLog').scrollTop = $('chatLog').scrollHeight;
+    return el;
+  }
+  function chatStatusOnly(text) {
+    $('chatLog').innerHTML = '';
+    var el = document.createElement('div'); el.className = 'chat-empty'; el.textContent = text;
+    $('chatLog').appendChild(el);
+  }
+
+  // Each station keeps its own transcript for this session.
+  var transcripts = {};
+  function record(station, kind, text, extra) {
+    (transcripts[station] = transcripts[station] || []).push({ kind: kind, text: text, extra: extra });
+    if ($('chatStation').value === station) drawEntry(station, transcripts[station][transcripts[station].length - 1]);
+  }
+  function chatRedraw() {
+    var station = $('chatStation').value;
+    var list = transcripts[station] || [];
+    if (!list.length) { chatStatusOnly('Say hello to ' + station + '.'); return; }
+    $('chatLog').innerHTML = '';
+    list.forEach(function (e) { drawEntry(station, e); });
+  }
+  function drawEntry(station, e) {
+    if (e.kind !== 'confirm') { bubble(e.kind, e.text); return; }
+    var el = bubble('confirm', e.text);
+    if (e.extra.answered) return;
+    var acts = document.createElement('div'); acts.className = 'acts';
+    [['approved', 'Approve', ''], ['rejected', 'Decline', 'ghost']].forEach(function (b) {
+      var btn = document.createElement('button');
+      btn.textContent = b[1]; if (b[2]) btn.className = b[2];
+      btn.onclick = function () { answerConfirmation(station, e, b[0]); };
+      acts.appendChild(btn);
+    });
+    el.appendChild(acts);
+  }
+
+  function chatSend() {
+    var station = $('chatStation').value, text = $('chatText').value.trim();
+    if (!station || !text || chat.busy) return;
+    chat.busy = true; $('chatSend').disabled = true; msg($('chatMsg'), '');
+    record(station, 'me', text);
+    $('chatText').value = '';
+    api('POST', '/chat', { station: station, message: text, conversation: chat.conversations[station] })
+      .then(function (r) {
+        chat.conversations[station] = r.conversation;
+        pollEvents(station);
+      })
+      .catch(function (e) { msg($('chatMsg'), e.message, false); chatDone(); });
+  }
+
+  function answerConfirmation(station, entry, resolution) {
+    entry.extra.answered = true;
+    chatRedraw();
+    record(station, 'status', resolution === 'approved' ? 'You approved it.' : 'You declined it.');
+    api('POST', '/chat', {
+      station: station, conversation: chat.conversations[station],
+      approval: { call_id: entry.extra.callId, resolution: resolution },
+    }).then(function () { pollEvents(station); })
+      .catch(function (e) { msg($('chatMsg'), e.message, false); });
+  }
+
+  // Workato's event payloads are relayed as is; read them defensively.
+  function eventsOf(r) {
+    var x = r.events;
+    if (Array.isArray(x)) return x;
+    return (x && (x.events || x.data || x.items)) || [];
+  }
+  function field(e, names) {
+    for (var i = 0; i < names.length; i++) {
+      var path = names[i].split('.'), v = e;
+      for (var j = 0; j < path.length && v != null; j++) v = v[path[j]];
+      if (v != null && v !== '') return v;
+    }
+    return null;
+  }
+
+  function pollEvents(station) {
+    clearTimeout(chat.polling);
+    var started = Date.now();
+    (function tick() {
+      var conv = chat.conversations[station];
+      var q = '?station=' + encodeURIComponent(station) + '&conversation=' + encodeURIComponent(conv) +
+        (chat.since[conv] ? '&since=' + encodeURIComponent(chat.since[conv]) : '');
+      api('GET', '/chat/events' + q).then(function (r) {
+        var finished = false, seen = (chat.seen[conv] = chat.seen[conv] || {});
+        eventsOf(r).forEach(function (e) {
+          var type = field(e, ['type', 'event', 'event_type', 'name']);
+          var id = field(e, ['seq_num', 'id']) ;
+          var key = id != null ? String(id) : type + '|' + field(e, ['created_at']);
+          if (seen[key]) return;
+          seen[key] = true;
+          var at = field(e, ['created_at', 'createdAt']);
+          if (at) chat.since[conv] = at;
+          if (type === 'agent.message') {
+            var text = field(e, ['data.message', 'data.content', 'data.text', 'message', 'content', 'text', 'payload.message']);
+            if (text) record(station, 'dewy', typeof text === 'string' ? text : JSON.stringify(text));
+          } else if (type === 'skill.confirmation_required') {
+            var callId = field(e, ['data.call_id', 'call_id', 'data.id', 'payload.call_id']);
+            var skill = field(e, ['data.skill_name', 'data.skill', 'skill_name', 'data.name']);
+            record(station, 'confirm', 'Dewy wants to run ' + (skill || 'a tool') + '. Approve?', { callId: callId, answered: false });
+            finished = true; // the turn pauses until the person answers
+          } else if (type === 'processing.finished') {
+            finished = true;
+          }
+        });
+        if (finished) { chatDone(); return; }
+        if (Date.now() - started > 90000) { record(station, 'status', 'No reply yet. Try again in a moment.'); chatDone(); return; }
+        chat.polling = setTimeout(tick, 1200);
+      }).catch(function (e) { msg($('chatMsg'), e.message, false); chatDone(); });
+    })();
+  }
+
+  function chatDone() { chat.busy = false; $('chatSend').disabled = false; }
+
+  function chatReset() {
+    clearTimeout(chat.polling);
+    chat = { configured: {}, conversations: {}, since: {}, seen: {}, polling: null, busy: false };
+    transcripts = {};
+    chatStatusOnly('Pick a station and say hello.');
+  }
+
+  $('chatSend').onclick = chatSend;
+  $('chatText').onkeydown = function (e) { if (e.key === 'Enter') chatSend(); };
+  $('chatStation').onchange = chatRedraw;
+  $('chatSetupToggle').onclick = function () { $('chatSetup').classList.toggle('hide'); };
+  $('chatSaveBlob').onclick = function () {
+    var blob;
+    try { blob = JSON.parse($('chatBlob').value); }
+    catch (e) { msg($('chatSetupMsg'), 'That isn’t valid setup text: paste the whole block, including the braces.', false); return; }
+    msg($('chatSetupMsg'), 'Saving…', true);
+    api('PUT', '/me/genie-clients', blob).then(function (r) {
+      $('chatBlob').value = '';
+      chat.configured = r.stations || {};
+      msg($('chatSetupMsg'), 'Saved ✓', true);
+      hide($('chatSetup'));
+      renderStations();
+    }).catch(function (e) { msg($('chatSetupMsg'), e.message, false); });
+  };
 
   // ---- boot ------------------------------------------------------------
   if (!cfg.userPoolClientId) {

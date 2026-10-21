@@ -1,5 +1,8 @@
 /**
- * Dewy Bank — Admin API key generator (CloudFormation custom resource backend).
+ * Dewy Bank — Support API key generator (CloudFormation custom resource backend).
+ *
+ * Mints the support-agent key (C-P3) that the Support API checks in `x-api-key`.
+ * Participants receive it from the facilitator as a "support code".
  *
  * Mints a strong random API key SERVER-SIDE at deploy and writes it into the
  * SSM SecureString named by env PARAM_NAME. The key value NEVER appears in the
@@ -28,7 +31,7 @@ type CfnEvent = {
 };
 
 export const handler = async (event: CfnEvent): Promise<{ PhysicalResourceId: string }> => {
-  console.log('admin-api-key-gen', event.RequestType, PARAM_NAME);
+  console.log('support-api-key-gen', event.RequestType, PARAM_NAME);
 
   if (event.RequestType === 'Delete') {
     try {
@@ -56,12 +59,12 @@ export const handler = async (event: CfnEvent): Promise<{ PhysicalResourceId: st
         Value: key,
         Type: 'SecureString',
         Overwrite: false,
-        Description: 'Dewy Bank Admin API static key (x-api-key). Workato-facing.',
+        Description: 'Dewy Bank Support API key (x-api-key): the support code participants paste.',
       }),
     );
-    console.log('admin-api-key-gen: minted new key');
+    console.log('support-api-key-gen: minted new key');
   } else {
-    console.log('admin-api-key-gen: key already present, leaving stable');
+    console.log('support-api-key-gen: key already present, leaving stable');
   }
 
   return { PhysicalResourceId: PARAM_NAME };

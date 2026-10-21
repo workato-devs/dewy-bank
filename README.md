@@ -1,88 +1,81 @@
-# Dewy Bank workshop
+# Dewy Bank
 
-One `wk` project for the whole workshop. Each station teaches one factor from the [factor matrix](https://github.com/workato-devs/seven-factors) by changing exactly one layer between a flawed Genie and a fixed one:
+A hands-on workshop on securing AI agents. Participants chat with Workato Genies that act on a mock retail bank, attack them, and then see which architecture change stops each attack. The fix is never a better prompt.
 
-| Station | Factor | Docs | Server folder |
-|---|---|---|---|
-| A | II: Deterministic Mutations | [`docs/station-a/`](docs/station-a/README.md) | `Dewy Bank Station A` |
-| B | III: Intent-Based Communication | [`docs/station-b/`](docs/station-b/README.md) | `Dewy Bank Station B` |
-| C | IV: Bounded Access | [`docs/station-c/`](docs/station-c/README.md) | `Dewy Bank Station C` |
+The workshop has three stations, one per [Seven Factors](https://github.com/workato-devs/seven-factors) principle. Each station pairs a flawed Genie with a fixed one that differs in exactly one layer, so participants can say which factor stopped the attack:
 
-The bank itself (the AWS side: CDK stack, Lambdas and the web app) lives in [`infra/`](infra/README.md), moved here from `dewy-bank-internal` on 2026-10-20. The changes the stations need are in [`docs/backend-requirements.md`](docs/backend-requirements.md), the work plan for `infra/`.
+| Station | Factor | Flawed variant | Fixed variant | Docs |
+|---|---|---|---|---|
+| A | II: Deterministic Mutations | the agent decides what a write does | the recipe's rules decide | [`docs/station-a/`](docs/station-a/README.md) |
+| B | III: Intent-Based Communication | tools wrap the raw API and leak internal IDs | intent-shaped tools return names and amounts only | [`docs/station-b/`](docs/station-b/README.md) |
+| C | IV: Bounded Access | one Genie holds customer and staff tools, guarded by its prompt | each role gets its own Genie and credential | [`docs/station-c/`](docs/station-c/README.md) |
 
-## Layout
+Every station uses the same attack: one shared memo on an incoming payment ([`docs/memo-list.md`](docs/memo-list.md)), read by the Genie when the participant asks about their activity. The design behind the stations is in [`docs/factor-matrix.md`](docs/factor-matrix.md).
+
+> **The bank is deliberately flawed.** Its APIs make no business decisions by design (the recipes do), so a caller that skips the Workato layer gets no rules at all. Deploy it only to a sandbox AWS account with no real data, and tear it down after the workshop.
+
+## What's in this repo
 
 ```
 dewy-bank/
-├── README.md                              # this file
-├── AGENTS.md                              # project-wide rules for agents
-├── .wk/wk.toml                            # the one sync config (link your own profile)
-├── .wklintrc.json                         # strict lint profile, for every station
-├── workspace-connections/                 # synced: Workspace Connections (pushed first)
-│   ├── dewy_bank_customer_api.custom_adapter.{json,rb}   # the custom connector (signs in as the participant)
-│   ├── dewy_bank_customer_api.connection.json            # the customer tools' connection (every station)
-│   ├── dewy_bank_support_api.custom_adapter.{json,rb}    # the Support API connector (one support code)
-│   └── dewy_bank_support_api.connection.json             # Station C's support tools' connection
-├── dewy-bank-station-a/                   # synced: Dewy Bank Station A (Workato assets only)
-├── dewy-bank-station-b/                   # synced: Dewy Bank Station B (Workato assets only, generated)
-├── dewy-bank-station-c/                   # synced: Dewy Bank Station C (Workato assets only, generated)
-├── docs/
-│   ├── station-a/                         # README, AGENTS.md, FEEDBACK.md, genie-instructions.md
-│   ├── station-b/                         # README, AGENTS.md, REQUIREMENTS.md, genie-instructions.md
-│   ├── station-c/                         # README, AGENTS.md, REQUIREMENTS.md, genie-instructions.md
-│   ├── backend-requirements.md            # the backend changes: the work plan for infra/
-│   ├── factor-matrix.md                   # the station design: factor → flaw → fix
-│   ├── memo-list.md                       # every transaction memo, including the shared payload
-│   └── history/                           # superseded docs, kept because infra/ comments cite them
-├── infra/                                 # not synced: the bank (CDK stack, Lambdas, web app)
-└── scripts/                               # build_station_b.py, check_invariants.py, build_station_c.py, check_station_c.py, stamp_bank_app_url.py, setup_chat_clients.py, templates/
+├── infra/                     # the bank: AWS CDK stack, Lambdas, the bank app and facilitator console
+├── workspace-connections/     # Workato: the two custom connectors and their connections (pushed first)
+├── dewy-bank-station-a/       # Workato: Station A's recipes, skills and Genies
+├── dewy-bank-station-b/       # Workato: Station B (generated from A by scripts/build_station_b.py)
+├── dewy-bank-station-c/       # Workato: Station C (generated from A by scripts/build_station_c.py)
+├── docs/                      # station guides, the design, the shared memo, the backend spec
+├── scripts/                   # station builders, invariant checks, connector stamping, chat setup
+├── .wk/wk.toml                # the one wk sync config (link your own profile)
+└── .github/workflows/         # CI (build, test, synth) and deploy for infra/
 ```
 
-`.wk/wk.toml` has four `[[sync]]` entries. Each one maps a top-level server folder to a root-level local folder of the same name in kebab-case. Nothing is nested, so `zip_name` paths like `Workspace Connections/dewy_bank_customer_api.connection.json` resolve the same way locally and on the server. Synced folders hold only Workato assets.
+- **The bank** ([`infra/`](infra/README.md)): a Customer API (Cognito sign-in), a Support API (one shared support code, reaching only three fictional customers), a chat proxy to each participant's Genies, the bank app with its chat panel, and a facilitator console. What the stations need from it is specified in [`docs/backend-requirements.md`](docs/backend-requirements.md).
+- **The Workato project**: one `wk` CLI project for the whole workshop. Each synced folder is a top-level server folder of the same name in kebab-case (`Dewy Bank Station A` is `dewy-bank-station-a/`). `Workspace Connections` must stay the first `[[sync]]` entry, so the stations' recipes bind to its connections. Rules for changing anything here are in [`AGENTS.md`](AGENTS.md).
 
-| Server folder | Local path |
-|---|---|
-| `Dewy Bank Station A` | `dewy-bank-station-a` |
-| `Dewy Bank Station B` | `dewy-bank-station-b` |
-| `Dewy Bank Station C` | `dewy-bank-station-c` |
-| `Workspace Connections` | `workspace-connections` |
+## Running a workshop (facilitator)
 
-On the server, the station folders sit next to each other and next to `Workspace Connections`, with no parent folder. Connection names are unique per workspace, so the stations don't each carry a `connections/` folder. Every Station A and B recipe points at `Workspace Connections/dewy_bank_customer_api.connection.json`.
+1. **Deploy the bank** to your own AWS account. See [`infra/README.md`](infra/README.md):
+   ```bash
+   cd infra && npm ci
+   npx cdk bootstrap --profile <your-profile>          # once per account and region
+   npx cdk deploy DewyBank-<workshopId> -c workshopId=<workshopId> --profile <your-profile>
+   ```
+   The `SpaUrl` output is the bank app. The fictional customers (Jane, Omar and Mei) are created during the deploy.
+2. **Stamp the bank app's URL into the connectors**, so participants never type deployment details:
+   ```bash
+   python3 scripts/stamp_bank_app_url.py <SpaUrl>
+   ```
+   Share that stamped copy with participants, for example as a workshop branch or fork. An unstamped connector refuses to connect and tells the participant to ask their facilitator.
+3. **Get the support code** for Station C. It's the Support API key, safe to hand out because it only reaches the support routes and the fictional customers:
+   ```bash
+   aws ssm get-parameter --with-decryption --query Parameter.Value --output text --profile <your-profile> \
+     --name "$(aws cloudformation describe-stacks --stack-name DewyBank-<workshopId> --profile <your-profile> \
+       --query "Stacks[0].Outputs[?OutputKey=='SupportApiKeyParamName'].OutputValue" --output text)"
+   ```
+4. **Make yourself a facilitator.** Sign up in the bank app, then add yourself to the `facilitators` group ([`infra/README.md`](infra/README.md#commands)). The console is at `<SpaUrl>/admin.html`. It shows a live leaderboard, the fictional customers' support activity, transfers with a note, and **Reset**, which restores the whole workshop or one participant between stations.
 
-## Setup
+## Setting up (participant)
 
-Run every `wk` command from this directory.
+Each participant works in their own Workato workspace and their own bank login. Run every `wk` command from the repo root.
 
-**Before the workshop (facilitator, once per deployment):** stamp the bank app's URL into the customer connector, so participants never type deployment details:
-
-```bash
-python3 scripts/stamp_bank_app_url.py https://<bank app host>
-```
-
-It writes the URL into both connectors (`workspace-connections/dewy_bank_customer_api.custom_adapter.rb` and `dewy_bank_support_api.custom_adapter.rb`) and bumps each one's version note, so the push carries the change. An unstamped connector refuses to connect, with a message telling the participant to ask their facilitator.
-
-1. **Authenticate and link:**
+1. **Sign up in the bank app** (`SpaUrl`) with your email.
+2. **Link the project and push it:**
    ```bash
    wk auth login --token <token> --environment <env>
    wk link --profile <your-profile>
+   wk push --dry-run      # read it first
+   wk push
    ```
-   Check the account behind a profile with `wk workspace info -p <profile>`; profile names can point at someone else's workspace.
-2. **Know what the first push creates.** In a blank workspace, `wk push` creates four top-level folders, in this order: `Workspace Connections` (holding the `Dewy Bank Customer API` custom connector and its connection, and the `Dewy Bank Support API` connection), then `Dewy Bank Station A`, `Dewy Bank Station B` and `Dewy Bank Station C`. The order matters. wk imports one sync entry at a time, in `wk.toml` order, and the stations' recipes only bind to the connection if it already exists. So `Workspace Connections` stays the first `[[sync]]` entry.
-
-   If your workspace already has a `Workspace Connections` folder that other apps use, that's fine too: the push only adds the Dewy files. Don't `wk pull` that folder, which would add other apps' files to this project. (Deleting a file locally doesn't delete it on the server: `wk push` reports it as `deleted`, but the asset stays. Clean up obsolete server assets yourself.)
-3. **Lint, then preview the push:**
-   ```bash
-   wk lint --skills-path <path-to>/recipe-skills/skills $(find dewy-bank-station-* -name '*.recipe.json')
-   wk push --dry-run
-   ```
-   Read the dry run before every push. If wk's pre-push `recipe-lint` hook fails with `FILE_READ_ERROR` on a recipe you deleted locally, that's the hook linting a file queued for deletion: run the lint above, then push once with `--skip-hooks`.
-4. **Push:** `wk push`. Push through the project like this, not with `wk recipes import`, which strips HTTP action config. Verified 2026-10-20 in an emptied workspace: one `wk push` creates the three folders, the connection(s) and every recipe, each recipe bound to its connection. A push also creates and releases the custom connector when the workspace doesn't have it, and updates it when it does. If a recipe ever comes back unbound (`wk recipes get <id> --json`, `config`), re-push that station once with `wk push --force --folder "<server folder>"`. The same applies if the `Workspace Connections` folder (or its connection) is deleted on the server: the stations' recipes lose their connection, and a plain `wk push` won't rebind them, because their files are unchanged. Push the connection first, then force-push each station.
-5. **Connect the `Dewy Bank Customer API` connection** once, in the Workato UI (`Workspace Connections`): the participant enters **only their own Dewy Bank email and password**, the same login they use in the bank app. Every customer tool at every station uses it, as the participant. The connector finds everything else itself (the Cognito region and app client ID, and the customer API URL) in the bank app's `config.json`, signs in, and renews its token when it expires.
-6. **Set up chat with the bank app** (once per participant):
+   Check which account a profile points at with `wk workspace info -p <profile>`. Push through the project, not with `wk recipes import`, which strips HTTP action config.
+3. **Connect `Dewy Bank Customer API`** in the Workato UI (`Workspace Connections`): enter only your bank email and password. The connector finds everything else in the bank app's `config.json`.
+4. **Set up chat:**
    ```bash
    python3 scripts/setup_chat_clients.py -p <your-profile>
    ```
-   It creates your chat identity (no invitation email), starts the six customer-facing Genies, gives each one a chat client, and prints one blob. Paste the blob into the bank app's chat settings. Lost it? Run the script again: it issues fresh keys and prints a new blob. (The bank app's chat panel is backend item P8, not built yet.)
-7. **Per station:** start the recipes. See [`docs/station-a/`](docs/station-a/README.md#setup), [`docs/station-b/`](docs/station-b/README.md#setup) and [`docs/station-c/`](docs/station-c/README.md#setup) (which also authorizes the `Dewy Bank Support API` connection).
+   It starts the six customer-facing Genies, gives each one a chat client, and prints one block of setup text. In the bank app, open **Ask Dewy → Set up chat** and paste it. Lost it? Run the script again for fresh keys.
+5. **Per station:** start the recipes, then pick the station in the chat panel. See each station's guide; Station C also connects `Dewy Bank Support API` with the support code.
 
-Station C's support tools use a second connector, `Dewy Bank Support API`: participants paste one **support code** from the facilitator (the scoped support-agent key, `docs/backend-requirements.md` C-P3), and the connector discovers the rest the same way. Its setup is in Station C's README. The old full-access Admin API isn't used by any station and is being retired (P7).
+## Developing
+
+- **Workato assets:** before every push, run the checks in [`AGENTS.md`](AGENTS.md#before-every-push) (build Stations B and C from A, check their invariants, lint, dry-run). Don't hand-edit `dewy-bank-station-b/` or `dewy-bank-station-c/`; edit the build scripts.
+- **The bank:** `cd infra && npm ci && npm test` runs the stack assertions and handler tests; `npx cdk synth` needs no AWS credentials. CI runs both on every pull request.

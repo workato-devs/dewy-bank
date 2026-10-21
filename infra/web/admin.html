@@ -62,13 +62,6 @@
     .acts { display:flex; gap:6px; flex-wrap:wrap; }
     .row { display:flex; gap:12px; } .row > .field { flex:1; margin:0; }
 
-    .contrast { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-    .contrast .box { border:1px solid var(--line); border-radius:12px; padding:16px; }
-    .contrast .box.insecure { background:var(--red-050); border-color:#5b2330; }
-    .contrast .box.secure { background:var(--green-050); border-color:#1d4a37; }
-    .contrast .box h3 { margin:0 0 8px; font-size:13px; display:flex; align-items:center; gap:7px; }
-    .contrast .box p { margin:0; font-size:12.5px; color:var(--muted); line-height:1.5; }
-    .contrast .box code { background:rgba(255,255,255,.06); padding:1px 5px; border-radius:5px; font-size:11px; }
     .note { font-size:12px; color:var(--faint); margin-top:10px; }
     a.link { color:#7da7ff; }
 
@@ -82,6 +75,12 @@
     .lb-rank { font-weight:800; font-size:16px; text-align:center; color:var(--faint); }
     .lb-row:nth-child(1) .lb-rank { color:#fbbf24; } .lb-row:nth-child(2) .lb-rank { color:#cbd5e1; } .lb-row:nth-child(3) .lb-rank { color:#d08b5b; }
     .lb-name { font-weight:600; } .lb-name .sub { font-size:12px; color:var(--faint); font-weight:400; margin-top:2px; }
+    .tag-fictional { display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:.3px; text-transform:uppercase; padding:2px 7px; border-radius:999px; background:rgba(11,92,255,.18); color:#9dbcff; border:1px solid rgba(11,92,255,.45); vertical-align:1px; margin-left:6px; }
+    .feed { width:100%; }
+    .feed td.amt { text-align:right; font-weight:700; white-space:nowrap; }
+    .feed td.amt.up { color:var(--green); } .feed td.amt.down { color:var(--red); }
+    .feed .when { color:var(--faint); white-space:nowrap; font-size:12px; }
+    .feed .reason { color:var(--muted); }
     .lb-bar { height:8px; background:#0a1428; border-radius:999px; overflow:hidden; }
     .lb-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,#0b5cff,#4ade80); transition:width .5s; }
     .lb-amt { text-align:right; font-weight:800; font-variant-numeric:tabular-nums; }
@@ -124,8 +123,14 @@
             <input type="checkbox" id="liveToggle" checked style="width:auto" /> <span class="dot" id="liveDot"></span> Live
           </label>
         </h2>
-        <p class="note" style="margin-top:0">Total balance per account holder — updates automatically as money moves. Watch it shift live during the heist demo.</p>
+        <p class="note" style="margin-top:0">Total balance per account holder — updates automatically as money moves. Customers marked <span class="tag-fictional">fictional</span> are Station C's (Jane, Omar and Mei): everyone in the room shares them.</p>
         <div id="leaderboard">Loading…</div>
+      </div>
+
+      <div class="card">
+        <h2>🛟 Support activity <span class="note" style="margin:0 0 0 auto">fictional customers only</span></h2>
+        <p class="note" style="margin-top:0">Every balance change made with the support code, newest first. Each one is signed "Dewy Bank Support": the shared code carries no identity, so nothing here says which participant made it.</p>
+        <div id="supportFeed">Loading…</div>
       </div>
 
       <div class="cols">
@@ -139,26 +144,20 @@
         <div>
           <div class="card">
             <h2>↔️ Facilitator transfer</h2>
-            <p class="note" style="margin-top:0">Move funds between any two accounts (authenticated admin action, not the heist path).</p>
+            <p class="note" style="margin-top:0">Move funds between any two accounts, with an optional note that appears on both accounts' activity.</p>
             <div class="field"><label>From account ID</label><input id="xFrom" class="mono" placeholder="acct-…" /></div>
             <div class="field"><label>To account ID</label><input id="xTo" class="mono" placeholder="acct-…" /></div>
             <div class="field"><label>Amount (USD)</label><input id="xAmt" type="number" min="0.01" step="0.01" placeholder="0.00" /></div>
+            <div class="field"><label>Note (optional, up to 280 characters)</label><input id="xMemo" maxlength="280" placeholder="What's this for?" /></div>
             <button id="xBtn" style="width:100%">Send transfer</button>
             <div id="xMsg"></div>
           </div>
           <div class="card">
-            <h2>⚔️ Security demo: two Admin API paths</h2>
-            <div class="contrast">
-              <div class="box insecure">
-                <h3>🔓 Insecure</h3>
-                <p>Routes like <code>/admin/transfer</code> accept <code>{from,to,amount}</code> verbatim — no ownership check. The Genie can be tricked into naming any <code>from</code>. This is the heist.</p>
-              </div>
-              <div class="box secure">
-                <h3>🔒 Secure</h3>
-                <p><code>/admin/secure/transfer</code> re-derives the source from the pinned <code>x-participant-sub</code> header, allow-lists the destination, and enforces a per-transfer limit. The LLM can never name a source.</p>
-              </div>
-            </div>
-            <p class="note">This console uses the <b>authenticated</b> Customer-API admin surface (Cognito group, no static key). The insecure/secure contrast above is the separate <span class="mono">x-api-key</span> Admin API consumed by the Workato Genies.</p>
+            <h2>♻️ Reset</h2>
+            <p class="note" style="margin-top:0">Restore balances and activity to the starting seed. Leave the email empty to reset the whole workshop (every participant, plus the fictional customers); fill it in to reset one participant.</p>
+            <div class="field"><label>Participant email (optional)</label><input id="rEmail" type="email" placeholder="everyone" /></div>
+            <button id="rBtn" class="danger" style="width:100%">Reset</button>
+            <div id="rMsg"></div>
           </div>
         </div>
       </div>
