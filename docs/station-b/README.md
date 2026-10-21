@@ -26,8 +26,9 @@ Station B breaks exactly one layer from the [factor matrix](https://github.com/w
 | `list_my_accounts` | none → `accounts[]`: `accountId`, `customerId`, `name`, `type`, `currency`, `balance` | none → `accounts[]`: `name`, `currency`, `balance` |
 | `review_my_recent_activity` | `account_id`, optional `limit` → `statusCode`, `message`, `transactions[]`: `txnId`, `accountId`, `type`, `amount`, `counterparty`, `memo`, `category`, `createdAt` | `account` (a name), optional `limit` → `status`, `message`, `account`, `activity[]`: `date`, `direction`, `amount`, `other_side`, `category`, `description` |
 | `move_between_my_accounts` | `from_account_id`, `to_account_id`, `amount`, optional `note` → `statusCode`, `message`, `from`, `to`, `amount` (the customer API body) | `from_account`, `to_account` (names), `amount`, optional `note` → `status`, `message`, `from_account`, `to_account`, `amount` |
+| `pay_someone` | identical in both: Station A2's (`from_account` name, `to_email`, `amount`, optional `note` → `status`, `message`, `from_account`, `to_email`, `amount`), with the customer's confirmation | same |
 
-B2 is Station A's tools, copied (`shared/list_my_accounts`, and A2's `review_my_recent_activity` and `move_between_my_accounts`). Only the recipe descriptions and step comments are relabeled. Station B has no `shared/` folder, because no tool is identical in B1 and B2.
+B2 is Station A's tools, copied (`shared/list_my_accounts`, and A2's `review_my_recent_activity` and `move_between_my_accounts`). Only the recipe descriptions and step comments are relabeled. `pay_someone` is A2's too, and it's identical in B1 and B2: it isn't part of Station B's contrast, it's the shared way money leaves the account (P5). It still lives in each variant folder, like the others.
 
 **How B1 returns errors.** B1 copies the customer API's own error shape:
 - Rule refusals use the status codes and messages of `POST /transfers` (`customer-api-handler`): for example `422` "Insufficient funds", and `403` "Both accounts must be owned by the caller" for an ID that isn't one of the participant's. The customer API has no limit, so over the limit borrows the Admin API's message: `422` "Amount exceeds per-transfer limit of 500". Read-rule refusals: `404` "Account not found" or `400` "account_id is required", and `400` "limit must be between 1 and 20".
@@ -60,7 +61,7 @@ python3 scripts/build/build_station_b.py && python3 scripts/build/check_invarian
 
 Push and authorize the connection from the workshop root ([workshop README](../../README.md#setting-up-participant)). Then, for this station:
 
-1. **Start** the six recipes, then open each Genie in Agent Studio and confirm it lists exactly three skills.
+1. **Start** the eight recipes, then open each Genie in Agent Studio and confirm it lists exactly four skills.
 
 There's no identity to configure here: the shared `Dewy Bank Customer API` connection signs in as the participant.
 

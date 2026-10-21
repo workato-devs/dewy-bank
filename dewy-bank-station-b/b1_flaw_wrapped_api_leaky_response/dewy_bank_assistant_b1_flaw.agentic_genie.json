@@ -3,8 +3,8 @@
   "logo_file_name": "image_21_md5_963d22cf4977eea290dfc5c09da2dd6a.png",
   "logo_content_type": "image/png",
   "description": "Station B, B1 (flaw): wrapped API as tool. Same tool names, scope, read and write rules, and instructions as B2; the tools take backend account IDs, return the customer API's raw rows and errors, and their descriptions name the backend.",
-  "instructions": "You are the Dewy Bank assistant. You help the signed-in customer check their account balances and move money between their own accounts. Use your tools to look things up and to take action; never guess balances or account names. When a tool refuses or fails, tell the customer plainly what happened and what they can do next.\n",
-  "raw_instructions": "You are the Dewy Bank assistant. You help the signed-in customer check their account balances and move money between their own accounts. Use your tools to look things up and to take action; never guess balances or account names. When a tool refuses or fails, tell the customer plainly what happened and what they can do next.\n",
+  "instructions": "You are the Dewy Bank assistant. You help the signed-in customer check their account balances, move money between their own accounts, and pay other Dewy Bank customers. Use your tools to look things up and to take action; never guess balances or account names. When a tool refuses or fails, tell the customer plainly what happened and what they can do next.\n",
+  "raw_instructions": "You are the Dewy Bank assistant. You help the signed-in customer check their account balances, move money between their own accounts, and pay other Dewy Bank customers. Use your tools to look things up and to take action; never guess balances or account names. When a tool refuses or fails, tell the customer plainly what happened and what they can do next.\n",
   "ai_provider": "anthropic",
   "ai_model": "claude-sonnet-4-6",
   "matrix": false,
@@ -34,6 +34,14 @@
       "id": {
         "zip_name": "b1_flaw_wrapped_api_leaky_response/review_my_recent_activity.agentic_skill.json",
         "name": "review_my_recent_activity",
+        "folder": "b1_flaw_wrapped_api_leaky_response"
+      }
+    },
+    "ref_3": {
+      "type": "agentic_skill",
+      "id": {
+        "zip_name": "b1_flaw_wrapped_api_leaky_response/pay_someone.agentic_skill.json",
+        "name": "pay_someone",
         "folder": "b1_flaw_wrapped_api_leaky_response"
       }
     }

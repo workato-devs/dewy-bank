@@ -1,6 +1,6 @@
 # Dewy Bank: Factor → Flaw → Fix Matrix (DRAFT for team review)
 
-**Status:** proposal, not yet agreed with the dev team. Nothing in the app implements this yet.
+**Status:** committed.
 **Sources:** [seven-factors](https://github.com/workato-devs/seven-factors) `factors/ii-…`, `iii-…`, `iv-…` (principle.md + guidance.md); the original repo (`docs/dewy-bank-plan.md`, now [`docs/history/dewy-bank-plan.md`](history/dewy-bank-plan.md); `workato/WIRING.md`, left in `dewy-bank-internal`; `infra/lambda/admin-api-handler/index.ts`).
 
 ## Design rule

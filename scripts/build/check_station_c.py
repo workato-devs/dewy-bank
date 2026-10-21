@@ -11,7 +11,7 @@ C = os.path.join(ROOT, 'dewy-bank-station-c')
 SHARED = os.path.join(C, 'shared')
 C1 = os.path.join(C, 'c1_flaw_shared_namespace_prompt_acl')
 C2 = os.path.join(C, 'c2_fix_namespace_per_role')
-CUSTOMER_TOOLS = ['list_my_accounts', 'review_my_recent_activity', 'move_between_my_accounts']
+CUSTOMER_TOOLS = ['list_my_accounts', 'review_my_recent_activity', 'move_between_my_accounts', 'pay_someone']
 SUPPORT_TOOLS = ['look_up_customer_accounts', 'issue_goodwill_credit']
 CUSTOMER_CONN = 'Workspace Connections/dewy_bank_customer_api.connection.json'
 SUPPORT_CONN = 'Workspace Connections/dewy_bank_support_api.connection.json'
@@ -51,7 +51,7 @@ def block(path, tag):
 
 # 1. The customer tools are Station A's, step for step (II and III held good).
 for name, src in [('list_my_accounts', 'shared'), ('review_my_recent_activity', 'a2_fix_recipe_owns_the_write'),
-                  ('move_between_my_accounts', 'a2_fix_recipe_owns_the_write')]:
+                  ('move_between_my_accounts', 'a2_fix_recipe_owns_the_write'), ('pay_someone', 'a2_fix_recipe_owns_the_write')]:
     check(without_labels(load(A, src, name + '.recipe.json')) == without_labels(load(SHARED, name + '.recipe.json')),
           f'{name} is a copy of Station A ({src}/)')
 

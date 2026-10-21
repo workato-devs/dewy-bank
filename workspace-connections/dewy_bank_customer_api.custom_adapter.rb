@@ -111,6 +111,31 @@
           { name: 'amount', type: 'number' }
         ]
       end
+    },
+
+    create_payment: {
+      title: 'Pay another customer',
+      description: "POST /payments: from one of the signed-in customer's accounts to another customer's checking, by email",
+
+      input_fields: lambda do |_object_definitions|
+        [
+          { name: 'from', label: 'From account ID', optional: false },
+          { name: 'to_email', label: "Recipient's email", optional: false },
+          { name: 'amount', type: 'number', optional: false },
+          { name: 'memo', optional: true, hint: 'Stored as sent on both rows' }
+        ]
+      end,
+
+      execute: lambda do |_connection, input|
+        post('/payments').payload(input.slice('from', 'to_email', 'amount', 'memo'))
+      end,
+
+      output_fields: lambda do |_object_definitions|
+        [
+          { name: 'message' }, { name: 'from' }, { name: 'to_email' },
+          { name: 'amount', type: 'number' }
+        ]
+      end
     }
   },
 
@@ -129,7 +154,7 @@
         [
           { name: 'txnId' }, { name: 'accountId' }, { name: 'type' },
           { name: 'amount', type: 'number' }, { name: 'counterparty' }, { name: 'memo' },
-          { name: 'category' }, { name: 'createdAt' }
+          { name: 'channel' }, { name: 'category' }, { name: 'createdAt' }
         ]
       end
     }

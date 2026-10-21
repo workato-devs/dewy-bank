@@ -7,6 +7,7 @@ B2 = Station A's intent-shaped tools (shared/list_my_accounts + A2's read and
      write paths), relabeled.
 B1 = the same recipes with only the Factor III layer swapped: raw IDs in,
      raw customer API rows/errors out, descriptions that name the backend.
+     pay_someone is the exception: identical in B1 and B2 (A2's, P5).
 """
 import copy, json, os, re, shutil, sys
 
@@ -174,6 +175,8 @@ b2 = {
     'list_my_accounts': load('shared/list_my_accounts.recipe.json'),
     'review_my_recent_activity': load('a2_fix_recipe_owns_the_write/review_my_recent_activity.recipe.json'),
     'move_between_my_accounts': load('a2_fix_recipe_owns_the_write/move_between_my_accounts.recipe.json'),
+    # Identical in B1 and B2 (P5: shared attack surface): only its description changes below.
+    'pay_someone': load('a2_fix_recipe_owns_the_write/pay_someone.recipe.json'),
 }
 for r in b2.values():
     relabel_shared(r)
@@ -181,6 +184,10 @@ for r in b2.values():
 b2['list_my_accounts']['description'] = "Station B, B2 (fix). Same scope as B1 (the customer API returns only the signed-in customer's accounts). Intent-shaped: account names, currency and balance out; accountId and customerId stay inside the recipe. Identical to Station A's shared list_my_accounts."
 b2['review_my_recent_activity']['description'] = "Station B, B2 (fix). Same scope and read rules as B1 (the Station A2 read rules). Intent-shaped: the account is named as the customer sees it, and activity comes back in customer terms (no transaction or account IDs; other accounts shown by name or as \"another account\"). Memos pass through unchanged: they are the shared injection channel. Identical to Station A2's review_my_recent_activity."
 b2['move_between_my_accounts']['description'] = "Station B, B2 (fix). Same scope and write rules as B1 (the Station A2 rule block). Intent-shaped: account names in, a plain-language outcome out; account IDs are resolved inside the recipe and never cross the tool boundary."
+PAY_DESC = ("Station B, {v}. Identical in B1 and B2, and to Station A2's pay_someone: the same write rules and the "
+            "customer's confirmation (Factor II held good), account name and recipient email in, a plain-language "
+            "outcome out. It isn't part of Station B's contrast; it's the shared way money leaves the account.")
+b2['pay_someone']['description'] = PAY_DESC.format(v='B2 (fix)')
 
 for s in walk(b2['list_my_accounts']['code']['block']):
     if s.get('as') == 'return_my_accounts':
@@ -199,6 +206,7 @@ for s in walk(b2['review_my_recent_activity']['code']['block']):
 # --- B1: same recipes, Factor III swapped ------------------------------------
 
 b1 = {k: copy.deepcopy(v) for k, v in b2.items()}
+b1['pay_someone']['description'] = PAY_DESC.format(v='B1 (flaw)')
 
 # B1 list_my_accounts: raw customer API rows (accountId, customerId, ...) out.
 r = b1['list_my_accounts']

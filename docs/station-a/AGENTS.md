@@ -4,19 +4,19 @@ This is a teaching sample. Its whole job is to show that **one factor changes wh
 
 ## Invariants (don't break these)
 
-1. **Everything the model sees is identical across A1 and A2.** That covers the skill `name`, `trigger_description`, trigger `input.description`, `parameters_schema_json`, `result_schema_json`, `requires_user_confirmation`, the Genie `instructions`, `ai_provider` and `ai_model`. If you change one variant, make the same change in the other.
+1. **Everything the model sees is identical across A1 and A2.** That covers the skill `name`, `trigger_description`, trigger `input.description`, `parameters_schema_json`, `result_schema_json`, `requires_user_confirmation`, the Genie `instructions`, `ai_provider` and `ai_model`. If you change one variant, make the same change in the other. **One documented exception:** `pay_someone`'s `requires_user_confirmation` is `true` in A2 and `false` in A1, because that confirmation is A2's payee rule (`docs/backend-requirements.md`, P5).
 2. **The variant lives where only participants see it:** folder names, Genie names and descriptions, recipe `description`, and step comments. Never in tool names, tool descriptions or parameter hints.
 3. **Tool names describe the customer's job**, not the implementation or the variant: `move_between_my_accounts`, not `transferFunds_safe`.
 4. **No backend identifiers cross the tool boundary.** Customer-facing names go in, plain-language outcomes come out. `accountId` and `customerId` stay inside the recipe.
 5. **No access rules or limits in the Genie instructions.** That's prompt-as-ACL, which is Station C's flaw. Edit `docs/station-a/genie-instructions.md`, never the Genie JSON directly.
 6. **Scope comes from the credential.** Every tool calls only the `Dewy Bank Customer API` connector, which acts as the participant, and the customer API scopes every route to them. No tool uses the Admin API, and there's no `customer_id` stand-in. Don't add ownership checks to recipes to make up for anything: the credential is the boundary.
-7. **The A2 rules are deterministic recipe steps:** four write rules (`move_between_my_accounts`) and two read rules (`review_my_recent_activity`: one named account, at most 20 entries). Don't move them into the prompt or the tool description, and don't add decision logic to A1: its recipes only map the request onto the API call.
+7. **The A2 rules are deterministic recipe steps:** four write rules (`move_between_my_accounts`), three payment rules (`pay_someone`: positive amount, at most $500, within the balance; the payee rule is the skill's confirmation) and two read rules (`review_my_recent_activity`: one named account, at most 20 entries). Don't move them into the prompt or the tool description, and don't add decision logic to A1: its recipes only map the request onto the API call.
 8. **Memos pass through unchanged, in every variant.** `note` goes to the bank exactly as written, and activity returns `description` exactly as stored. Filtering or rewriting memos in one variant would add a second variable and hide the attack channel.
 9. **Request bodies are built as a hash with `.to_json`** (`={'from' => …, 'memo' => …}.to_json`), never by joining strings. The note is free text from the model, and `.to_json` escapes it.
 
 ## Station B is generated from Station A
 
-`scripts/build/build_station_b.py` copies Station A's `shared/` tool, A2's `review_my_recent_activity` and `move_between_my_accounts`, and the Genie instructions into Station B. `scripts/build/build_station_c.py` copies the same three customer tools into Station C. After you change any of them, rebuild Stations B and C and run `scripts/build/check_invariants.py` and `scripts/build/check_station_c.py`.
+`scripts/build/build_station_b.py` copies Station A's `shared/` tool, A2's `review_my_recent_activity`, `move_between_my_accounts` and `pay_someone`, and the Genie instructions into Station B. `scripts/build/build_station_c.py` copies the same four customer tools into Station C. After you change any of them, rebuild Stations B and C and run `scripts/build/check_invariants.py` and `scripts/build/check_station_c.py`.
 
 ## Conventions
 

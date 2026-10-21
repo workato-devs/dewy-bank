@@ -4,8 +4,8 @@ Run from anywhere: python3 scripts/build/build_station_c.py
 It deletes and rewrites dewy-bank-station-c/, so edit this script, not the generated JSON.
 
 Every tool lives in shared/ and is identical in C1 and C2:
-- the three customer tools, copied from Station A (shared list_my_accounts + A2's
-  read and write paths), relabeled because Factors II and III are held good here;
+- the four customer tools, copied from Station A (shared list_my_accounts + A2's
+  read, write and pay paths), relabeled because Factors II and III are held good here;
 - the two support-agent tools, built here on the Dewy Bank Support API connector
   (workspace-connections/), which calls the Support API contract
   (docs/backend-requirements.md, C-P3).
@@ -221,12 +221,14 @@ customer = {
     'list_my_accounts': load('shared/list_my_accounts.recipe.json'),
     'review_my_recent_activity': load('a2_fix_recipe_owns_the_write/review_my_recent_activity.recipe.json'),
     'move_between_my_accounts': load('a2_fix_recipe_owns_the_write/move_between_my_accounts.recipe.json'),
+    'pay_someone': load('a2_fix_recipe_owns_the_write/pay_someone.recipe.json'),
 }
 for r in customer.values():
     relabel_held_good(r)
 customer['list_my_accounts']['description'] = "Station C, shared by C1 and C2. Customer tool, identical to Station A's: the signed-in customer's accounts by name. Calls the customer API as the participant (the Dewy Bank Customer API connector)."
 customer['review_my_recent_activity']['description'] = "Station C, shared by C1 and C2. Customer tool, identical to Station A2's: one named account's recent activity, at most 20 entries, in customer terms (II and III held good). Memos pass through unchanged: they are the shared injection channel."
 customer['move_between_my_accounts']['description'] = "Station C, shared by C1 and C2. Customer tool, identical to Station A2's: a move between two of the customer's accounts, behind the four write rules (II held good). Account names in, a plain-language outcome out (III held good)."
+customer['pay_someone']['description'] = "Station C, shared by C1 and C2. Customer tool, identical to Station A2's: a payment to another customer by email, behind the three write rules and the customer's confirmation (II held good). Account name and email in, a plain-language outcome out (III held good)."
 
 # --- support-agent tools: built against the Support API contract (C-P3) -------------
 
@@ -395,7 +397,7 @@ C1_TEXT = ' '.join([CUSTOMER_TEXT, block('station-c/genie-instructions.md', 'c1-
 SUPPORT_TEXT = block('station-c/genie-instructions.md', 'support')
 # The support Genie gets its own Dewy (in a cap), so the two C2 roles are easy to tell apart in Agent Studio.
 LOGOS = {'dewy_bank_support_assistant_c2_fix': os.path.join(HERE, 'templates', 'logos', 'dewy-support-agent.png')}
-CUSTOMER_TOOLS = ['list_my_accounts', 'review_my_recent_activity', 'move_between_my_accounts']
+CUSTOMER_TOOLS = ['list_my_accounts', 'review_my_recent_activity', 'move_between_my_accounts', 'pay_someone']
 SUPPORT_TOOLS = ['look_up_customer_accounts', 'issue_goodwill_credit']
 for folder, src, fname, title, desc, text, tools in (
     (C1, 'a1_flaw_agent_owns_the_write/dewy_bank_assistant_a1_flaw', 'dewy_bank_assistant_c1_flaw', 'Dewy Bank Assistant · C1 flaw',
@@ -419,6 +421,6 @@ for folder, src, fname, title, desc, text, tools in (
     save(f'{folder}/{fname}.agentic_genie.json', g)
     shutil.copy(logo or os.path.join(A, src + '.agentic_genie.png'), os.path.join(C, folder, fname + '.agentic_genie.png'))
 
-save('project.json', {'description': 'Dewy Bank workshop, Station C: Factor IV (Bounded Access). The same five tools in both variants; only the Genies differ. C1 = one Genie with customer and support-agent tools, guarded by a passphrase in its instructions; C2 = a customer Genie and a support Genie, each holding only its own tools and credential.',
+save('project.json', {'description': 'Dewy Bank workshop, Station C: Factor IV (Bounded Access). The same six tools in both variants; only the Genies differ. C1 = one Genie with customer and support-agent tools, guarded by a passphrase in its instructions; C2 = a customer Genie and a support Genie, each holding only its own tools and credential.',
                       'color': 'brown', 'icon': ''})
 print('ok')

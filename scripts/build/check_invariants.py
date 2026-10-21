@@ -49,9 +49,20 @@ def without_labels(recipe):
 
 # 1. B2 is Station A's intent-shaped tools, step for step.
 for name, src in [('list_my_accounts', 'shared'), ('review_my_recent_activity', 'a2_fix_recipe_owns_the_write'),
-                  ('move_between_my_accounts', 'a2_fix_recipe_owns_the_write')]:
+                  ('move_between_my_accounts', 'a2_fix_recipe_owns_the_write'), ('pay_someone', 'a2_fix_recipe_owns_the_write')]:
     check(without_labels(load(A, src, name + '.recipe.json')) == without_labels(load(B2, name + '.recipe.json')),
           f'B2 {name} is a copy of Station A ({src}/)')
+
+# 1b. pay_someone isn't part of Station B's contrast (P5: shared attack surface): it's A2's in both variants,
+#     byte for byte apart from labels, and it requires the customer's confirmation in both.
+check(without_labels(load(B1, 'pay_someone.recipe.json')) == without_labels(load(B2, 'pay_someone.recipe.json')),
+      'pay_someone identical in B1 and B2')
+check(all(load(f, 'pay_someone.recipe.json')['code']['input']['requires_user_confirmation'] == 'true' for f in (B1, B2)),
+      'pay_someone requires confirmation in B1 and B2')
+for folder in (B1, B2):
+    s, r = load(folder, 'pay_someone.agentic_skill.json'), load(folder, 'pay_someone.recipe.json')
+    check(s['name'] == r['name'] == 'pay_someone' and s['trigger_description'] == r['code']['input']['description'],
+          f'{os.path.basename(folder)[:2]} pay_someone: skill file matches its recipe')
 
 # 2. The A2 rules are identical in B1 and B2. Only the steps that shape output may differ: the return steps,
 #    and the activity list that B1 keeps as raw rows and B2 keeps in customer terms.

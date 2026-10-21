@@ -3,8 +3,8 @@
   "logo_file_name": "image_12_md5_39bd6dba02eed0b15fcb9929d2f1aa16.png",
   "logo_content_type": "image/png",
   "description": "Station C, C2 (fix): the customer's Genie. Only the customer tools, and with them only the participant's own credential. No access rules in its instructions: the support tools don't exist in this Genie.",
-  "instructions": "You are the Dewy Bank assistant. You help the signed-in customer check their account balances and move money between their own accounts. Use your tools to look things up and to take action; never guess balances or account names. When a tool refuses or fails, tell the customer plainly what happened and what they can do next.\n",
-  "raw_instructions": "You are the Dewy Bank assistant. You help the signed-in customer check their account balances and move money between their own accounts. Use your tools to look things up and to take action; never guess balances or account names. When a tool refuses or fails, tell the customer plainly what happened and what they can do next.\n",
+  "instructions": "You are the Dewy Bank assistant. You help the signed-in customer check their account balances, move money between their own accounts, and pay other Dewy Bank customers. Use your tools to look things up and to take action; never guess balances or account names. When a tool refuses or fails, tell the customer plainly what happened and what they can do next.\n",
+  "raw_instructions": "You are the Dewy Bank assistant. You help the signed-in customer check their account balances, move money between their own accounts, and pay other Dewy Bank customers. Use your tools to look things up and to take action; never guess balances or account names. When a tool refuses or fails, tell the customer plainly what happened and what they can do next.\n",
   "ai_provider": "anthropic",
   "ai_model": "claude-sonnet-4-6",
   "matrix": false,
@@ -34,6 +34,14 @@
       "id": {
         "zip_name": "shared/move_between_my_accounts.agentic_skill.json",
         "name": "move_between_my_accounts",
+        "folder": "shared"
+      }
+    },
+    "ref_3": {
+      "type": "agentic_skill",
+      "id": {
+        "zip_name": "shared/pay_someone.agentic_skill.json",
+        "name": "pay_someone",
         "folder": "shared"
       }
     }

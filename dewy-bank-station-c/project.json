@@ -1,5 +1,5 @@
 {
-  "description": "Dewy Bank workshop, Station C: Factor IV (Bounded Access). The same five tools in both variants; only the Genies differ. C1 = one Genie with customer and support-agent tools, guarded by a passphrase in its instructions; C2 = a customer Genie and a support Genie, each holding only its own tools and credential.",
+  "description": "Dewy Bank workshop, Station C: Factor IV (Bounded Access). The same six tools in both variants; only the Genies differ. C1 = one Genie with customer and support-agent tools, guarded by a passphrase in its instructions; C2 = a customer Genie and a support Genie, each holding only its own tools and credential.",
   "color": "brown",
   "icon": ""
 }

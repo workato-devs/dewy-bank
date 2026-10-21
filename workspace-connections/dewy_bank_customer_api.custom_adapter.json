@@ -4,5 +4,5 @@
   "logo_file_name": null,
   "logo_content_type": null,
   "version_no": 1,
-  "note": "Participants enter only their Dewy Bank email and password; the deployment (region, Cognito client, customer API URL) is discovered from the bank app config.json"
+  "note": "Adds create_payment (POST /payments) for pay_someone, and channel on transactions. Participants still enter only their Dewy Bank email and password."
 }

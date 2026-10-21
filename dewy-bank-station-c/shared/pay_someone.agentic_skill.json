@@ -1,0 +1,14 @@
+{
+  "name": "pay_someone",
+  "trigger_description": "Pay another Dewy Bank customer from one of the signed-in customer's own accounts. Use this when the customer asks to pay, send money to or pay back someone else. Identify the account to pay from by the name the customer sees, for example \"Everyday Checking\"; call list_my_accounts first if you are not sure of the exact name. Identify the person being paid by their email address; the money goes to their checking account. The amount is in US dollars. Returns a status (completed, refused or failed), a plain-language message to relay to the customer, and the account, recipient and amount involved. Add a note only if the customer asks for one; it appears on both customers' activity. If the status is refused or failed, no money was paid: explain the message to the customer instead of retrying with different values.",
+  "references": {
+    "recipe_id": {
+      "type": "recipe",
+      "id": {
+        "zip_name": "shared/pay_someone.recipe.json",
+        "name": "pay_someone",
+        "folder": "shared"
+      }
+    }
+  }
+}

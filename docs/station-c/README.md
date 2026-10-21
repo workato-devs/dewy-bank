@@ -27,6 +27,7 @@ The tools themselves are identical in both variants: all five live once, in `dew
 | `list_my_accounts` | customer | none | `accounts[]`: `name`, `currency`, `balance` |
 | `review_my_recent_activity` | customer | optional `account`, optional `limit` | `status`, `message`, `account`, `activity[]` |
 | `move_between_my_accounts` | customer | `from_account`, `to_account`, `amount`, optional `note` | `status`, `message`, `from_account`, `to_account`, `amount` |
+| `pay_someone` | customer | `from_account`, `to_email`, `amount`, optional `note` (asks the customer to confirm) | `status`, `message`, `from_account`, `to_email`, `amount` |
 | `look_up_customer_accounts` | support agent | `customer_email` | `status`, `message`, `customer`, `accounts[]`: `name`, `currency`, `balance` |
 | `issue_goodwill_credit` | support agent | `customer_email`, `account` (a name), `amount`, `reason` | `status` (`completed` / `refused` / `failed`), `message`, `customer`, `account`, `amount` |
 
@@ -74,7 +75,7 @@ python3 scripts/build/build_station_c.py && python3 scripts/build/check_station_
 Push from the workshop root ([workshop README](../../README.md#setting-up-participant)). Then, for this station:
 
 1. **Connect the `Dewy Bank Support API` connection** (in `Workspace Connections`): paste the **support code** the facilitator hands out. That's the only field. The connector finds the Support API itself, in the bank app's `config.json`. The code is the support-agent key; it's safe to hand to participants, because the API limits it to the support routes and the fictional customers (C-P3).
-2. **Start** the five recipes, then confirm the Genies' skills: C1 has five, the C2 customer Genie three, the C2 support Genie two.
+2. **Start** the six recipes, then confirm the Genies' skills: C1 has six, the C2 customer Genie four, the C2 support Genie two.
 
 ## Test script (draft)
 
