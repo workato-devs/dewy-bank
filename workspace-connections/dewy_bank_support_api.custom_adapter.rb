@@ -9,8 +9,8 @@
   # participant's accounts.
   connection: {
     fields: [
-      { name: 'support_code', label: 'Support code', control_type: 'password', optional: false,
-        hint: 'The support code your facilitator gives you' }
+      { name: 'support_api_key', label: 'Support API key', control_type: 'password', optional: false,
+        default: 'dwk_60966da72eeeb749c7776d2f2411a521fb5ae8fb7abdc77a39f6758668f77d4a' }, # stamped before the workshop by scripts/stamp_bank_app_url.py
     ],
 
     authorization: {
@@ -28,7 +28,11 @@
       refresh_on: [401],
 
       apply: lambda do |connection|
-        headers('x-api-key' => connection['support_code'])
+        key = connection['support_api_key']
+        if key.nil? || key.include?('NOT_STAMPED')
+          error('The Support API connector has not been stamped for this workshop yet. Ask your facilitator.')
+        end
+        headers('x-api-key' => key)
       end
     },
 
