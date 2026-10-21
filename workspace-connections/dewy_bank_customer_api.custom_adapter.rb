@@ -21,22 +21,26 @@
       type: 'custom_auth',
 
       acquire: lambda do |connection|
-        bank_app_url = 'BANK_APP_URL_NOT_STAMPED' # stamped before the workshop by scripts/stamp_bank_app_url.py
+        # Values stamped at workshop deploy time; updated alongside bank_app_url by scripts/stamp_bank_app_url.py
+        bank_app_url = 'https://d2c3w0ptk29gf8.cloudfront.net' # stamped before the workshop by scripts/stamp_bank_app_url.py
         if bank_app_url.include?('NOT_STAMPED')
           error('This connector has not been set up for a workshop yet: ask your facilitator.')
         end
-        config = get("#{bank_app_url}/config.json").response_format_json
-        response = post("https://cognito-idp.#{config['region']}.amazonaws.com/")
+        cognito_region = 'us-west-2'           # stamped before the workshop by scripts/stamp_bank_app_url.py
+        user_pool_client_id = '7079unfjfngj5b7jll8ahur0mc' # stamped before the workshop by scripts/stamp_bank_app_url.py
+        customer_api_url = 'https://m1rxf0usw7.execute-api.us-west-2.amazonaws.com'       # stamped before the workshop by scripts/stamp_bank_app_url.py
+        response = post("https://cognito-idp.#{cognito_region}.amazonaws.com/")
                    .headers('X-Amz-Target' => 'AWSCognitoIdentityProviderService.InitiateAuth',
                             'Content-Type' => 'application/x-amz-json-1.1')
                    .request_body({
                      AuthFlow: 'USER_PASSWORD_AUTH',
-                     ClientId: config['userPoolClientId'],
+                     ClientId: user_pool_client_id,
                      AuthParameters: { USERNAME: connection['email'], PASSWORD: connection['password'] }
                    }.to_json)
                    .response_format_json
-        { id_token: response.dig('AuthenticationResult', 'IdToken'),
-          customer_api_url: config['customerApiUrl'] }
+        id_token = response.dig('AuthenticationResult', 'IdToken') ||
+                   response.dig('authentication_result', 'id_token')
+        { id_token: id_token, customer_api_url: customer_api_url }
       end,
 
       refresh_on: [401],

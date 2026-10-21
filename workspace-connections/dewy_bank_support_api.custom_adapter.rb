@@ -17,12 +17,12 @@
       type: 'custom_auth',
 
       acquire: lambda do |_connection|
-        bank_app_url = 'BANK_APP_URL_NOT_STAMPED' # stamped before the workshop by scripts/stamp_bank_app_url.py
+        bank_app_url = 'https://d2c3w0ptk29gf8.cloudfront.net' # stamped before the workshop by scripts/stamp_bank_app_url.py
         if bank_app_url.include?('NOT_STAMPED')
           error('This connector has not been set up for a workshop yet: ask your facilitator.')
         end
-        config = get("#{bank_app_url}/config.json").response_format_json
-        { support_api_url: config['supportApiUrl'] }
+        support_api_url = 'https://j6k87ieapj.execute-api.us-west-2.amazonaws.com' # stamped before the workshop by scripts/stamp_bank_app_url.py
+        { support_api_url: support_api_url }
       end,
 
       refresh_on: [401],
