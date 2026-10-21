@@ -1,8 +1,8 @@
 {
-  "title": "Dewy Bank Customer API",
   "description": "Dewy Bank workshop: the customer API, signed in as the participant (Cognito ID token, refreshed on 401). Plain calls, no checks: decisions belong to the recipes.",
-  "logo_file_name": null,
   "logo_content_type": null,
-  "version_no": 1,
-  "note": "Adds create_payment (POST /payments) for pay_someone, and channel on transactions. Participants still enter only their Dewy Bank email and password."
+  "logo_file_name": null,
+  "note": "Run scripts/stamp_bank_app_url.py before pushing — adds bank_app_url and customer_api_url defaults. v4.",
+  "title": "Dewy Bank Customer API",
+  "version_no": 4
 }
