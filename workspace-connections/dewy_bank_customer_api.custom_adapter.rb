@@ -44,7 +44,7 @@
                    .response_format_json
         id_token = response.dig('AuthenticationResult', 'IdToken') ||
                    response.dig('authentication_result', 'id_token')
-        { id_token: id_token }
+        { id_token: id_token, customer_api_url: config['customerApiUrl'] }
       end,
 
       refresh_on: [401],
@@ -55,9 +55,7 @@
     },
 
     base_uri: lambda do |connection|
-      bank_app_url = connection['bank_app_url']
-      config = get("#{bank_app_url}/config.json").response_format_json
-      config['customerApiUrl']
+      connection['customer_api_url']
     end
   },
 
