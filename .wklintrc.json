@@ -1,0 +1,8 @@
+{
+  "version": "0.1.0",
+  "profile": "strict",
+  "rules": {
+    "ACTION_NAME_UNVERIFIED": "info"
+  },
+  "ignore_files": []
+}

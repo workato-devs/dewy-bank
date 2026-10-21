@@ -1,0 +1,14 @@
+{
+  "name": "move_between_my_accounts",
+  "trigger_description": "POSTs {from, to, amount, memo} to /transfers on the Dewy Bank customer API to move money between two of the signed-in customer's own accounts. Use this when the customer asks to transfer, move or send money from one of their accounts to another of their accounts. Get the accountId values from list_my_accounts first. The amount is in US dollars. Returns the customer API response body (message, from, to, amount) and HTTP status code. Add a note only if the customer asks for one; it is sent as the memo on both accounts' activity. If the transfer is refused or fails, no money was moved: explain the message to the customer instead of retrying with different values.",
+  "references": {
+    "recipe_id": {
+      "type": "recipe",
+      "id": {
+        "zip_name": "b1_flaw_wrapped_api_leaky_response/move_between_my_accounts.recipe.json",
+        "name": "move_between_my_accounts",
+        "folder": "b1_flaw_wrapped_api_leaky_response"
+      }
+    }
+  }
+}

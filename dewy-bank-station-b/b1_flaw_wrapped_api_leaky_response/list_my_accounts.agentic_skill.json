@@ -1,0 +1,14 @@
+{
+  "name": "list_my_accounts",
+  "trigger_description": "Calls GET /accounts on the Dewy Bank customer API (authenticated with the customer's Cognito ID token) and returns the account records from the accounts table (accountId, customerId, name, type, currency, balance). Use this when the customer asks about their accounts or balances, or before moving money. Use the accountId values with review_my_recent_activity and move_between_my_accounts. Takes no inputs.",
+  "references": {
+    "recipe_id": {
+      "type": "recipe",
+      "id": {
+        "zip_name": "b1_flaw_wrapped_api_leaky_response/list_my_accounts.recipe.json",
+        "name": "list_my_accounts",
+        "folder": "b1_flaw_wrapped_api_leaky_response"
+      }
+    }
+  }
+}

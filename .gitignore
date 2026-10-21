@@ -1,0 +1,32 @@
+# OS
+.DS_Store
+
+# Node / CDK (also covered by infra/.gitignore)
+node_modules/
+cdk.out/
+.cdk.staging/
+
+# Local env / secrets — never commit
+.env
+.env.*
+*.pem
+*credentials*
+
+# SPA runtime config — generated at deploy / created locally per environment.
+# Holds live Cognito ids + API URLs; never commit.
+**/web/config.js
+**/web/config.json
+
+# Logs & scratch
+*.log
+
+# Editor per-directory tooling settings
+.claude/settings.local.json
+**/.kiro/settings/
+
+# Python
+__pycache__/
+*.pyc
+
+# .wk/ keeps its own .gitignore: only wk.toml is shared, and it must stay
+# workspace-neutral (AGENTS.md rule 7).

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dewy Bank · Admin Console</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Besley:wght@600&family=Figtree:wght@400;500;600;700;800&display=swap" />
+  <style>
+    :root {
+      --brand:#0b5cff; --brand-700:#0847c7; --brand-050:#eef4ff;
+      --bg:#0b1324; --surface:#111c33; --surface-2:#0e1830; --line:#1e2d4a;
+      --ink:#e8eefc; --muted:#8aa0c6; --faint:#5f7399;
+      --red:#f87171; --red-050:#2a1620; --green:#4ade80; --green-050:#10231a;
+      --amber:#fbbf24; --radius:14px; --shadow:0 10px 30px rgba(0,0,0,.3);
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; -webkit-font-smoothing:antialiased; }
+    .hide { display:none !important; }
+    .mono { font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:12px; color:var(--muted); }
+    .dewy { height:1.2em; width:auto; vertical-align:-.22em; }
+    button { font:inherit; cursor:pointer; border:0; border-radius:9px; padding:9px 14px; background:var(--brand); color:#fff; font-weight:600; transition:background .15s, transform .05s; }
+    button:hover { background:var(--brand-700); } button:active { transform:translateY(1px); } button:disabled { opacity:.5; cursor:not-allowed; }
+    button.ghost { background:transparent; color:var(--ink); border:1px solid var(--line); }
+    button.ghost:hover { background:var(--surface-2); }
+    button.sm { padding:6px 10px; font-size:12px; }
+    button.danger { background:#7f1d1d; } button.danger:hover { background:#991b1b; }
+    input, select { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font:inherit; background:var(--surface-2); color:var(--ink); }
+    input:focus,select:focus { outline:2px solid rgba(11,92,255,.3); border-color:var(--brand); }
+    label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin:0 0 6px; }
+    .msg { padding:10px 14px; border-radius:9px; font-size:13px; margin-top:12px; }
+    .msg.err { background:var(--red-050); color:var(--red); } .msg.ok { background:var(--green-050); color:var(--green); }
+
+    header { background:var(--surface); border-bottom:1px solid var(--line); padding:16px 28px; display:flex; align-items:center; justify-content:space-between; }
+    header .brand { font-family:'Besley',Georgia,'Times New Roman',serif; font-weight:600; font-size:18px; display:flex; align-items:center; gap:9px; }
+    header .brand .shield { color:var(--amber); }
+    header .right { display:flex; align-items:center; gap:14px; font-size:13px; color:var(--muted); }
+    main { max-width:1180px; margin:26px auto; padding:0 24px 60px; }
+
+    .login { max-width:380px; margin:9vh auto; }
+    .login .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:30px; box-shadow:var(--shadow); }
+    .login h1 { margin:0 0 4px; font-size:22px; } .login .sub { color:var(--muted); font-size:14px; margin:0 0 22px; }
+    .field { margin-bottom:14px; }
+
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+    .stat { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); }
+    .stat .l { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+    .stat .v { font-size:30px; font-weight:800; margin-top:6px; letter-spacing:-.5px; }
+
+    .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:22px 24px; box-shadow:var(--shadow); margin-bottom:20px; }
+    .card h2 { font-size:15px; margin:0 0 16px; display:flex; align-items:center; gap:9px; }
+    .cols { display:grid; grid-template-columns:1.7fr 1fr; gap:20px; align-items:start; }
+    @media (max-width:960px){ .stats{grid-template-columns:1fr;} .cols{grid-template-columns:1fr;} }
+
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--faint); padding:0 10px 10px; }
+    td { padding:11px 10px; border-top:1px solid var(--line); font-size:14px; vertical-align:middle; }
+    .cust-head td { background:var(--surface-2); font-weight:700; color:var(--ink); border-top:1px solid var(--line); }
+    .bal { font-weight:700; font-variant-numeric:tabular-nums; } .bal.neg { color:var(--red); }
+    .acts { display:flex; gap:6px; flex-wrap:wrap; }
+    .row { display:flex; gap:12px; } .row > .field { flex:1; margin:0; }
+
+    .contrast { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .contrast .box { border:1px solid var(--line); border-radius:12px; padding:16px; }
+    .contrast .box.insecure { background:var(--red-050); border-color:#5b2330; }
+    .contrast .box.secure { background:var(--green-050); border-color:#1d4a37; }
+    .contrast .box h3 { margin:0 0 8px; font-size:13px; display:flex; align-items:center; gap:7px; }
+    .contrast .box p { margin:0; font-size:12.5px; color:var(--muted); line-height:1.5; }
+    .contrast .box code { background:rgba(255,255,255,.06); padding:1px 5px; border-radius:5px; font-size:11px; }
+    .note { font-size:12px; color:var(--faint); margin-top:10px; }
+    a.link { color:#7da7ff; }
+
+    /* leaderboard */
+    .live .dot, .dot#liveDot { width:9px; height:9px; border-radius:50%; background:var(--green); display:inline-block; box-shadow:0 0 0 0 rgba(74,222,128,.6); animation:pulse 2s infinite; }
+    .dot#liveDot.off { background:var(--faint); animation:none; box-shadow:none; }
+    @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(74,222,128,.5)} 70%{box-shadow:0 0 0 7px rgba(74,222,128,0)} 100%{box-shadow:0 0 0 0 rgba(74,222,128,0)} }
+    .lb { display:flex; flex-direction:column; gap:9px; }
+    .lb-row { display:grid; grid-template-columns:40px 1fr 150px 110px; align-items:center; gap:14px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--surface-2); transition:background .5s, transform .25s; }
+    .lb-row.flash-up { background:var(--green-050); } .lb-row.flash-down { background:var(--red-050); }
+    .lb-rank { font-weight:800; font-size:16px; text-align:center; color:var(--faint); }
+    .lb-row:nth-child(1) .lb-rank { color:#fbbf24; } .lb-row:nth-child(2) .lb-rank { color:#cbd5e1; } .lb-row:nth-child(3) .lb-rank { color:#d08b5b; }
+    .lb-name { font-weight:600; } .lb-name .sub { font-size:12px; color:var(--faint); font-weight:400; margin-top:2px; }
+    .lb-bar { height:8px; background:#0a1428; border-radius:999px; overflow:hidden; }
+    .lb-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,#0b5cff,#4ade80); transition:width .5s; }
+    .lb-amt { text-align:right; font-weight:800; font-variant-numeric:tabular-nums; }
+    .lb-amt.neg { color:var(--red); }
+    .lb-delta { font-size:11px; font-weight:700; margin-top:2px; text-align:right; }
+    .lb-delta.up { color:var(--green); } .lb-delta.down { color:var(--red); }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="login" class="login">
+    <div class="card">
+      <h1><img class="dewy" src="dewy-base.svg" alt="" /> Admin Console</h1>
+      <p class="sub">Facilitator sign-in. Requires the <b>facilitators</b> group.</p>
+      <div class="field"><label>Email</label><input id="email" type="email" placeholder="facilitator@example.com" /></div>
+      <div class="field"><label>Password</label><input id="pass" type="password" placeholder="••••••••" /></div>
+      <button id="loginBtn" style="width:100%">Sign in</button>
+      <div id="loginMsg"></div>
+      <p class="note">Not a facilitator? <a class="link" href="index.html">Go to online banking →</a></p>
+    </div>
+  </div>
+
+  <!-- CONSOLE -->
+  <div id="console" class="hide">
+    <header>
+      <div class="brand"><img class="dewy" src="dewy-base.svg" alt="" /> Dewy Bank · Admin Console</div>
+      <div class="right"><span id="who"></span><a class="link" href="index.html">Banking app ↗</a><button id="logout" class="ghost sm">Log out</button></div>
+    </header>
+    <main>
+      <div class="stats">
+        <div class="stat"><div class="l">Customers</div><div class="v" id="stCustomers">—</div></div>
+        <div class="stat"><div class="l">Accounts</div><div class="v" id="stAccounts">—</div></div>
+        <div class="stat"><div class="l">Total balance under management</div><div class="v" id="stTotal">—</div></div>
+      </div>
+
+      <div class="card">
+        <h2>🏆 Account-holder leaderboard
+          <label class="live" style="margin:0 0 0 auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);cursor:pointer">
+            <input type="checkbox" id="liveToggle" checked style="width:auto" /> <span class="dot" id="liveDot"></span> Live
+          </label>
+        </h2>
+        <p class="note" style="margin-top:0">Total balance per account holder — updates automatically as money moves. Watch it shift live during the heist demo.</p>
+        <div id="leaderboard">Loading…</div>
+      </div>
+
+      <div class="cols">
+        <div>
+          <div class="card">
+            <h2>👥 All accounts <button id="refresh" class="ghost sm" style="margin-left:auto">Refresh</button></h2>
+            <div id="accounts">Loading…</div>
+            <div id="acctMsg"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h2>↔️ Facilitator transfer</h2>
+            <p class="note" style="margin-top:0">Move funds between any two accounts (authenticated admin action, not the heist path).</p>
+            <div class="field"><label>From account ID</label><input id="xFrom" class="mono" placeholder="acct-…" /></div>
+            <div class="field"><label>To account ID</label><input id="xTo" class="mono" placeholder="acct-…" /></div>
+            <div class="field"><label>Amount (USD)</label><input id="xAmt" type="number" min="0.01" step="0.01" placeholder="0.00" /></div>
+            <button id="xBtn" style="width:100%">Send transfer</button>
+            <div id="xMsg"></div>
+          </div>
+          <div class="card">
+            <h2>⚔️ Security demo: two Admin API paths</h2>
+            <div class="contrast">
+              <div class="box insecure">
+                <h3>🔓 Insecure</h3>
+                <p>Routes like <code>/admin/transfer</code> accept <code>{from,to,amount}</code> verbatim — no ownership check. The Genie can be tricked into naming any <code>from</code>. This is the heist.</p>
+              </div>
+              <div class="box secure">
+                <h3>🔒 Secure</h3>
+                <p><code>/admin/secure/transfer</code> re-derives the source from the pinned <code>x-participant-sub</code> header, allow-lists the destination, and enforces a per-transfer limit. The LLM can never name a source.</p>
+              </div>
+            </div>
+            <p class="note">This console uses the <b>authenticated</b> Customer-API admin surface (Cognito group, no static key). The insecure/secure contrast above is the separate <span class="mono">x-api-key</span> Admin API consumed by the Workato Genies.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

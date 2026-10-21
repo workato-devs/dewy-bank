@@ -1,0 +1,9 @@
+{
+  "name": "Dewy Bank Support API",
+  "provider": {
+    "folder": "",
+    "name": "Dewy Bank Support API",
+    "zip_name": "dewy_bank_support_api.custom_adapter.json"
+  },
+  "root_folder": false
+}

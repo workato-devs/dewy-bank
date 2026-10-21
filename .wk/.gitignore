@@ -1,0 +1,5 @@
+# wk CLI: tool-managed directory. Everything here is machine-local state
+# (sidecar metadata, folder-ID cache) except wk.toml, the shared sync config.
+*
+!.gitignore
+!wk.toml

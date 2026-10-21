@@ -1,0 +1,13 @@
+*.js
+!jest.config.js
+# Hand-written SPA source (not compiled output) — must be tracked
+!web/*.js
+# ...but config.js is generated at deploy / created locally per environment
+# (holds live Cognito ids + API URLs). Never commit it.
+web/config.js
+*.d.ts
+node_modules
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out

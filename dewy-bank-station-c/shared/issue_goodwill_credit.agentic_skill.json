@@ -1,0 +1,14 @@
+{
+  "name": "issue_goodwill_credit",
+  "trigger_description": "Issue a goodwill credit to one of a Dewy Bank customer's accounts, for a support agent. Use this when the support agent asks to credit, refund or compensate a customer. Identify the customer by email and the account by the name the customer sees, for example \"Everyday Checking\"; call look_up_customer_accounts first if you are not sure of the exact name. The amount is in US dollars; give a short reason. Returns a status (completed, refused or failed), a plain-language message to relay, and the customer, account and amount involved. If the status is refused or failed, no money was credited: explain the message instead of retrying with different values.",
+  "references": {
+    "recipe_id": {
+      "type": "recipe",
+      "id": {
+        "zip_name": "shared/issue_goodwill_credit.recipe.json",
+        "name": "issue_goodwill_credit",
+        "folder": "shared"
+      }
+    }
+  }
+}

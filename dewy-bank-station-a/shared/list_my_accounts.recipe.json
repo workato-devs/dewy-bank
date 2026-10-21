@@ -1,0 +1,179 @@
+{
+  "name": "list_my_accounts",
+  "description": "Station A, shared by both Genies. Lists the signed-in customer's accounts by name, with no internal IDs in the output. The customer API (called as the participant) returns only this customer's accounts.",
+  "version": 1,
+  "private": true,
+  "concurrency": 1,
+  "code": {
+    "provider": "workato_skill",
+    "name": "start_workflow",
+    "as": "trigger",
+    "keyword": "trigger",
+    "input": {
+      "requires_user_confirmation": "false",
+      "description": "List the signed-in customer's Dewy Bank accounts with each account's name, currency and current balance. Use this when the customer asks about their accounts or balances, or before moving money when you need the exact account names. Takes no inputs. Returns only the customer's own accounts.",
+      "parameters_schema_json": "[]",
+      "result_schema_json": "[{\"name\":\"accounts\",\"label\":\"Accounts\",\"type\":\"array\",\"of\":\"object\",\"optional\":true,\"control_type\":\"array\",\"properties\":[{\"name\":\"name\",\"label\":\"Name\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"currency\",\"label\":\"Currency\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"balance\",\"label\":\"Balance\",\"type\":\"number\",\"optional\":true,\"control_type\":\"number\"}]}]"
+    },
+    "extended_output_schema": [],
+    "visible_config_fields": [
+      "requires_user_confirmation",
+      "description",
+      "parameters_schema_json",
+      "result_schema_json"
+    ],
+    "uuid": "trigger-000",
+    "skip": false,
+    "block": [
+      {
+        "provider": "dewy_bank_customer_api_connector_2100009826_1792537811",
+        "name": "list_accounts",
+        "as": "get_my_accounts",
+        "keyword": "action",
+        "input": {},
+        "comment": "The customer API returns only the signed-in customer's accounts (Factor IV held good).",
+        "uuid": "get-my-accounts-001",
+        "skip": false,
+        "number": 1
+      },
+      {
+        "provider": "workato_skill",
+        "name": "workflow_return_result",
+        "as": "return_my_accounts",
+        "keyword": "action",
+        "input": {
+          "result": {
+            "accounts": {
+              "____source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}')}",
+              "name": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"name\"]}')}",
+              "currency": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"currency\"]}')}",
+              "balance": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"balance\"]}')}"
+            }
+          }
+        },
+        "extended_input_schema": [
+          {
+            "extends_schema": false,
+            "label": "Response",
+            "name": "result",
+            "type": "object",
+            "properties": [
+              {
+                "label": "Accounts",
+                "type": "array",
+                "name": "accounts",
+                "of": "object",
+                "optional": true,
+                "extends_schema": false,
+                "properties": [
+                  {
+                    "control_type": "text",
+                    "label": "Name",
+                    "type": "string",
+                    "name": "name",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "control_type": "text",
+                    "label": "Currency",
+                    "type": "string",
+                    "name": "currency",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "control_type": "number",
+                    "label": "Balance",
+                    "type": "number",
+                    "name": "balance",
+                    "optional": true,
+                    "extends_schema": false,
+                    "parse_output": "float_conversion"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "extended_output_schema": [
+          {
+            "extends_schema": false,
+            "label": "Response",
+            "name": "result",
+            "type": "object",
+            "properties": [
+              {
+                "label": "Accounts",
+                "type": "array",
+                "name": "accounts",
+                "of": "object",
+                "optional": true,
+                "extends_schema": false,
+                "properties": [
+                  {
+                    "control_type": "text",
+                    "label": "Name",
+                    "type": "string",
+                    "name": "name",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "control_type": "text",
+                    "label": "Currency",
+                    "type": "string",
+                    "name": "currency",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "control_type": "number",
+                    "label": "Balance",
+                    "type": "number",
+                    "name": "balance",
+                    "optional": true,
+                    "extends_schema": false,
+                    "parse_output": "float_conversion"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "visible_config_fields": [
+          "result",
+          "result.accounts",
+          "result.accounts.____source",
+          "result.accounts.name",
+          "result.accounts.currency",
+          "result.accounts.balance"
+        ],
+        "comment": "Return the customer's accounts by name. accountId and customerId stay inside the recipe (Factor III held good: no backend identifiers in the tool output).",
+        "uuid": "return-my-accounts-002",
+        "skip": false,
+        "number": 2
+      }
+    ],
+    "number": 0
+  },
+  "config": [
+    {
+      "keyword": "application",
+      "provider": "workato_skill",
+      "skip_validation": false,
+      "account_id": null
+    },
+    {
+      "keyword": "application",
+      "provider": "dewy_bank_customer_api_connector_2100009826_1792537811",
+      "skip_validation": false,
+      "account_id": {
+        "custom": true,
+        "zip_name": "Workspace Connections/dewy_bank_customer_api.connection.json",
+        "name": "Dewy Bank Customer API",
+        "folder": "Workspace Connections"
+      }
+    }
+  ]
+}

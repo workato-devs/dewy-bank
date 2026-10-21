@@ -1,0 +1,14 @@
+{
+  "name": "review_my_recent_activity",
+  "trigger_description": "Show recent money in and out of the signed-in customer's own Dewy Bank accounts. Use this when the customer asks what has happened in an account, about a payment, or why a balance changed. Name the account the way the customer sees it, for example \"Everyday Checking\", or leave it empty for every account; call list_my_accounts first if you are not sure of the exact name. Optionally say how many entries to show. Returns a status (completed, refused or failed), a plain-language message, and the most recent activity, newest first: date, direction (money in or money out), amount, the other side, category and description.",
+  "references": {
+    "recipe_id": {
+      "type": "recipe",
+      "id": {
+        "zip_name": "shared/review_my_recent_activity.recipe.json",
+        "name": "review_my_recent_activity",
+        "folder": "shared"
+      }
+    }
+  }
+}

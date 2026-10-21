@@ -1,0 +1,62 @@
+name: ci
+
+# Build, test, and synth. Runs on every PR and every push to main. Holds NO
+# deployment credentials — the deploy job lives in deploy.yml with its own
+# minimal permissions, so a compromised dependency in the test phase cannot
+# reach the AWS OIDC role (supply-chain least-privilege; Wiz CIS 2.1.1).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WORKSHOP_ID: demo01
+  # Belt-and-suspenders: also disable lifecycle scripts via env for any install
+  # the pinned flags miss (npm/pnpm/yarn honor this; see the rebuild note below).
+  NPM_CONFIG_IGNORE_SCRIPTS: "true"
+
+jobs:
+  ci:
+    name: Build · Test · Synth
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+
+      # Install with lifecycle scripts DISABLED (Wiz: npm supply-chain hardening).
+      # A compromised transitive dep cannot run postinstall code on the runner.
+      - name: Install (no lifecycle scripts)
+        run: npm ci --ignore-scripts
+
+      # esbuild and @swc/core ship native binaries fetched by their OWN trusted
+      # postinstall scripts, which --ignore-scripts suppressed. Rebuild ONLY
+      # these named, trusted packages so the CDK NodejsFunction esbuild bundling
+      # works — every other package's scripts stay disabled.
+      - name: Rebuild trusted native deps
+        run: npm rebuild esbuild @swc/core
+
+      - name: TypeScript build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: CDK synth (no AWS creds needed)
+        run: npx cdk synth -c workshopId=${{ env.WORKSHOP_ID }}

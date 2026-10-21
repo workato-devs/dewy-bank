@@ -1,0 +1,436 @@
+{
+  "name": "look_up_customer_accounts",
+  "description": "Station C, shared by C1 and C2. Support-agent tool: a customer's accounts by name, looked up by email. Calls the Support API with the support-agent key, which reaches only the fictional customers.",
+  "version": 1,
+  "private": true,
+  "concurrency": 1,
+  "code": {
+    "provider": "workato_skill",
+    "name": "start_workflow",
+    "as": "trigger",
+    "keyword": "trigger",
+    "input": {
+      "requires_user_confirmation": "false",
+      "description": "Look up a Dewy Bank customer's accounts by their email, for a support agent helping that customer. Use this when the support agent asks about a customer's accounts or balances, or before issuing a goodwill credit when you need the exact account names. Returns a status (completed or failed), a plain-language message, the customer's email, and their accounts: name, currency and current balance.",
+      "parameters_schema_json": "[{\"name\":\"customer_email\",\"label\":\"Customer email\",\"type\":\"string\",\"optional\":false,\"control_type\":\"text\",\"hint\":\"The customer's email address\"}]",
+      "result_schema_json": "[{\"name\":\"status\",\"label\":\"Status\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\",\"hint\":\"completed or failed\"},{\"name\":\"message\",\"label\":\"Message\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\",\"hint\":\"Plain-language outcome to relay to the support agent\"},{\"name\":\"customer\",\"label\":\"Customer\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\",\"hint\":\"The customer's email\"},{\"name\":\"accounts\",\"label\":\"Accounts\",\"type\":\"array\",\"of\":\"object\",\"optional\":true,\"control_type\":\"array\",\"properties\":[{\"name\":\"name\",\"label\":\"Name\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"currency\",\"label\":\"Currency\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"balance\",\"label\":\"Balance\",\"type\":\"number\",\"optional\":true,\"control_type\":\"number\"}]}]"
+    },
+    "extended_output_schema": [
+      {
+        "extends_schema": false,
+        "label": "Parameters",
+        "name": "parameters",
+        "type": "object",
+        "properties": [
+          {
+            "control_type": "text",
+            "label": "Customer email",
+            "type": "string",
+            "name": "customer_email",
+            "optional": false,
+            "extends_schema": false,
+            "hint": "The customer's email address"
+          }
+        ]
+      }
+    ],
+    "block": [
+      {
+        "keyword": "try",
+        "input": {},
+        "block": [
+          {
+            "provider": "dewy_bank_support_api_connector_2100009826_1792543221",
+            "name": "look_up_customer_accounts",
+            "as": "get_customer_accounts",
+            "keyword": "action",
+            "input": {
+              "email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"customer_email\"]}')}"
+            },
+            "comment": "Look up the customer by email. The support-agent key reaches only the support routes and the fictional customers (Factor IV: scope comes from the credential).",
+            "uuid": "get-customer-accounts-002",
+            "skip": false,
+            "number": 2
+          },
+          {
+            "provider": "workato_skill",
+            "name": "workflow_return_result",
+            "as": "return_customer_accounts",
+            "keyword": "action",
+            "comment": "Interface held good (Factor III): accounts by name; accountId stays inside the recipe.",
+            "uuid": "return-customer-accounts-003",
+            "skip": false,
+            "number": 3,
+            "input": {
+              "result": {
+                "status": "completed",
+                "message": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_support_api_connector_2100009826_1792543221\", \"line\": \"get_customer_accounts\", \"path\": [\"accounts\"]}').length.to_s + \" accounts for \" + _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"customer_email\"]}').to_s + \".\"",
+                "customer": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"customer_email\"]}')}",
+                "accounts": {
+                  "____source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_support_api_connector_2100009826_1792543221\", \"line\": \"get_customer_accounts\", \"path\": [\"accounts\"]}')}",
+                  "name": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_support_api_connector_2100009826_1792543221\", \"line\": \"get_customer_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"name\"]}')}",
+                  "currency": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_support_api_connector_2100009826_1792543221\", \"line\": \"get_customer_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"currency\"]}')}",
+                  "balance": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_support_api_connector_2100009826_1792543221\", \"line\": \"get_customer_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"balance\"]}')}"
+                }
+              }
+            },
+            "extended_input_schema": [
+              {
+                "extends_schema": false,
+                "label": "Response",
+                "name": "result",
+                "type": "object",
+                "properties": [
+                  {
+                    "control_type": "text",
+                    "label": "Status",
+                    "type": "string",
+                    "name": "status",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "control_type": "text",
+                    "label": "Message",
+                    "type": "string",
+                    "name": "message",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "control_type": "text",
+                    "label": "Customer",
+                    "type": "string",
+                    "name": "customer",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "label": "Accounts",
+                    "type": "array",
+                    "name": "accounts",
+                    "of": "object",
+                    "optional": true,
+                    "extends_schema": false,
+                    "properties": [
+                      {
+                        "control_type": "text",
+                        "label": "Name",
+                        "type": "string",
+                        "name": "name",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Currency",
+                        "type": "string",
+                        "name": "currency",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "number",
+                        "label": "Balance",
+                        "type": "number",
+                        "name": "balance",
+                        "optional": true,
+                        "extends_schema": false,
+                        "parse_output": "float_conversion"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "extended_output_schema": [
+              {
+                "extends_schema": false,
+                "label": "Response",
+                "name": "result",
+                "type": "object",
+                "properties": [
+                  {
+                    "control_type": "text",
+                    "label": "Status",
+                    "type": "string",
+                    "name": "status",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "control_type": "text",
+                    "label": "Message",
+                    "type": "string",
+                    "name": "message",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "control_type": "text",
+                    "label": "Customer",
+                    "type": "string",
+                    "name": "customer",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "label": "Accounts",
+                    "type": "array",
+                    "name": "accounts",
+                    "of": "object",
+                    "optional": true,
+                    "extends_schema": false,
+                    "properties": [
+                      {
+                        "control_type": "text",
+                        "label": "Name",
+                        "type": "string",
+                        "name": "name",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Currency",
+                        "type": "string",
+                        "name": "currency",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "number",
+                        "label": "Balance",
+                        "type": "number",
+                        "name": "balance",
+                        "optional": true,
+                        "extends_schema": false,
+                        "parse_output": "float_conversion"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "visible_config_fields": [
+              "result",
+              "result.status",
+              "result.message",
+              "result.customer",
+              "result.accounts",
+              "result.accounts.____source",
+              "result.accounts.name",
+              "result.accounts.currency",
+              "result.accounts.balance"
+            ]
+          },
+          {
+            "keyword": "catch",
+            "as": "catch_lookup_error",
+            "input": {
+              "max_retry_count": "0",
+              "retry_interval": "2"
+            },
+            "block": [
+              {
+                "provider": "workato_skill",
+                "name": "workflow_return_result",
+                "as": "return_failed",
+                "keyword": "action",
+                "comment": "For example, a customer the support-agent key can't reach (404). Return a typed result instead of failing the job.",
+                "uuid": "return-failed-005",
+                "skip": false,
+                "number": 5,
+                "input": {
+                  "result": {
+                    "status": "failed",
+                    "message": "The bank could not look up that customer: #{_dp('{\"pill_type\": \"output\", \"provider\": \"catch\", \"line\": \"catch_lookup_error\", \"path\": [\"message\"]}')}",
+                    "customer": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"customer_email\"]}')}"
+                  }
+                },
+                "extended_input_schema": [
+                  {
+                    "extends_schema": false,
+                    "label": "Response",
+                    "name": "result",
+                    "type": "object",
+                    "properties": [
+                      {
+                        "control_type": "text",
+                        "label": "Status",
+                        "type": "string",
+                        "name": "status",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Message",
+                        "type": "string",
+                        "name": "message",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Customer",
+                        "type": "string",
+                        "name": "customer",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "label": "Accounts",
+                        "type": "array",
+                        "name": "accounts",
+                        "of": "object",
+                        "optional": true,
+                        "extends_schema": false,
+                        "properties": [
+                          {
+                            "control_type": "text",
+                            "label": "Name",
+                            "type": "string",
+                            "name": "name",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Currency",
+                            "type": "string",
+                            "name": "currency",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "number",
+                            "label": "Balance",
+                            "type": "number",
+                            "name": "balance",
+                            "optional": true,
+                            "extends_schema": false,
+                            "parse_output": "float_conversion"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "extended_output_schema": [
+                  {
+                    "extends_schema": false,
+                    "label": "Response",
+                    "name": "result",
+                    "type": "object",
+                    "properties": [
+                      {
+                        "control_type": "text",
+                        "label": "Status",
+                        "type": "string",
+                        "name": "status",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Message",
+                        "type": "string",
+                        "name": "message",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "control_type": "text",
+                        "label": "Customer",
+                        "type": "string",
+                        "name": "customer",
+                        "optional": true,
+                        "extends_schema": false
+                      },
+                      {
+                        "label": "Accounts",
+                        "type": "array",
+                        "name": "accounts",
+                        "of": "object",
+                        "optional": true,
+                        "extends_schema": false,
+                        "properties": [
+                          {
+                            "control_type": "text",
+                            "label": "Name",
+                            "type": "string",
+                            "name": "name",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Currency",
+                            "type": "string",
+                            "name": "currency",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "number",
+                            "label": "Balance",
+                            "type": "number",
+                            "name": "balance",
+                            "optional": true,
+                            "extends_schema": false,
+                            "parse_output": "float_conversion"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "visible_config_fields": [
+                  "result",
+                  "result.status",
+                  "result.message",
+                  "result.customer"
+                ]
+              }
+            ],
+            "uuid": "catch-lookup-error-004",
+            "skip": false,
+            "number": 4
+          }
+        ],
+        "uuid": "try-lookup-001",
+        "skip": false,
+        "number": 1
+      }
+    ],
+    "visible_config_fields": [
+      "requires_user_confirmation",
+      "description",
+      "parameters_schema_json",
+      "result_schema_json"
+    ],
+    "uuid": "trigger-000",
+    "skip": false,
+    "number": 0
+  },
+  "config": [
+    {
+      "keyword": "application",
+      "provider": "workato_skill",
+      "skip_validation": false,
+      "account_id": null
+    },
+    {
+      "keyword": "application",
+      "provider": "dewy_bank_support_api_connector_2100009826_1792543221",
+      "skip_validation": false,
+      "account_id": {
+        "custom": true,
+        "zip_name": "Workspace Connections/dewy_bank_support_api.connection.json",
+        "name": "Dewy Bank Support API",
+        "folder": "Workspace Connections"
+      }
+    }
+  ]
+}

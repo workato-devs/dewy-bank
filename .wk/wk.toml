@@ -1,0 +1,18 @@
+name = 'dewy-bank'
+description = 'Dewy Bank workshop: one station per factor (A = Factor II, B = Factor III, C = Factor IV). After cloning: `wk auth login`, then `wk link --profile <your-profile>` from this directory, then `wk push` (Workspace Connections must stay the first sync entry).'
+
+[[sync]]
+server_path = 'Workspace Connections'
+local_path = 'workspace-connections'
+
+[[sync]]
+server_path = 'Dewy Bank Station A'
+local_path = 'dewy-bank-station-a'
+
+[[sync]]
+server_path = 'Dewy Bank Station B'
+local_path = 'dewy-bank-station-b'
+
+[[sync]]
+server_path = 'Dewy Bank Station C'
+local_path = 'dewy-bank-station-c'

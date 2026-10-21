@@ -1,0 +1,8 @@
+{
+  "title": "Dewy Bank Customer API",
+  "description": "Dewy Bank workshop: the customer API, signed in as the participant (Cognito ID token, refreshed on 401). Plain calls, no checks: decisions belong to the recipes.",
+  "logo_file_name": null,
+  "logo_content_type": null,
+  "version_no": 1,
+  "note": "Participants enter only their Dewy Bank email and password; the deployment (region, Cognito client, customer API URL) is discovered from the bank app config.json"
+}

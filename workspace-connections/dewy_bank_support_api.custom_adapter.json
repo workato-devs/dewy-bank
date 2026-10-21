@@ -1,0 +1,8 @@
+{
+  "title": "Dewy Bank Support API",
+  "description": "Dewy Bank workshop, Station C: the Support API with the support-agent key (a support code the facilitator hands out). Plain calls, no checks: decisions belong to the recipes.",
+  "logo_file_name": null,
+  "logo_content_type": null,
+  "version_no": 1,
+  "note": "Participants paste one support code; the Support API URL is discovered from the bank app config.json"
+}

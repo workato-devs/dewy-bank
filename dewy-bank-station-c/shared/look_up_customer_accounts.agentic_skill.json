@@ -1,0 +1,14 @@
+{
+  "name": "look_up_customer_accounts",
+  "trigger_description": "Look up a Dewy Bank customer's accounts by their email, for a support agent helping that customer. Use this when the support agent asks about a customer's accounts or balances, or before issuing a goodwill credit when you need the exact account names. Returns a status (completed or failed), a plain-language message, the customer's email, and their accounts: name, currency and current balance.",
+  "references": {
+    "recipe_id": {
+      "type": "recipe",
+      "id": {
+        "zip_name": "shared/look_up_customer_accounts.recipe.json",
+        "name": "look_up_customer_accounts",
+        "folder": "shared"
+      }
+    }
+  }
+}

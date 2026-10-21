@@ -1,0 +1,14 @@
+{
+  "name": "move_between_my_accounts",
+  "trigger_description": "Move money between two of the signed-in customer's own Dewy Bank accounts. Use this when the customer asks to transfer, move or send money from one of their accounts to another of their accounts. Identify each account by the name the customer sees, for example \"Everyday Checking\" or \"High-Yield Savings\"; call list_my_accounts first if you are not sure of the exact names. The amount is in US dollars. Returns a status (completed, refused or failed), a plain-language message to relay to the customer, and the accounts and amount involved. Add a note only if the customer asks for one; it appears on both accounts' activity. If the status is refused or failed, no money was moved: explain the message to the customer instead of retrying with different values.",
+  "references": {
+    "recipe_id": {
+      "type": "recipe",
+      "id": {
+        "zip_name": "a2_fix_recipe_owns_the_write/move_between_my_accounts.recipe.json",
+        "name": "move_between_my_accounts",
+        "folder": "a2_fix_recipe_owns_the_write"
+      }
+    }
+  }
+}

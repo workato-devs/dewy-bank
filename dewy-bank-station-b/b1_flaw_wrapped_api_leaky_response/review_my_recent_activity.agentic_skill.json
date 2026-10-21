@@ -1,0 +1,14 @@
+{
+  "name": "review_my_recent_activity",
+  "trigger_description": "Calls GET /accounts/{accountId}/transactions on the Dewy Bank customer API and returns the rows from the transactions table (txnId, accountId, type, amount, counterparty, memo, category, createdAt), newest first. Use this when the customer asks what has happened in an account, about a payment, or why a balance changed. Get the accountId from list_my_accounts first. Optionally say how many entries to show. Returns the HTTP status code and, on an error, the customer API's error message.",
+  "references": {
+    "recipe_id": {
+      "type": "recipe",
+      "id": {
+        "zip_name": "b1_flaw_wrapped_api_leaky_response/review_my_recent_activity.recipe.json",
+        "name": "review_my_recent_activity",
+        "folder": "b1_flaw_wrapped_api_leaky_response"
+      }
+    }
+  }
+}
