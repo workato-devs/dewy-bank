@@ -17,6 +17,11 @@ cdk.out/
 **/web/config.js
 **/web/config.json
 
+# AWS MFA session cache written by scripts/aws-session.sh.
+# Lives outside the repo at ~/.aws/; git will never track it regardless,
+# but this entry documents the intent.
+~/.aws/dewy-bank-session.json
+
 # Logs & scratch
 *.log
 
