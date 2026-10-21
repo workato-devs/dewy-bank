@@ -1,14 +1,14 @@
 {
   "name": "list_my_accounts",
-  "trigger_description": "List the signed-in customer's Dewy Bank accounts with each account's name, currency and current balance. Use this when the customer asks about their accounts or balances, or before moving money when you need the exact account names. Takes no inputs. Returns only the customer's own accounts.",
   "references": {
     "recipe_id": {
-      "type": "recipe",
       "id": {
-        "zip_name": "shared/list_my_accounts.recipe.json",
+        "folder": "shared",
         "name": "list_my_accounts",
-        "folder": "shared"
-      }
+        "zip_name": "shared/list_my_accounts.recipe.json"
+      },
+      "type": "recipe"
     }
-  }
+  },
+  "trigger_description": "List the signed-in customer's Dewy Bank accounts with each account's name, currency and current balance. Use this when the customer asks about their accounts or balances, or before moving money when you need the exact account names. Takes no inputs. Returns only the customer's own accounts."
 }

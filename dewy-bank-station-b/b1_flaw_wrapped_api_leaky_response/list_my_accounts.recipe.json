@@ -1,59 +1,82 @@
 {
-  "name": "list_my_accounts",
-  "description": "Station B, B1 (flaw). Same scope as B2 (the customer API returns only the signed-in customer's accounts), but it returns the API rows unchanged, including accountId and customerId (the customer's Cognito sub), and its description names the backend.",
-  "version": 1,
-  "private": true,
-  "concurrency": 1,
   "code": {
-    "provider": "workato_skill",
-    "name": "start_workflow",
     "as": "trigger",
-    "keyword": "trigger",
-    "input": {
-      "requires_user_confirmation": "false",
-      "description": "Calls GET /accounts on the Dewy Bank customer API (authenticated with the customer's Cognito ID token) and returns the account records from the accounts table (accountId, customerId, name, type, currency, balance). Use this when the customer asks about their accounts or balances, or before moving money. Use the accountId values with review_my_recent_activity and move_between_my_accounts. Takes no inputs.",
-      "parameters_schema_json": "[]",
-      "result_schema_json": "[{\"name\":\"accounts\",\"label\":\"Accounts\",\"type\":\"array\",\"of\":\"object\",\"optional\":true,\"control_type\":\"array\",\"properties\":[{\"name\":\"accountId\",\"label\":\"Account ID\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"customerId\",\"label\":\"Customer ID\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"name\",\"label\":\"Name\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"type\",\"label\":\"Type\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"currency\",\"label\":\"Currency\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"balance\",\"label\":\"Balance\",\"type\":\"number\",\"optional\":true,\"control_type\":\"number\"}]}]"
-    },
-    "extended_output_schema": [],
-    "visible_config_fields": [
-      "requires_user_confirmation",
-      "description",
-      "parameters_schema_json",
-      "result_schema_json"
-    ],
-    "uuid": "trigger-000",
-    "skip": false,
     "block": [
       {
-        "provider": "dewy_bank_customer_api_connector_2100009826_1792537811",
-        "name": "list_accounts",
         "as": "get_my_accounts",
-        "keyword": "action",
-        "input": {},
         "comment": "The customer API returns only the signed-in customer's accounts (Factor IV held good).",
-        "uuid": "get-my-accounts-001",
+        "input": {},
+        "keyword": "action",
+        "name": "list_accounts",
+        "number": 1,
+        "provider": "dewy_bank_customer_api_connector_2100028860_1792614494",
         "skip": false,
-        "number": 1
+        "uuid": "get-my-accounts-001",
+        "extended_output_schema": [
+          {
+            "extends_schema": false,
+            "label": "Accounts",
+            "name": "accounts",
+            "type": "array",
+            "of": "object",
+            "optional": true,
+            "properties": [
+              {
+                "control_type": "text",
+                "label": "Account ID",
+                "type": "string",
+                "name": "accountId",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Customer ID",
+                "type": "string",
+                "name": "customerId",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Name",
+                "type": "string",
+                "name": "name",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Type",
+                "type": "string",
+                "name": "type",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Currency",
+                "type": "string",
+                "name": "currency",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "number",
+                "label": "Balance",
+                "type": "number",
+                "name": "balance",
+                "optional": true,
+                "extends_schema": false,
+                "parse_output": "float_conversion"
+              }
+            ]
+          }
+        ]
       },
       {
-        "provider": "workato_skill",
-        "name": "workflow_return_result",
         "as": "return_my_accounts",
-        "keyword": "action",
-        "input": {
-          "result": {
-            "accounts": {
-              "____source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}')}",
-              "accountId": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"accountId\"]}')}",
-              "customerId": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"customerId\"]}')}",
-              "name": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"name\"]}')}",
-              "type": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"type\"]}')}",
-              "currency": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"currency\"]}')}",
-              "balance": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"balance\"]}')}"
-            }
-          }
-        },
+        "comment": "FLAW (Station B, Factor III, leaky response): the raw rows go back to the model, accountId and customerId included. Scope is still held good: the customer API returns only this customer's rows.",
         "extended_input_schema": [
           {
             "extends_schema": false,
@@ -192,6 +215,25 @@
             ]
           }
         ],
+        "input": {
+          "result": {
+            "accounts": {
+              "____source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}')}",
+              "accountId": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"accountId\"]}')}",
+              "customerId": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"customerId\"]}')}",
+              "name": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"name\"]}')}",
+              "type": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"type\"]}')}",
+              "currency": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"currency\"]}')}",
+              "balance": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\", {\"path_element_type\": \"current_item\"}, \"balance\"]}')}"
+            }
+          }
+        },
+        "keyword": "action",
+        "name": "workflow_return_result",
+        "number": 2,
+        "provider": "workato_skill",
+        "skip": false,
+        "uuid": "return-my-accounts-002",
         "visible_config_fields": [
           "result",
           "result.accounts",
@@ -202,32 +244,51 @@
           "result.accounts.type",
           "result.accounts.currency",
           "result.accounts.balance"
-        ],
-        "comment": "FLAW (Station B, Factor III, leaky response): the raw rows go back to the model, accountId and customerId included. Scope is still held good: the customer API returns only this customer's rows.",
-        "uuid": "return-my-accounts-002",
-        "skip": false,
-        "number": 2
+        ]
       }
     ],
-    "number": 0
+    "extended_output_schema": [],
+    "input": {
+      "description": "Calls GET /accounts on the Dewy Bank customer API (authenticated with the customer's Cognito ID token) and returns the account records from the accounts table (accountId, customerId, name, type, currency, balance). Use this when the customer asks about their accounts or balances, or before moving money. Use the accountId values with review_my_recent_activity and move_between_my_accounts. Takes no inputs.",
+      "parameters_schema_json": "[]",
+      "requires_user_confirmation": "false",
+      "result_schema_json": "[{\"name\":\"accounts\",\"label\":\"Accounts\",\"type\":\"array\",\"of\":\"object\",\"optional\":true,\"control_type\":\"array\",\"properties\":[{\"name\":\"accountId\",\"label\":\"Account ID\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"customerId\",\"label\":\"Customer ID\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"name\",\"label\":\"Name\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"type\",\"label\":\"Type\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"currency\",\"label\":\"Currency\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"balance\",\"label\":\"Balance\",\"type\":\"number\",\"optional\":true,\"control_type\":\"number\"}]}]"
+    },
+    "keyword": "trigger",
+    "name": "start_workflow",
+    "number": 0,
+    "provider": "workato_skill",
+    "skip": false,
+    "uuid": "trigger-000",
+    "visible_config_fields": [
+      "requires_user_confirmation",
+      "description",
+      "parameters_schema_json",
+      "result_schema_json"
+    ]
   },
+  "concurrency": 1,
   "config": [
     {
+      "account_id": null,
       "keyword": "application",
       "provider": "workato_skill",
-      "skip_validation": false,
-      "account_id": null
+      "skip_validation": false
     },
     {
-      "keyword": "application",
-      "provider": "dewy_bank_customer_api_connector_2100009826_1792537811",
-      "skip_validation": false,
       "account_id": {
         "custom": true,
-        "zip_name": "Workspace Connections/dewy_bank_customer_api.connection.json",
+        "folder": "Workspace Connections",
         "name": "Dewy Bank Customer API",
-        "folder": "Workspace Connections"
-      }
+        "zip_name": "Workspace Connections/dewy_bank_customer_api.connection.json"
+      },
+      "keyword": "application",
+      "provider": "dewy_bank_customer_api_connector_2100028860_1792614494",
+      "skip_validation": false
     }
-  ]
+  ],
+  "description": "Station B, B1 (flaw). Same scope as B2 (the customer API returns only the signed-in customer's accounts), but it returns the API rows unchanged, including accountId and customerId (the customer's Cognito sub), and its description names the backend.",
+  "name": "list_my_accounts",
+  "private": true,
+  "version": 1
 }

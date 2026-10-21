@@ -81,19 +81,8 @@
             "number": 2
           },
           {
-            "provider": "workato_variable",
-            "name": "declare_variable",
             "as": "declare_selected_account",
-            "keyword": "action",
-            "input": {
-              "variables": {
-                "schema": "[{\"name\":\"account_id\",\"type\":\"string\",\"optional\":true,\"label\":\"account_id\",\"details\":{\"real_name\":\"account_id\"},\"control_type\":\"text\",\"parent\":[\"variables\",\"data\"]},{\"name\":\"account_name\",\"type\":\"string\",\"optional\":true,\"label\":\"account_name\",\"details\":{\"real_name\":\"account_name\"},\"control_type\":\"text\",\"parent\":[\"variables\",\"data\"]}]",
-                "data": {
-                  "account_id": "",
-                  "account_name": ""
-                }
-              }
-            },
+            "comment": "The account the support agent named, resolved among the customer's accounts. The model never supplies an account ID; the recipe looks it up.",
             "extended_input_schema": [
               {
                 "add_field_label": "Add a variable",
@@ -108,88 +97,99 @@
                 "name": "variables",
                 "ngIf": "!input.name",
                 "optional": true,
-                "type": "object",
                 "properties": [
                   {
-                    "control_type": "text",
-                    "label": "Schema",
-                    "extends_schema": true,
                     "broadcast_change_event": true,
-                    "type": "string",
-                    "name": "schema"
+                    "control_type": "text",
+                    "extends_schema": true,
+                    "label": "Schema",
+                    "name": "schema",
+                    "type": "string"
                   },
                   {
                     "label": "Data",
-                    "type": "object",
                     "name": "data",
                     "properties": [
                       {
                         "control_type": "text",
-                        "label": "account_id",
-                        "name": "account_id",
-                        "type": "string",
-                        "optional": true,
                         "details": {
                           "real_name": "account_id"
                         },
+                        "hint": "Defaults to nil if not supplied.",
+                        "label": "account_id",
+                        "name": "account_id",
+                        "optional": true,
                         "parent": [
                           "variables",
                           "data"
                         ],
-                        "hint": "Defaults to nil if not supplied.",
-                        "sticky": true
+                        "sticky": true,
+                        "type": "string"
                       },
                       {
                         "control_type": "text",
-                        "label": "account_name",
-                        "name": "account_name",
-                        "type": "string",
-                        "optional": true,
                         "details": {
                           "real_name": "account_name"
                         },
+                        "hint": "Defaults to nil if not supplied.",
+                        "label": "account_name",
+                        "name": "account_name",
+                        "optional": true,
                         "parent": [
                           "variables",
                           "data"
                         ],
-                        "hint": "Defaults to nil if not supplied.",
-                        "sticky": true
+                        "sticky": true,
+                        "type": "string"
                       }
-                    ]
+                    ],
+                    "type": "object"
                   }
-                ]
+                ],
+                "type": "object"
               }
             ],
             "extended_output_schema": [
               {
                 "control_type": "text",
+                "details": {
+                  "real_name": "account_id"
+                },
                 "label": "account_id",
                 "name": "account_id",
                 "optional": true,
-                "type": "string",
-                "details": {
-                  "real_name": "account_id"
-                }
+                "type": "string"
               },
               {
                 "control_type": "text",
+                "details": {
+                  "real_name": "account_name"
+                },
                 "label": "account_name",
                 "name": "account_name",
                 "optional": true,
-                "type": "string",
-                "details": {
-                  "real_name": "account_name"
-                }
+                "type": "string"
               }
             ],
+            "input": {
+              "variables": {
+                "data": {
+                  "account_id": "",
+                  "account_name": ""
+                },
+                "schema": "[{\"name\":\"account_id\",\"type\":\"string\",\"optional\":true,\"label\":\"account_id\",\"details\":{\"real_name\":\"account_id\"},\"control_type\":\"text\",\"parent\":[\"variables\",\"data\"]},{\"name\":\"account_name\",\"type\":\"string\",\"optional\":true,\"label\":\"account_name\",\"details\":{\"real_name\":\"account_name\"},\"control_type\":\"text\",\"parent\":[\"variables\",\"data\"]}]"
+              }
+            },
+            "keyword": "action",
+            "name": "declare_variable",
+            "number": 3,
+            "provider": "workato_variable",
+            "skip": false,
+            "uuid": "declare-selected-account-003",
             "visible_config_fields": [
               "variables.data.account_id",
               "variables.data.account_name"
-            ],
-            "comment": "The account the support agent named, resolved among the customer's accounts. The model never supplies an account ID; the recipe looks it up.",
-            "uuid": "declare-selected-account-003",
-            "skip": false,
-            "number": 3
+            ]
           },
           {
             "keyword": "foreach",
@@ -214,16 +214,8 @@
                 },
                 "block": [
                   {
-                    "provider": "workato_variable",
-                    "name": "update_variables",
                     "as": "set_selected_account",
-                    "keyword": "action",
-                    "input": {
-                      "input_mode": "raw",
-                      "name": "declare-selected-account-003:declare_selected_account:account_id\ndeclare-selected-account-003:declare_selected_account:account_name",
-                      "account_id": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"accountId\"]}')}",
-                      "account_name": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"name\"]}')}"
-                    },
+                    "comment": "Remember the customer's account.",
                     "extended_input_schema": [
                       {
                         "control_type": "text",
@@ -240,10 +232,18 @@
                         "type": "string"
                       }
                     ],
-                    "comment": "Remember the customer's account.",
-                    "uuid": "set-selected-account-006",
+                    "input": {
+                      "account_id": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"accountId\"]}')}",
+                      "account_name": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"name\"]}')}",
+                      "input_mode": "raw",
+                      "name": "declare-selected-account-003:declare_selected_account:account_id\ndeclare-selected-account-003:declare_selected_account:account_name"
+                    },
+                    "keyword": "action",
+                    "name": "update_variables",
+                    "number": 6,
+                    "provider": "workato_variable",
                     "skip": false,
-                    "number": 6
+                    "uuid": "set-selected-account-006"
                   }
                 ],
                 "comment": "Find the account by the name the support agent used.",

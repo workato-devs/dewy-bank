@@ -1,102 +1,21 @@
 {
-  "name": "pay_someone",
-  "description": "Station B, B1 (flaw). Identical in B1 and B2, and to Station A2's pay_someone: the same write rules and the customer's confirmation (Factor II held good), account name and recipient email in, a plain-language outcome out. It isn't part of Station B's contrast; it's the shared way money leaves the account.",
-  "version": 1,
-  "private": true,
-  "concurrency": 1,
   "code": {
-    "provider": "workato_skill",
-    "name": "start_workflow",
     "as": "trigger",
-    "keyword": "trigger",
-    "input": {
-      "requires_user_confirmation": "true",
-      "description": "Pay another Dewy Bank customer from one of the signed-in customer's own accounts. Use this when the customer asks to pay, send money to or pay back someone else. Identify the account to pay from by the name the customer sees, for example \"Everyday Checking\"; call list_my_accounts first if you are not sure of the exact name. Identify the person being paid by their email address; the money goes to their checking account. The amount is in US dollars. Returns a status (completed, refused or failed), a plain-language message to relay to the customer, and the account, recipient and amount involved. Add a note only if the customer asks for one; it appears on both customers' activity. If the status is refused or failed, no money was paid: explain the message to the customer instead of retrying with different values.",
-      "parameters_schema_json": "[{\"name\":\"from_account\",\"label\":\"From account\",\"type\":\"string\",\"optional\":false,\"control_type\":\"text\",\"hint\":\"Name of the customer's account to pay from, as they see it (e.g. Everyday Checking)\"},{\"name\":\"to_email\",\"label\":\"Recipient email\",\"type\":\"string\",\"optional\":false,\"control_type\":\"text\",\"hint\":\"Email address of the Dewy Bank customer to pay\"},{\"name\":\"amount\",\"label\":\"Amount\",\"type\":\"number\",\"optional\":false,\"control_type\":\"number\",\"hint\":\"Amount in US dollars\"},{\"name\":\"note\",\"label\":\"Note\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\",\"hint\":\"Optional note that appears on both customers' activity, as the customer wrote it\"}]",
-      "result_schema_json": "[{\"name\":\"status\",\"label\":\"Status\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\",\"hint\":\"completed, refused or failed\"},{\"name\":\"message\",\"label\":\"Message\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\",\"hint\":\"Plain-language outcome to relay to the customer\"},{\"name\":\"from_account\",\"label\":\"From account\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"to_email\",\"label\":\"Recipient email\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"amount\",\"label\":\"Amount\",\"type\":\"number\",\"optional\":true,\"control_type\":\"number\"}]"
-    },
-    "extended_output_schema": [
-      {
-        "extends_schema": false,
-        "label": "Parameters",
-        "name": "parameters",
-        "type": "object",
-        "properties": [
-          {
-            "control_type": "text",
-            "label": "From account",
-            "type": "string",
-            "name": "from_account",
-            "optional": false,
-            "extends_schema": false,
-            "hint": "Name of the customer's account to pay from, as they see it (e.g. Everyday Checking)"
-          },
-          {
-            "control_type": "text",
-            "label": "Recipient email",
-            "type": "string",
-            "name": "to_email",
-            "optional": false,
-            "extends_schema": false,
-            "hint": "Email address of the Dewy Bank customer to pay"
-          },
-          {
-            "control_type": "number",
-            "label": "Amount",
-            "type": "number",
-            "name": "amount",
-            "optional": false,
-            "extends_schema": false,
-            "parse_output": "float_conversion",
-            "hint": "Amount in US dollars"
-          },
-          {
-            "control_type": "text",
-            "label": "Note",
-            "type": "string",
-            "name": "note",
-            "optional": true,
-            "extends_schema": false,
-            "hint": "Optional note that appears on both customers' activity, as the customer wrote it"
-          }
-        ]
-      }
-    ],
-    "visible_config_fields": [
-      "requires_user_confirmation",
-      "description",
-      "parameters_schema_json",
-      "result_schema_json"
-    ],
-    "uuid": "trigger-000",
-    "skip": false,
     "block": [
       {
-        "provider": "dewy_bank_customer_api_connector_2100009826_1792537811",
-        "name": "list_accounts",
         "as": "get_my_accounts",
-        "keyword": "action",
-        "input": {},
         "comment": "Fetch the signed-in customer's accounts so the account name the customer used can be resolved to an ID inside the recipe (Factor III held good: names in, not IDs). The customer API returns only this customer's accounts (Factor IV held good).",
-        "uuid": "get-my-accounts-001",
+        "input": {},
+        "keyword": "action",
+        "name": "list_accounts",
+        "number": 1,
+        "provider": "dewy_bank_customer_api_connector_2100028860_1792614494",
         "skip": false,
-        "number": 1
+        "uuid": "get-my-accounts-001"
       },
       {
-        "provider": "workato_variable",
-        "name": "declare_variable",
         "as": "declare_resolved_accounts",
-        "keyword": "action",
-        "input": {
-          "variables": {
-            "schema": "[{\"name\":\"from_account_id\",\"type\":\"string\",\"optional\":true,\"label\":\"from_account_id\",\"details\":{\"real_name\":\"from_account_id\"},\"control_type\":\"text\",\"parent\":[\"variables\",\"data\"]},{\"name\":\"from_account_name\",\"type\":\"string\",\"optional\":true,\"label\":\"from_account_name\",\"details\":{\"real_name\":\"from_account_name\"},\"control_type\":\"text\",\"parent\":[\"variables\",\"data\"]},{\"name\":\"from_balance\",\"type\":\"number\",\"optional\":true,\"label\":\"from_balance\",\"details\":{\"real_name\":\"from_balance\"},\"control_type\":\"number\",\"parent\":[\"variables\",\"data\"]}]",
-            "data": {
-              "from_account_id": "",
-              "from_account_name": "",
-              "from_balance": ""
-            }
-          }
-        },
+        "comment": "The account the customer named, resolved to an ID. The model never supplies an account ID; the recipe looks it up.",
         "extended_input_schema": [
           {
             "add_field_label": "Add a variable",
@@ -111,247 +30,189 @@
             "name": "variables",
             "ngIf": "!input.name",
             "optional": true,
-            "type": "object",
             "properties": [
               {
-                "control_type": "text",
-                "label": "Schema",
-                "extends_schema": true,
                 "broadcast_change_event": true,
-                "type": "string",
-                "name": "schema"
+                "control_type": "text",
+                "extends_schema": true,
+                "label": "Schema",
+                "name": "schema",
+                "type": "string"
               },
               {
                 "label": "Data",
-                "type": "object",
                 "name": "data",
                 "properties": [
                   {
                     "control_type": "text",
-                    "label": "from_account_id",
-                    "name": "from_account_id",
-                    "type": "string",
-                    "optional": true,
                     "details": {
                       "real_name": "from_account_id"
                     },
+                    "hint": "Defaults to nil if not supplied.",
+                    "label": "from_account_id",
+                    "name": "from_account_id",
+                    "optional": true,
                     "parent": [
                       "variables",
                       "data"
                     ],
-                    "hint": "Defaults to nil if not supplied.",
-                    "sticky": true
+                    "sticky": true,
+                    "type": "string"
                   },
                   {
                     "control_type": "text",
-                    "label": "from_account_name",
-                    "name": "from_account_name",
-                    "type": "string",
-                    "optional": true,
                     "details": {
                       "real_name": "from_account_name"
                     },
+                    "hint": "Defaults to nil if not supplied.",
+                    "label": "from_account_name",
+                    "name": "from_account_name",
+                    "optional": true,
                     "parent": [
                       "variables",
                       "data"
                     ],
-                    "hint": "Defaults to nil if not supplied.",
-                    "sticky": true
+                    "sticky": true,
+                    "type": "string"
                   },
                   {
                     "control_type": "number",
-                    "label": "from_balance",
-                    "name": "from_balance",
-                    "type": "number",
-                    "optional": true,
                     "details": {
                       "real_name": "from_balance"
                     },
+                    "hint": "Defaults to nil if not supplied.",
+                    "label": "from_balance",
+                    "name": "from_balance",
+                    "optional": true,
                     "parent": [
                       "variables",
                       "data"
                     ],
-                    "hint": "Defaults to nil if not supplied.",
-                    "sticky": true
+                    "sticky": true,
+                    "type": "number"
                   },
                   {
                     "control_type": "text",
-                    "label": "to_account_id",
-                    "name": "to_account_id",
-                    "type": "string",
-                    "optional": true,
                     "details": {
                       "real_name": "to_account_id"
                     },
+                    "hint": "Defaults to nil if not supplied.",
+                    "label": "to_account_id",
+                    "name": "to_account_id",
+                    "optional": true,
                     "parent": [
                       "variables",
                       "data"
                     ],
-                    "hint": "Defaults to nil if not supplied.",
-                    "sticky": true
+                    "sticky": true,
+                    "type": "string"
                   },
                   {
                     "control_type": "text",
-                    "label": "to_account_name",
-                    "name": "to_account_name",
-                    "type": "string",
-                    "optional": true,
                     "details": {
                       "real_name": "to_account_name"
                     },
+                    "hint": "Defaults to nil if not supplied.",
+                    "label": "to_account_name",
+                    "name": "to_account_name",
+                    "optional": true,
                     "parent": [
                       "variables",
                       "data"
                     ],
-                    "hint": "Defaults to nil if not supplied.",
-                    "sticky": true
+                    "sticky": true,
+                    "type": "string"
                   }
-                ]
+                ],
+                "type": "object"
               }
-            ]
+            ],
+            "type": "object"
           }
         ],
         "extended_output_schema": [
           {
             "control_type": "text",
+            "details": {
+              "real_name": "from_account_id"
+            },
             "label": "from_account_id",
             "name": "from_account_id",
             "optional": true,
-            "type": "string",
-            "details": {
-              "real_name": "from_account_id"
-            }
+            "type": "string"
           },
           {
             "control_type": "text",
+            "details": {
+              "real_name": "from_account_name"
+            },
             "label": "from_account_name",
             "name": "from_account_name",
             "optional": true,
-            "type": "string",
-            "details": {
-              "real_name": "from_account_name"
-            }
+            "type": "string"
           },
           {
             "control_type": "number",
+            "details": {
+              "real_name": "from_balance"
+            },
             "label": "from_balance",
             "name": "from_balance",
             "optional": true,
-            "type": "number",
-            "details": {
-              "real_name": "from_balance"
-            }
+            "type": "number"
           },
           {
             "control_type": "text",
+            "details": {
+              "real_name": "to_account_id"
+            },
             "label": "to_account_id",
             "name": "to_account_id",
             "optional": true,
-            "type": "string",
-            "details": {
-              "real_name": "to_account_id"
-            }
+            "type": "string"
           },
           {
             "control_type": "text",
+            "details": {
+              "real_name": "to_account_name"
+            },
             "label": "to_account_name",
             "name": "to_account_name",
             "optional": true,
-            "type": "string",
-            "details": {
-              "real_name": "to_account_name"
-            }
+            "type": "string"
           }
         ],
+        "input": {
+          "variables": {
+            "data": {
+              "from_account_id": "",
+              "from_account_name": "",
+              "from_balance": ""
+            },
+            "schema": "[{\"name\":\"from_account_id\",\"type\":\"string\",\"optional\":true,\"label\":\"from_account_id\",\"details\":{\"real_name\":\"from_account_id\"},\"control_type\":\"text\",\"parent\":[\"variables\",\"data\"]},{\"name\":\"from_account_name\",\"type\":\"string\",\"optional\":true,\"label\":\"from_account_name\",\"details\":{\"real_name\":\"from_account_name\"},\"control_type\":\"text\",\"parent\":[\"variables\",\"data\"]},{\"name\":\"from_balance\",\"type\":\"number\",\"optional\":true,\"label\":\"from_balance\",\"details\":{\"real_name\":\"from_balance\"},\"control_type\":\"number\",\"parent\":[\"variables\",\"data\"]}]"
+          }
+        },
+        "keyword": "action",
+        "name": "declare_variable",
+        "number": 2,
+        "provider": "workato_variable",
+        "skip": false,
+        "uuid": "declare-resolved-accounts-002",
         "visible_config_fields": [
           "variables.data.from_account_id",
           "variables.data.from_account_name",
           "variables.data.from_balance"
-        ],
-        "comment": "The account the customer named, resolved to an ID. The model never supplies an account ID; the recipe looks it up.",
-        "uuid": "declare-resolved-accounts-002",
-        "skip": false,
-        "number": 2
+        ]
       },
       {
         "as": "for_each_account",
-        "keyword": "foreach",
-        "repeat_mode": "simple",
-        "input": {
-          "source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}')}"
-        },
-        "source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}')}",
-        "extended_output_schema": [
-          {
-            "control_type": "text",
-            "label": "Account ID",
-            "type": "string",
-            "name": "accountId",
-            "optional": true,
-            "extends_schema": false
-          },
-          {
-            "control_type": "text",
-            "label": "Customer ID",
-            "type": "string",
-            "name": "customerId",
-            "optional": true,
-            "extends_schema": false
-          },
-          {
-            "control_type": "text",
-            "label": "Name",
-            "type": "string",
-            "name": "name",
-            "optional": true,
-            "extends_schema": false
-          },
-          {
-            "control_type": "text",
-            "label": "Currency",
-            "type": "string",
-            "name": "currency",
-            "optional": true,
-            "extends_schema": false
-          },
-          {
-            "control_type": "number",
-            "label": "Balance",
-            "type": "number",
-            "name": "balance",
-            "optional": true,
-            "extends_schema": false,
-            "parse_output": "float_conversion"
-          }
-        ],
         "block": [
           {
             "as": "if_from_account_match",
-            "keyword": "if",
-            "input": {
-              "operand": "and",
-              "type": "compound",
-              "conditions": [
-                {
-                  "operand": "is_true",
-                  "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"name\"]}').to_s.strip.downcase == _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}').to_s.strip.downcase",
-                  "uuid": "from-account-name-matches"
-                }
-              ]
-            },
             "block": [
               {
-                "provider": "workato_variable",
-                "name": "update_variables",
                 "as": "set_from_account",
-                "keyword": "action",
-                "input": {
-                  "input_mode": "raw",
-                  "name": "declare-resolved-accounts-002:declare_resolved_accounts:from_account_id\ndeclare-resolved-accounts-002:declare_resolved_accounts:from_account_name\ndeclare-resolved-accounts-002:declare_resolved_accounts:from_balance",
-                  "from_account_id": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"accountId\"]}')}",
-                  "from_account_name": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"name\"]}')}",
-                  "from_balance": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"balance\"]}')}"
-                },
+                "comment": "Remember the customer's source account.",
                 "extended_input_schema": [
                   {
                     "control_type": "text",
@@ -375,229 +236,243 @@
                     "type": "number"
                   }
                 ],
-                "comment": "Remember the customer's source account.",
-                "uuid": "set-from-account-005",
+                "input": {
+                  "from_account_id": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"accountId\"]}')}",
+                  "from_account_name": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"name\"]}')}",
+                  "from_balance": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"balance\"]}')}",
+                  "input_mode": "raw",
+                  "name": "declare-resolved-accounts-002:declare_resolved_accounts:from_account_id\ndeclare-resolved-accounts-002:declare_resolved_accounts:from_account_name\ndeclare-resolved-accounts-002:declare_resolved_accounts:from_balance"
+                },
+                "keyword": "action",
+                "name": "update_variables",
+                "number": 5,
+                "provider": "workato_variable",
                 "skip": false,
-                "number": 5
+                "uuid": "set-from-account-005"
               }
             ],
             "comment": "Find the source account by the name the customer used.",
-            "uuid": "if-from-account-match-004",
+            "input": {
+              "conditions": [
+                {
+                  "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_account\", \"path\": [\"name\"]}').to_s.strip.downcase == _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}').to_s.strip.downcase",
+                  "operand": "is_true",
+                  "uuid": "from-account-name-matches"
+                }
+              ],
+              "operand": "and",
+              "type": "compound"
+            },
+            "keyword": "if",
+            "number": 4,
             "skip": false,
-            "number": 4
+            "uuid": "if-from-account-match-004"
           }
         ],
         "comment": "Resolve the account name against the customer's accounts.",
-        "uuid": "for-each-account-003",
+        "extended_output_schema": [
+          {
+            "control_type": "text",
+            "extends_schema": false,
+            "label": "Account ID",
+            "name": "accountId",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "control_type": "text",
+            "extends_schema": false,
+            "label": "Customer ID",
+            "name": "customerId",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "control_type": "text",
+            "extends_schema": false,
+            "label": "Name",
+            "name": "name",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "control_type": "text",
+            "extends_schema": false,
+            "label": "Currency",
+            "name": "currency",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "control_type": "number",
+            "extends_schema": false,
+            "label": "Balance",
+            "name": "balance",
+            "optional": true,
+            "parse_output": "float_conversion",
+            "type": "number"
+          }
+        ],
+        "input": {
+          "source": "#{_dp('{\"pill_type\": \"output\", \"provider\":\"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}')}"
+        },
+        "keyword": "foreach",
+        "number": 3,
+        "repeat_mode": "simple",
         "skip": false,
-        "number": 3
+        "source": "#{_dp('{\"pill_type\": \"output\", \"provider\":\"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}')}",
+        "uuid": "for-each-account-003"
       },
       {
         "as": "if_from_account_found",
-        "keyword": "if",
-        "input": {
-          "operand": "and",
-          "type": "compound",
-          "conditions": [
-            {
-              "operand": "present",
-              "lhs": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_account_id\"]}')}",
-              "uuid": "from-account-found",
-              "rhs": ""
-            }
-          ]
-        },
-        "comment": "The account must resolve to one of the customer's accounts before anything else happens.",
-        "skip": false,
         "block": [
           {
             "as": "if_amount_positive",
-            "keyword": "if",
-            "input": {
-              "operand": "and",
-              "type": "compound",
-              "conditions": [
-                {
-                  "operand": "is_true",
-                  "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}').to_f > 0",
-                  "uuid": "amount-positive"
-                }
-              ]
-            },
-            "comment": "Write path held good (Factor II): the Station A2 rule block, copied step for step. Each rule is a deterministic step that does not depend on the model or the prompt. Rule 1: the amount must be positive. The payee rule is the skill's confirmation: the customer approves every payment before this recipe runs.",
-            "skip": false,
             "block": [
               {
                 "as": "if_within_payment_limit",
-                "keyword": "if",
-                "input": {
-                  "operand": "and",
-                  "type": "compound",
-                  "conditions": [
-                    {
-                      "operand": "is_true",
-                      "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}').to_f <= 500",
-                      "uuid": "amount-within-limit"
-                    }
-                  ]
-                },
-                "comment": "Rule 2 (Factor II held good): per-payment limit of 500 US dollars.",
-                "skip": false,
                 "block": [
                   {
                     "as": "if_sufficient_funds",
-                    "keyword": "if",
-                    "input": {
-                      "operand": "and",
-                      "type": "compound",
-                      "conditions": [
-                        {
-                          "operand": "is_true",
-                          "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}').to_f <= _dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_balance\"]}').to_f",
-                          "uuid": "amount-within-balance"
-                        }
-                      ]
-                    },
-                    "comment": "Rule 3 (Factor II held good): the account paid from must cover the amount.",
-                    "skip": false,
                     "block": [
                       {
-                        "keyword": "try",
-                        "input": {},
-                        "skip": false,
                         "block": [
                           {
-                            "provider": "dewy_bank_customer_api_connector_2100009826_1792537811",
-                            "name": "create_payment",
                             "as": "pay_recipient",
-                            "keyword": "action",
-                            "input": {
-                              "from": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_account_id\"]}')}",
-                              "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_email\"]}')}",
-                              "amount": "=_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}').to_f",
-                              "memo": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"note\"]}')}"
-                            },
                             "comment": "All three rules passed: the recipe, not the model, decided this payment is allowed. The customer had already approved it, because this skill requires their confirmation.",
-                            "skip": false,
+                            "input": {
+                              "amount": "=_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}').to_f",
+                              "from": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_account_id\"]}')}",
+                              "memo": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"note\"]}')}",
+                              "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_email\"]}')}"
+                            },
+                            "keyword": "action",
+                            "name": "create_payment",
                             "number": 11,
+                            "provider": "dewy_bank_customer_api_connector_2100028860_1792614494",
+                            "skip": false,
                             "uuid": "pay-recipient-011"
                           },
                           {
-                            "provider": "workato_skill",
-                            "name": "workflow_return_result",
                             "as": "return_completed",
-                            "keyword": "action",
-                            "input": {
-                              "result": {
-                                "status": "completed",
-                                "message": "=\"Paid \" + _dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"pay_recipient\", \"path\": [\"amount\"]}').to_f.to_currency + \" from \" + _dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_account_name\"]}') + \" to \" + _dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"pay_recipient\", \"path\": [\"to_email\"]}') + \".\"",
-                                "from_account": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_account_name\"]}')}",
-                                "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"pay_recipient\", \"path\": [\"to_email\"]}')}",
-                                "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"pay_recipient\", \"path\": [\"amount\"]}')}"
-                              }
-                            },
-                            "extended_output_schema": [
-                              {
-                                "extends_schema": false,
-                                "label": "Response",
-                                "name": "result",
-                                "type": "object",
-                                "properties": [
-                                  {
-                                    "control_type": "text",
-                                    "label": "Status",
-                                    "type": "string",
-                                    "name": "status",
-                                    "optional": true,
-                                    "extends_schema": false
-                                  },
-                                  {
-                                    "control_type": "text",
-                                    "label": "Message",
-                                    "type": "string",
-                                    "name": "message",
-                                    "optional": true,
-                                    "extends_schema": false
-                                  },
-                                  {
-                                    "control_type": "text",
-                                    "label": "From account",
-                                    "type": "string",
-                                    "name": "from_account",
-                                    "optional": true,
-                                    "extends_schema": false
-                                  },
-                                  {
-                                    "control_type": "text",
-                                    "label": "Recipient email",
-                                    "type": "string",
-                                    "name": "to_email",
-                                    "optional": true,
-                                    "extends_schema": false
-                                  },
-                                  {
-                                    "control_type": "number",
-                                    "label": "Amount",
-                                    "type": "number",
-                                    "name": "amount",
-                                    "optional": true,
-                                    "extends_schema": false,
-                                    "parse_output": "float_conversion"
-                                  }
-                                ]
-                              }
-                            ],
+                            "comment": "Domain outcome for the customer, not the raw API row.",
                             "extended_input_schema": [
                               {
                                 "extends_schema": false,
                                 "label": "Response",
                                 "name": "result",
-                                "type": "object",
                                 "properties": [
                                   {
                                     "control_type": "text",
+                                    "extends_schema": false,
                                     "label": "Status",
-                                    "type": "string",
                                     "name": "status",
                                     "optional": true,
-                                    "extends_schema": false
+                                    "type": "string"
                                   },
                                   {
                                     "control_type": "text",
+                                    "extends_schema": false,
                                     "label": "Message",
-                                    "type": "string",
                                     "name": "message",
                                     "optional": true,
-                                    "extends_schema": false
+                                    "type": "string"
                                   },
                                   {
                                     "control_type": "text",
+                                    "extends_schema": false,
                                     "label": "From account",
-                                    "type": "string",
                                     "name": "from_account",
                                     "optional": true,
-                                    "extends_schema": false
+                                    "type": "string"
                                   },
                                   {
                                     "control_type": "text",
+                                    "extends_schema": false,
                                     "label": "Recipient email",
-                                    "type": "string",
                                     "name": "to_email",
                                     "optional": true,
-                                    "extends_schema": false
+                                    "type": "string"
                                   },
                                   {
                                     "control_type": "number",
+                                    "extends_schema": false,
                                     "label": "Amount",
-                                    "type": "number",
                                     "name": "amount",
                                     "optional": true,
-                                    "extends_schema": false,
-                                    "parse_output": "float_conversion"
+                                    "parse_output": "float_conversion",
+                                    "type": "number"
                                   }
-                                ]
+                                ],
+                                "type": "object"
                               }
                             ],
+                            "extended_output_schema": [
+                              {
+                                "extends_schema": false,
+                                "label": "Response",
+                                "name": "result",
+                                "properties": [
+                                  {
+                                    "control_type": "text",
+                                    "extends_schema": false,
+                                    "label": "Status",
+                                    "name": "status",
+                                    "optional": true,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "extends_schema": false,
+                                    "label": "Message",
+                                    "name": "message",
+                                    "optional": true,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "extends_schema": false,
+                                    "label": "From account",
+                                    "name": "from_account",
+                                    "optional": true,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "extends_schema": false,
+                                    "label": "Recipient email",
+                                    "name": "to_email",
+                                    "optional": true,
+                                    "type": "string"
+                                  },
+                                  {
+                                    "control_type": "number",
+                                    "extends_schema": false,
+                                    "label": "Amount",
+                                    "name": "amount",
+                                    "optional": true,
+                                    "parse_output": "float_conversion",
+                                    "type": "number"
+                                  }
+                                ],
+                                "type": "object"
+                              }
+                            ],
+                            "input": {
+                              "result": {
+                                "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\":\"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"pay_recipient\", \"path\": [\"amount\"]}')}",
+                                "from_account": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_account_name\"]}')}",
+                                "message": "=\"Paid \" + _dp('{\"pill_type\": \"output\", \"provider\":\"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"pay_recipient\", \"path\": [\"amount\"]}').to_f.to_currency + \" from \" + _dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_account_name\"]}') + \" to \" + _dp('{\"pill_type\": \"output\", \"provider\":\"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"pay_recipient\", \"path\": [\"to_email\"]}') + \".\"",
+                                "status": "completed",
+                                "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\":\"dewy_bank_customer_api_connector_2100028860_1792614494\", \"line\": \"pay_recipient\", \"path\": [\"to_email\"]}')}"
+                              }
+                            },
+                            "keyword": "action",
+                            "name": "workflow_return_result",
+                            "number": 12,
+                            "provider": "workato_skill",
+                            "skip": false,
+                            "uuid": "return-completed-012",
                             "visible_config_fields": [
                               "result",
                               "result.status",
@@ -605,138 +480,131 @@
                               "result.from_account",
                               "result.to_email",
                               "result.amount"
-                            ],
-                            "comment": "Domain outcome for the customer, not the raw API row.",
-                            "skip": false,
-                            "number": 12,
-                            "uuid": "return-completed-012"
+                            ]
                           },
                           {
-                            "keyword": "catch",
-                            "provider": null,
                             "as": "catch_payment_error",
-                            "input": {
-                              "max_retry_count": "0",
-                              "retry_interval": "2"
-                            },
-                            "skip": false,
                             "block": [
                               {
-                                "provider": "workato_skill",
-                                "name": "workflow_return_result",
                                 "as": "return_failed",
-                                "keyword": "action",
-                                "input": {
-                                  "result": {
-                                    "status": "failed",
-                                    "message": "The bank did not complete this payment: #{_dp('{\"pill_type\": \"output\", \"provider\": \"catch\", \"line\": \"catch_payment_error\", \"path\": [\"message\"]}')}",
-                                    "from_account": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_account_name\"]}')}",
-                                    "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_email\"]}')}",
-                                    "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}')}"
-                                  }
-                                },
-                                "extended_output_schema": [
-                                  {
-                                    "extends_schema": false,
-                                    "label": "Response",
-                                    "name": "result",
-                                    "type": "object",
-                                    "properties": [
-                                      {
-                                        "control_type": "text",
-                                        "label": "Status",
-                                        "type": "string",
-                                        "name": "status",
-                                        "optional": true,
-                                        "extends_schema": false
-                                      },
-                                      {
-                                        "control_type": "text",
-                                        "label": "Message",
-                                        "type": "string",
-                                        "name": "message",
-                                        "optional": true,
-                                        "extends_schema": false
-                                      },
-                                      {
-                                        "control_type": "text",
-                                        "label": "From account",
-                                        "type": "string",
-                                        "name": "from_account",
-                                        "optional": true,
-                                        "extends_schema": false
-                                      },
-                                      {
-                                        "control_type": "text",
-                                        "label": "Recipient email",
-                                        "type": "string",
-                                        "name": "to_email",
-                                        "optional": true,
-                                        "extends_schema": false
-                                      },
-                                      {
-                                        "control_type": "number",
-                                        "label": "Amount",
-                                        "type": "number",
-                                        "name": "amount",
-                                        "optional": true,
-                                        "extends_schema": false,
-                                        "parse_output": "float_conversion"
-                                      }
-                                    ]
-                                  }
-                                ],
+                                "comment": "The bank rejected the call (for example 404: no customer with that email). Return a typed result instead of failing the job.",
                                 "extended_input_schema": [
                                   {
                                     "extends_schema": false,
                                     "label": "Response",
                                     "name": "result",
-                                    "type": "object",
                                     "properties": [
                                       {
                                         "control_type": "text",
+                                        "extends_schema": false,
                                         "label": "Status",
-                                        "type": "string",
                                         "name": "status",
                                         "optional": true,
-                                        "extends_schema": false
+                                        "type": "string"
                                       },
                                       {
                                         "control_type": "text",
+                                        "extends_schema": false,
                                         "label": "Message",
-                                        "type": "string",
                                         "name": "message",
                                         "optional": true,
-                                        "extends_schema": false
+                                        "type": "string"
                                       },
                                       {
                                         "control_type": "text",
+                                        "extends_schema": false,
                                         "label": "From account",
-                                        "type": "string",
                                         "name": "from_account",
                                         "optional": true,
-                                        "extends_schema": false
+                                        "type": "string"
                                       },
                                       {
                                         "control_type": "text",
+                                        "extends_schema": false,
                                         "label": "Recipient email",
-                                        "type": "string",
                                         "name": "to_email",
                                         "optional": true,
-                                        "extends_schema": false
+                                        "type": "string"
                                       },
                                       {
                                         "control_type": "number",
+                                        "extends_schema": false,
                                         "label": "Amount",
-                                        "type": "number",
                                         "name": "amount",
                                         "optional": true,
-                                        "extends_schema": false,
-                                        "parse_output": "float_conversion"
+                                        "parse_output": "float_conversion",
+                                        "type": "number"
                                       }
-                                    ]
+                                    ],
+                                    "type": "object"
                                   }
                                 ],
+                                "extended_output_schema": [
+                                  {
+                                    "extends_schema": false,
+                                    "label": "Response",
+                                    "name": "result",
+                                    "properties": [
+                                      {
+                                        "control_type": "text",
+                                        "extends_schema": false,
+                                        "label": "Status",
+                                        "name": "status",
+                                        "optional": true,
+                                        "type": "string"
+                                      },
+                                      {
+                                        "control_type": "text",
+                                        "extends_schema": false,
+                                        "label": "Message",
+                                        "name": "message",
+                                        "optional": true,
+                                        "type": "string"
+                                      },
+                                      {
+                                        "control_type": "text",
+                                        "extends_schema": false,
+                                        "label": "From account",
+                                        "name": "from_account",
+                                        "optional": true,
+                                        "type": "string"
+                                      },
+                                      {
+                                        "control_type": "text",
+                                        "extends_schema": false,
+                                        "label": "Recipient email",
+                                        "name": "to_email",
+                                        "optional": true,
+                                        "type": "string"
+                                      },
+                                      {
+                                        "control_type": "number",
+                                        "extends_schema": false,
+                                        "label": "Amount",
+                                        "name": "amount",
+                                        "optional": true,
+                                        "parse_output": "float_conversion",
+                                        "type": "number"
+                                      }
+                                    ],
+                                    "type": "object"
+                                  }
+                                ],
+                                "input": {
+                                  "result": {
+                                    "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}')}",
+                                    "from_account": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_account_name\"]}')}",
+                                    "message": "The bank did not complete this payment: #{_dp('{\"pill_type\": \"output\", \"provider\": \"catch\", \"line\": \"catch_payment_error\", \"path\": [\"message\"]}')}",
+                                    "status": "failed",
+                                    "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_email\"]}')}"
+                                  }
+                                },
+                                "keyword": "action",
+                                "name": "workflow_return_result",
+                                "number": 14,
+                                "provider": "workato_skill",
+                                "skip": false,
+                                "uuid": "return-failed-014",
                                 "visible_config_fields": [
                                   "result",
                                   "result.status",
@@ -744,146 +612,167 @@
                                   "result.from_account",
                                   "result.to_email",
                                   "result.amount"
-                                ],
-                                "comment": "The bank rejected the call (for example 404: no customer with that email). Return a typed result instead of failing the job.",
-                                "skip": false,
-                                "number": 14,
-                                "uuid": "return-failed-014"
+                                ]
                               }
                             ],
+                            "input": {
+                              "max_retry_count": "0",
+                              "retry_interval": "2"
+                            },
+                            "keyword": "catch",
                             "number": 13,
+                            "provider": null,
+                            "skip": false,
                             "uuid": "catch-payment-error-013"
                           }
                         ],
+                        "input": {},
+                        "keyword": "try",
                         "number": 10,
+                        "skip": false,
                         "uuid": "try-payment-010"
                       }
                     ],
+                    "comment": "Rule 3 (Factor II held good): the account paid from must cover the amount.",
+                    "input": {
+                      "conditions": [
+                        {
+                          "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}').to_f <= _dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_balance\"]}').to_f",
+                          "operand": "is_true",
+                          "uuid": "amount-within-balance"
+                        }
+                      ],
+                      "operand": "and",
+                      "type": "compound"
+                    },
+                    "keyword": "if",
                     "number": 9,
+                    "skip": false,
                     "uuid": "if-sufficient-funds-009"
                   },
                   {
                     "as": "else_sufficient_funds",
-                    "keyword": "else",
-                    "input": {},
-                    "skip": false,
                     "block": [
                       {
-                        "provider": "workato_skill",
-                        "name": "workflow_return_result",
                         "as": "refuse_insufficient_funds",
-                        "keyword": "action",
-                        "input": {
-                          "result": {
-                            "status": "refused",
-                            "message": "Nothing was paid: #{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_account_name\"]}')} doesn't have enough money for this payment.",
-                            "from_account": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}')}",
-                            "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_email\"]}')}",
-                            "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}')}"
-                          }
-                        },
-                        "extended_output_schema": [
-                          {
-                            "extends_schema": false,
-                            "label": "Response",
-                            "name": "result",
-                            "type": "object",
-                            "properties": [
-                              {
-                                "control_type": "text",
-                                "label": "Status",
-                                "type": "string",
-                                "name": "status",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "Message",
-                                "type": "string",
-                                "name": "message",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "From account",
-                                "type": "string",
-                                "name": "from_account",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "Recipient email",
-                                "type": "string",
-                                "name": "to_email",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "number",
-                                "label": "Amount",
-                                "type": "number",
-                                "name": "amount",
-                                "optional": true,
-                                "extends_schema": false,
-                                "parse_output": "float_conversion"
-                              }
-                            ]
-                          }
-                        ],
+                        "comment": "Rule 3 (Factor II held good) failed.",
                         "extended_input_schema": [
                           {
                             "extends_schema": false,
                             "label": "Response",
                             "name": "result",
-                            "type": "object",
                             "properties": [
                               {
                                 "control_type": "text",
+                                "extends_schema": false,
                                 "label": "Status",
-                                "type": "string",
                                 "name": "status",
                                 "optional": true,
-                                "extends_schema": false
+                                "type": "string"
                               },
                               {
                                 "control_type": "text",
+                                "extends_schema": false,
                                 "label": "Message",
-                                "type": "string",
                                 "name": "message",
                                 "optional": true,
-                                "extends_schema": false
+                                "type": "string"
                               },
                               {
                                 "control_type": "text",
+                                "extends_schema": false,
                                 "label": "From account",
-                                "type": "string",
                                 "name": "from_account",
                                 "optional": true,
-                                "extends_schema": false
+                                "type": "string"
                               },
                               {
                                 "control_type": "text",
+                                "extends_schema": false,
                                 "label": "Recipient email",
-                                "type": "string",
                                 "name": "to_email",
                                 "optional": true,
-                                "extends_schema": false
+                                "type": "string"
                               },
                               {
                                 "control_type": "number",
+                                "extends_schema": false,
                                 "label": "Amount",
-                                "type": "number",
                                 "name": "amount",
                                 "optional": true,
-                                "extends_schema": false,
-                                "parse_output": "float_conversion"
+                                "parse_output": "float_conversion",
+                                "type": "number"
                               }
-                            ]
+                            ],
+                            "type": "object"
                           }
                         ],
+                        "extended_output_schema": [
+                          {
+                            "extends_schema": false,
+                            "label": "Response",
+                            "name": "result",
+                            "properties": [
+                              {
+                                "control_type": "text",
+                                "extends_schema": false,
+                                "label": "Status",
+                                "name": "status",
+                                "optional": true,
+                                "type": "string"
+                              },
+                              {
+                                "control_type": "text",
+                                "extends_schema": false,
+                                "label": "Message",
+                                "name": "message",
+                                "optional": true,
+                                "type": "string"
+                              },
+                              {
+                                "control_type": "text",
+                                "extends_schema": false,
+                                "label": "From account",
+                                "name": "from_account",
+                                "optional": true,
+                                "type": "string"
+                              },
+                              {
+                                "control_type": "text",
+                                "extends_schema": false,
+                                "label": "Recipient email",
+                                "name": "to_email",
+                                "optional": true,
+                                "type": "string"
+                              },
+                              {
+                                "control_type": "number",
+                                "extends_schema": false,
+                                "label": "Amount",
+                                "name": "amount",
+                                "optional": true,
+                                "parse_output": "float_conversion",
+                                "type": "number"
+                              }
+                            ],
+                            "type": "object"
+                          }
+                        ],
+                        "input": {
+                          "result": {
+                            "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}')}",
+                            "from_account": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}')}",
+                            "message": "Nothing was paid: #{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_account_name\"]}')} doesn't have enough money for this payment.",
+                            "status": "refused",
+                            "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_email\"]}')}"
+                          }
+                        },
+                        "keyword": "action",
+                        "name": "workflow_return_result",
+                        "number": 16,
+                        "provider": "workato_skill",
+                        "skip": false,
+                        "uuid": "refuse-insufficient-funds-016",
                         "visible_config_fields": [
                           "result",
                           "result.status",
@@ -891,142 +780,156 @@
                           "result.from_account",
                           "result.to_email",
                           "result.amount"
-                        ],
-                        "comment": "Rule 3 (Factor II held good) failed.",
-                        "skip": false,
-                        "number": 16,
-                        "uuid": "refuse-insufficient-funds-016"
+                        ]
                       }
                     ],
+                    "input": {},
+                    "keyword": "else",
                     "number": 15,
+                    "skip": false,
                     "uuid": "else-sufficient-funds-015"
                   }
                 ],
+                "comment": "Rule 2 (Factor II held good): per-payment limit of 500 US dollars.",
+                "input": {
+                  "conditions": [
+                    {
+                      "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}').to_f <= 500",
+                      "operand": "is_true",
+                      "uuid": "amount-within-limit"
+                    }
+                  ],
+                  "operand": "and",
+                  "type": "compound"
+                },
+                "keyword": "if",
                 "number": 8,
+                "skip": false,
                 "uuid": "if-within-payment-limit-008"
               },
               {
                 "as": "else_within_payment_limit",
-                "keyword": "else",
-                "input": {},
-                "skip": false,
                 "block": [
                   {
-                    "provider": "workato_skill",
-                    "name": "workflow_return_result",
                     "as": "refuse_over_limit",
-                    "keyword": "action",
-                    "input": {
-                      "result": {
-                        "status": "refused",
-                        "message": "Nothing was paid: payments are limited to $500 each.",
-                        "from_account": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}')}",
-                        "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_email\"]}')}",
-                        "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}')}"
-                      }
-                    },
-                    "extended_output_schema": [
-                      {
-                        "extends_schema": false,
-                        "label": "Response",
-                        "name": "result",
-                        "type": "object",
-                        "properties": [
-                          {
-                            "control_type": "text",
-                            "label": "Status",
-                            "type": "string",
-                            "name": "status",
-                            "optional": true,
-                            "extends_schema": false
-                          },
-                          {
-                            "control_type": "text",
-                            "label": "Message",
-                            "type": "string",
-                            "name": "message",
-                            "optional": true,
-                            "extends_schema": false
-                          },
-                          {
-                            "control_type": "text",
-                            "label": "From account",
-                            "type": "string",
-                            "name": "from_account",
-                            "optional": true,
-                            "extends_schema": false
-                          },
-                          {
-                            "control_type": "text",
-                            "label": "Recipient email",
-                            "type": "string",
-                            "name": "to_email",
-                            "optional": true,
-                            "extends_schema": false
-                          },
-                          {
-                            "control_type": "number",
-                            "label": "Amount",
-                            "type": "number",
-                            "name": "amount",
-                            "optional": true,
-                            "extends_schema": false,
-                            "parse_output": "float_conversion"
-                          }
-                        ]
-                      }
-                    ],
+                    "comment": "Rule 2 (Factor II held good) failed.",
                     "extended_input_schema": [
                       {
                         "extends_schema": false,
                         "label": "Response",
                         "name": "result",
-                        "type": "object",
                         "properties": [
                           {
                             "control_type": "text",
+                            "extends_schema": false,
                             "label": "Status",
-                            "type": "string",
                             "name": "status",
                             "optional": true,
-                            "extends_schema": false
+                            "type": "string"
                           },
                           {
                             "control_type": "text",
+                            "extends_schema": false,
                             "label": "Message",
-                            "type": "string",
                             "name": "message",
                             "optional": true,
-                            "extends_schema": false
+                            "type": "string"
                           },
                           {
                             "control_type": "text",
+                            "extends_schema": false,
                             "label": "From account",
-                            "type": "string",
                             "name": "from_account",
                             "optional": true,
-                            "extends_schema": false
+                            "type": "string"
                           },
                           {
                             "control_type": "text",
+                            "extends_schema": false,
                             "label": "Recipient email",
-                            "type": "string",
                             "name": "to_email",
                             "optional": true,
-                            "extends_schema": false
+                            "type": "string"
                           },
                           {
                             "control_type": "number",
+                            "extends_schema": false,
                             "label": "Amount",
-                            "type": "number",
                             "name": "amount",
                             "optional": true,
-                            "extends_schema": false,
-                            "parse_output": "float_conversion"
+                            "parse_output": "float_conversion",
+                            "type": "number"
                           }
-                        ]
+                        ],
+                        "type": "object"
                       }
                     ],
+                    "extended_output_schema": [
+                      {
+                        "extends_schema": false,
+                        "label": "Response",
+                        "name": "result",
+                        "properties": [
+                          {
+                            "control_type": "text",
+                            "extends_schema": false,
+                            "label": "Status",
+                            "name": "status",
+                            "optional": true,
+                            "type": "string"
+                          },
+                          {
+                            "control_type": "text",
+                            "extends_schema": false,
+                            "label": "Message",
+                            "name": "message",
+                            "optional": true,
+                            "type": "string"
+                          },
+                          {
+                            "control_type": "text",
+                            "extends_schema": false,
+                            "label": "From account",
+                            "name": "from_account",
+                            "optional": true,
+                            "type": "string"
+                          },
+                          {
+                            "control_type": "text",
+                            "extends_schema": false,
+                            "label": "Recipient email",
+                            "name": "to_email",
+                            "optional": true,
+                            "type": "string"
+                          },
+                          {
+                            "control_type": "number",
+                            "extends_schema": false,
+                            "label": "Amount",
+                            "name": "amount",
+                            "optional": true,
+                            "parse_output": "float_conversion",
+                            "type": "number"
+                          }
+                        ],
+                        "type": "object"
+                      }
+                    ],
+                    "input": {
+                      "result": {
+                        "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}')}",
+                        "from_account": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}')}",
+                        "message": "Nothing was paid: payments are limited to $500 each.",
+                        "status": "refused",
+                        "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_email\"]}')}"
+                      }
+                    },
+                    "keyword": "action",
+                    "name": "workflow_return_result",
+                    "number": 18,
+                    "provider": "workato_skill",
+                    "skip": false,
+                    "uuid": "refuse-over-limit-018",
                     "visible_config_fields": [
                       "result",
                       "result.status",
@@ -1034,142 +937,156 @@
                       "result.from_account",
                       "result.to_email",
                       "result.amount"
-                    ],
-                    "comment": "Rule 2 (Factor II held good) failed.",
-                    "skip": false,
-                    "number": 18,
-                    "uuid": "refuse-over-limit-018"
+                    ]
                   }
                 ],
+                "input": {},
+                "keyword": "else",
                 "number": 17,
+                "skip": false,
                 "uuid": "else-within-payment-limit-017"
               }
             ],
+            "comment": "Write path held good (Factor II): the Station A2 rule block, copied step for step. Each rule is a deterministic step that does not depend on the model or the prompt. Rule 1: the amount must be positive. The payee rule is the skill's confirmation: the customer approves every payment before this recipe runs.",
+            "input": {
+              "conditions": [
+                {
+                  "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}').to_f > 0",
+                  "operand": "is_true",
+                  "uuid": "amount-positive"
+                }
+              ],
+              "operand": "and",
+              "type": "compound"
+            },
+            "keyword": "if",
             "number": 7,
+            "skip": false,
             "uuid": "if-amount-positive-007"
           },
           {
             "as": "else_amount_positive",
-            "keyword": "else",
-            "input": {},
-            "skip": false,
             "block": [
               {
-                "provider": "workato_skill",
-                "name": "workflow_return_result",
                 "as": "refuse_amount_not_positive",
-                "keyword": "action",
-                "input": {
-                  "result": {
-                    "status": "refused",
-                    "message": "Nothing was paid: the amount must be more than $0.",
-                    "from_account": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}')}",
-                    "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_email\"]}')}",
-                    "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}')}"
-                  }
-                },
-                "extended_output_schema": [
-                  {
-                    "extends_schema": false,
-                    "label": "Response",
-                    "name": "result",
-                    "type": "object",
-                    "properties": [
-                      {
-                        "control_type": "text",
-                        "label": "Status",
-                        "type": "string",
-                        "name": "status",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Message",
-                        "type": "string",
-                        "name": "message",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "From account",
-                        "type": "string",
-                        "name": "from_account",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Recipient email",
-                        "type": "string",
-                        "name": "to_email",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "number",
-                        "label": "Amount",
-                        "type": "number",
-                        "name": "amount",
-                        "optional": true,
-                        "extends_schema": false,
-                        "parse_output": "float_conversion"
-                      }
-                    ]
-                  }
-                ],
+                "comment": "Rule 1 (Factor II held good) failed.",
                 "extended_input_schema": [
                   {
                     "extends_schema": false,
                     "label": "Response",
                     "name": "result",
-                    "type": "object",
                     "properties": [
                       {
                         "control_type": "text",
+                        "extends_schema": false,
                         "label": "Status",
-                        "type": "string",
                         "name": "status",
                         "optional": true,
-                        "extends_schema": false
+                        "type": "string"
                       },
                       {
                         "control_type": "text",
+                        "extends_schema": false,
                         "label": "Message",
-                        "type": "string",
                         "name": "message",
                         "optional": true,
-                        "extends_schema": false
+                        "type": "string"
                       },
                       {
                         "control_type": "text",
+                        "extends_schema": false,
                         "label": "From account",
-                        "type": "string",
                         "name": "from_account",
                         "optional": true,
-                        "extends_schema": false
+                        "type": "string"
                       },
                       {
                         "control_type": "text",
+                        "extends_schema": false,
                         "label": "Recipient email",
-                        "type": "string",
                         "name": "to_email",
                         "optional": true,
-                        "extends_schema": false
+                        "type": "string"
                       },
                       {
                         "control_type": "number",
+                        "extends_schema": false,
                         "label": "Amount",
-                        "type": "number",
                         "name": "amount",
                         "optional": true,
-                        "extends_schema": false,
-                        "parse_output": "float_conversion"
+                        "parse_output": "float_conversion",
+                        "type": "number"
                       }
-                    ]
+                    ],
+                    "type": "object"
                   }
                 ],
+                "extended_output_schema": [
+                  {
+                    "extends_schema": false,
+                    "label": "Response",
+                    "name": "result",
+                    "properties": [
+                      {
+                        "control_type": "text",
+                        "extends_schema": false,
+                        "label": "Status",
+                        "name": "status",
+                        "optional": true,
+                        "type": "string"
+                      },
+                      {
+                        "control_type": "text",
+                        "extends_schema": false,
+                        "label": "Message",
+                        "name": "message",
+                        "optional": true,
+                        "type": "string"
+                      },
+                      {
+                        "control_type": "text",
+                        "extends_schema": false,
+                        "label": "From account",
+                        "name": "from_account",
+                        "optional": true,
+                        "type": "string"
+                      },
+                      {
+                        "control_type": "text",
+                        "extends_schema": false,
+                        "label": "Recipient email",
+                        "name": "to_email",
+                        "optional": true,
+                        "type": "string"
+                      },
+                      {
+                        "control_type": "number",
+                        "extends_schema": false,
+                        "label": "Amount",
+                        "name": "amount",
+                        "optional": true,
+                        "parse_output": "float_conversion",
+                        "type": "number"
+                      }
+                    ],
+                    "type": "object"
+                  }
+                ],
+                "input": {
+                  "result": {
+                    "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}')}",
+                    "from_account": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}')}",
+                    "message": "Nothing was paid: the amount must be more than $0.",
+                    "status": "refused",
+                    "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_email\"]}')}"
+                  }
+                },
+                "keyword": "action",
+                "name": "workflow_return_result",
+                "number": 20,
+                "provider": "workato_skill",
+                "skip": false,
+                "uuid": "refuse-amount-not-positive-020",
                 "visible_config_fields": [
                   "result",
                   "result.status",
@@ -1177,142 +1094,157 @@
                   "result.from_account",
                   "result.to_email",
                   "result.amount"
-                ],
-                "comment": "Rule 1 (Factor II held good) failed.",
-                "skip": false,
-                "number": 20,
-                "uuid": "refuse-amount-not-positive-020"
+                ]
               }
             ],
+            "input": {},
+            "keyword": "else",
             "number": 19,
+            "skip": false,
             "uuid": "else-amount-positive-019"
           }
         ],
+        "comment": "The account must resolve to one of the customer's accounts before anything else happens.",
+        "input": {
+          "conditions": [
+            {
+              "lhs": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_resolved_accounts\", \"path\": [\"from_account_id\"]}')}",
+              "operand": "present",
+              "rhs": "",
+              "uuid": "from-account-found"
+            }
+          ],
+          "operand": "and",
+          "type": "compound"
+        },
+        "keyword": "if",
         "number": 6,
+        "skip": false,
         "uuid": "if-from-account-found-006"
       },
       {
         "as": "else_from_account_found",
-        "keyword": "else",
-        "input": {},
-        "skip": false,
         "block": [
           {
-            "provider": "workato_skill",
-            "name": "workflow_return_result",
             "as": "refuse_account_not_found",
-            "keyword": "action",
-            "input": {
-              "result": {
-                "status": "refused",
-                "message": "=\"Nothing was paid: '\" + _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}').to_s + \"' doesn't match one of your accounts. Use list_my_accounts to get the exact names.\"",
-                "from_account": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}')}",
-                "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_email\"]}')}",
-                "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}')}"
-              }
-            },
-            "extended_output_schema": [
-              {
-                "extends_schema": false,
-                "label": "Response",
-                "name": "result",
-                "type": "object",
-                "properties": [
-                  {
-                    "control_type": "text",
-                    "label": "Status",
-                    "type": "string",
-                    "name": "status",
-                    "optional": true,
-                    "extends_schema": false
-                  },
-                  {
-                    "control_type": "text",
-                    "label": "Message",
-                    "type": "string",
-                    "name": "message",
-                    "optional": true,
-                    "extends_schema": false
-                  },
-                  {
-                    "control_type": "text",
-                    "label": "From account",
-                    "type": "string",
-                    "name": "from_account",
-                    "optional": true,
-                    "extends_schema": false
-                  },
-                  {
-                    "control_type": "text",
-                    "label": "Recipient email",
-                    "type": "string",
-                    "name": "to_email",
-                    "optional": true,
-                    "extends_schema": false
-                  },
-                  {
-                    "control_type": "number",
-                    "label": "Amount",
-                    "type": "number",
-                    "name": "amount",
-                    "optional": true,
-                    "extends_schema": false,
-                    "parse_output": "float_conversion"
-                  }
-                ]
-              }
-            ],
+            "comment": "Interface held good: a plain-language refusal, not an error.",
             "extended_input_schema": [
               {
                 "extends_schema": false,
                 "label": "Response",
                 "name": "result",
-                "type": "object",
                 "properties": [
                   {
                     "control_type": "text",
+                    "extends_schema": false,
                     "label": "Status",
-                    "type": "string",
                     "name": "status",
                     "optional": true,
-                    "extends_schema": false
+                    "type": "string"
                   },
                   {
                     "control_type": "text",
+                    "extends_schema": false,
                     "label": "Message",
-                    "type": "string",
                     "name": "message",
                     "optional": true,
-                    "extends_schema": false
+                    "type": "string"
                   },
                   {
                     "control_type": "text",
+                    "extends_schema": false,
                     "label": "From account",
-                    "type": "string",
                     "name": "from_account",
                     "optional": true,
-                    "extends_schema": false
+                    "type": "string"
                   },
                   {
                     "control_type": "text",
+                    "extends_schema": false,
                     "label": "Recipient email",
-                    "type": "string",
                     "name": "to_email",
                     "optional": true,
-                    "extends_schema": false
+                    "type": "string"
                   },
                   {
                     "control_type": "number",
+                    "extends_schema": false,
                     "label": "Amount",
-                    "type": "number",
                     "name": "amount",
                     "optional": true,
-                    "extends_schema": false,
-                    "parse_output": "float_conversion"
+                    "parse_output": "float_conversion",
+                    "type": "number"
                   }
-                ]
+                ],
+                "type": "object"
               }
             ],
+            "extended_output_schema": [
+              {
+                "extends_schema": false,
+                "label": "Response",
+                "name": "result",
+                "properties": [
+                  {
+                    "control_type": "text",
+                    "extends_schema": false,
+                    "label": "Status",
+                    "name": "status",
+                    "optional": true,
+                    "type": "string"
+                  },
+                  {
+                    "control_type": "text",
+                    "extends_schema": false,
+                    "label": "Message",
+                    "name": "message",
+                    "optional": true,
+                    "type": "string"
+                  },
+                  {
+                    "control_type": "text",
+                    "extends_schema": false,
+                    "label": "From account",
+                    "name": "from_account",
+                    "optional": true,
+                    "type": "string"
+                  },
+                  {
+                    "control_type": "text",
+                    "extends_schema": false,
+                    "label": "Recipient email",
+                    "name": "to_email",
+                    "optional": true,
+                    "type": "string"
+                  },
+                  {
+                    "control_type": "number",
+                    "extends_schema": false,
+                    "label": "Amount",
+                    "name": "amount",
+                    "optional": true,
+                    "parse_output": "float_conversion",
+                    "type": "number"
+                  }
+                ],
+                "type": "object"
+              }
+            ],
+            "input": {
+              "result": {
+                "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"amount\"]}')}",
+                "from_account": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}')}",
+                "message": "=\"Nothing was paid: '\" + _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"from_account\"]}').to_s + \"' doesn't match one of your accounts. Use list_my_accounts to get the exact names.\"",
+                "status": "refused",
+                "to_email": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"to_email\"]}')}"
+              }
+            },
+            "keyword": "action",
+            "name": "workflow_return_result",
+            "number": 22,
+            "provider": "workato_skill",
+            "skip": false,
+            "uuid": "refuse-account-not-found-022",
             "visible_config_fields": [
               "result",
               "result.status",
@@ -1320,42 +1252,110 @@
               "result.from_account",
               "result.to_email",
               "result.amount"
-            ],
-            "comment": "Interface held good: a plain-language refusal, not an error.",
-            "skip": false,
-            "number": 22,
-            "uuid": "refuse-account-not-found-022"
+            ]
           }
         ],
+        "input": {},
+        "keyword": "else",
         "number": 21,
+        "skip": false,
         "uuid": "else-from-account-found-021"
       }
     ],
-    "number": 0
+    "extended_output_schema": [
+      {
+        "extends_schema": false,
+        "label": "Parameters",
+        "name": "parameters",
+        "properties": [
+          {
+            "control_type": "text",
+            "extends_schema": false,
+            "hint": "Name of the customer's account to pay from, as they see it (e.g. Everyday Checking)",
+            "label": "From account",
+            "name": "from_account",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "control_type": "text",
+            "extends_schema": false,
+            "hint": "Email address of the Dewy Bank customer to pay",
+            "label": "Recipient email",
+            "name": "to_email",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "control_type": "number",
+            "extends_schema": false,
+            "hint": "Amount in US dollars",
+            "label": "Amount",
+            "name": "amount",
+            "optional": false,
+            "parse_output": "float_conversion",
+            "type": "number"
+          },
+          {
+            "control_type": "text",
+            "extends_schema": false,
+            "hint": "Optional note that appears on both customers' activity, as the customer wrote it",
+            "label": "Note",
+            "name": "note",
+            "optional": true,
+            "type": "string"
+          }
+        ],
+        "type": "object"
+      }
+    ],
+    "input": {
+      "description": "Pay another Dewy Bank customer from one of the signed-in customer's own accounts. Use this when the customer asks to pay, send money to or pay back someone else. Identify the account to pay from by the name the customer sees, for example \"Everyday Checking\"; call list_my_accounts first if you are not sure of the exact name. Identify the person being paid by their email address; the money goes to their checking account. The amount is in US dollars. Returns a status (completed, refused or failed), a plain-language message to relay to the customer, and the account, recipient and amount involved. Add a note only if the customer asks for one; it appears on both customers' activity. If the status is refused or failed, no money was paid: explain the message to the customer instead of retrying with different values.",
+      "parameters_schema_json": "[{\"name\":\"from_account\",\"label\":\"From account\",\"type\":\"string\",\"optional\":false,\"control_type\":\"text\",\"hint\":\"Name of the customer's account to pay from, as they see it (e.g. Everyday Checking)\"},{\"name\":\"to_email\",\"label\":\"Recipient email\",\"type\":\"string\",\"optional\":false,\"control_type\":\"text\",\"hint\":\"Email address of the Dewy Bank customer to pay\"},{\"name\":\"amount\",\"label\":\"Amount\",\"type\":\"number\",\"optional\":false,\"control_type\":\"number\",\"hint\":\"Amount in US dollars\"},{\"name\":\"note\",\"label\":\"Note\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\",\"hint\":\"Optional note that appears on both customers' activity, as the customer wrote it\"}]",
+      "requires_user_confirmation": "true",
+      "result_schema_json": "[{\"name\":\"status\",\"label\":\"Status\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\",\"hint\":\"completed, refused or failed\"},{\"name\":\"message\",\"label\":\"Message\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\",\"hint\":\"Plain-language outcome to relay to the customer\"},{\"name\":\"from_account\",\"label\":\"From account\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"to_email\",\"label\":\"Recipient email\",\"type\":\"string\",\"optional\":true,\"control_type\":\"text\"},{\"name\":\"amount\",\"label\":\"Amount\",\"type\":\"number\",\"optional\":true,\"control_type\":\"number\"}]"
+    },
+    "keyword": "trigger",
+    "name": "start_workflow",
+    "number": 0,
+    "provider": "workato_skill",
+    "skip": false,
+    "uuid": "trigger-000",
+    "visible_config_fields": [
+      "requires_user_confirmation",
+      "description",
+      "parameters_schema_json",
+      "result_schema_json"
+    ]
   },
+  "concurrency": 1,
   "config": [
     {
+      "account_id": null,
       "keyword": "application",
       "provider": "workato_skill",
-      "skip_validation": false,
-      "account_id": null
+      "skip_validation": false
     },
     {
-      "keyword": "application",
-      "provider": "dewy_bank_customer_api_connector_2100009826_1792537811",
-      "skip_validation": false,
       "account_id": {
         "custom": true,
-        "zip_name": "Workspace Connections/dewy_bank_customer_api.connection.json",
+        "folder": "Workspace Connections",
         "name": "Dewy Bank Customer API",
-        "folder": "Workspace Connections"
-      }
+        "zip_name": "Workspace Connections/dewy_bank_customer_api.connection.json"
+      },
+      "keyword": "application",
+      "provider": "dewy_bank_customer_api_connector_2100028860_1792614494",
+      "skip_validation": false
     },
     {
+      "account_id": null,
       "keyword": "application",
       "provider": "workato_variable",
-      "skip_validation": false,
-      "account_id": null
+      "skip_validation": false
     }
-  ]
+  ],
+  "description": "Station B, B1 (flaw). Identical in B1 and B2, and to Station A2's pay_someone: the same write rules and the customer's confirmation (Factor II held good), account name and recipient email in, a plain-language outcome out. It isn't part of Station B's contrast; it's the shared way money leaves the account.",
+  "name": "pay_someone",
+  "private": true,
+  "version": 1
 }

@@ -1,49 +1,52 @@
 {
-  "name": "Dewy Bank Assistant · A2 fix",
-  "logo_file_name": "image_12_md5_39bd6dba02eed0b15fcb9929d2f1aa16.png",
-  "logo_content_type": "image/png",
-  "description": "Station A, A2 (fix): the recipe owns the write. Tools and instructions are identical to A1; move_between_my_accounts enforces different accounts, a positive amount, a $500 limit and sufficient balance before any money moves.",
-  "instructions": "You are the Dewy Bank assistant. You help the signed-in customer check their account balances, move money between their own accounts, and pay other Dewy Bank customers. Use your tools to look things up and to take action; never guess balances or account names. When a tool refuses or fails, tell the customer plainly what happened and what they can do next.\n",
-  "raw_instructions": "You are the Dewy Bank assistant. You help the signed-in customer check their account balances, move money between their own accounts, and pay other Dewy Bank customers. Use your tools to look things up and to take action; never guess balances or account names. When a tool refuses or fails, tell the customer plainly what happened and what they can do next.\n",
-  "ai_provider": "anthropic",
   "ai_model": "claude-sonnet-4-6",
+  "ai_provider": "anthropic",
+  "channel_config": null,
+  "code_interpreter_enabled": false,
+  "description": "Station A, A2 (fix): the recipe owns the write. Tools and instructions are identical to A1; move_between_my_accounts enforces different accounts, a positive amount, a $500 limit and sufficient balance before any money moves.",
+  "genie_clients": [],
+  "guardrail": null,
+  "instructions": "You are the Dewy Bank assistant. You help the signed-in customer check their account balances, move money between their own accounts, and pay other Dewy Bank customers. Use your tools to look things up and to take action; never guess balances or account names. When a tool refuses or fails, tell the customer plainly what happened and what they can do next.\n",
+  "kind": "native",
+  "logo_content_type": "image/png",
+  "logo_file_name": "image_12_md5_39bd6dba02eed0b15fcb9929d2f1aa16.png",
   "matrix": false,
   "mcp_servers": [],
-  "guardrail": null,
-  "channel_config": null,
-  "genie_clients": [],
+  "name": "Dewy Bank Assistant · A2 fix",
+  "raw_instructions": "You are the Dewy Bank assistant. You help the signed-in customer check their account balances, move money between their own accounts, and pay other Dewy Bank customers. Use your tools to look things up and to take action; never guess balances or account names. When a tool refuses or fails, tell the customer plainly what happened and what they can do next.\n",
   "references": {
     "ref_0": {
-      "type": "agentic_skill",
       "id": {
-        "zip_name": "shared/list_my_accounts.agentic_skill.json",
-        "name": "list_my_accounts",
-        "folder": "shared"
-      }
+        "folder": "a2_fix_recipe_owns_the_write",
+        "name": "move_between_my_accounts",
+        "zip_name": "a2_fix_recipe_owns_the_write/move_between_my_accounts.agentic_skill.json"
+      },
+      "type": "agentic_skill"
     },
     "ref_1": {
-      "type": "agentic_skill",
       "id": {
-        "zip_name": "a2_fix_recipe_owns_the_write/move_between_my_accounts.agentic_skill.json",
-        "name": "move_between_my_accounts",
-        "folder": "a2_fix_recipe_owns_the_write"
-      }
+        "folder": "a2_fix_recipe_owns_the_write",
+        "name": "pay_someone",
+        "zip_name": "a2_fix_recipe_owns_the_write/pay_someone.agentic_skill.json"
+      },
+      "type": "agentic_skill"
     },
     "ref_2": {
-      "type": "agentic_skill",
       "id": {
-        "zip_name": "a2_fix_recipe_owns_the_write/review_my_recent_activity.agentic_skill.json",
+        "folder": "a2_fix_recipe_owns_the_write",
         "name": "review_my_recent_activity",
-        "folder": "a2_fix_recipe_owns_the_write"
-      }
+        "zip_name": "a2_fix_recipe_owns_the_write/review_my_recent_activity.agentic_skill.json"
+      },
+      "type": "agentic_skill"
     },
     "ref_3": {
-      "type": "agentic_skill",
       "id": {
-        "zip_name": "a2_fix_recipe_owns_the_write/pay_someone.agentic_skill.json",
-        "name": "pay_someone",
-        "folder": "a2_fix_recipe_owns_the_write"
-      }
+        "folder": "shared",
+        "name": "list_my_accounts",
+        "zip_name": "shared/list_my_accounts.agentic_skill.json"
+      },
+      "type": "agentic_skill"
     }
-  }
+  },
+  "web_search_enabled": false
 }
