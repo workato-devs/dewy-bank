@@ -15,7 +15,7 @@
     fields: [
       { name: 'bank_app_url', label: 'Bank app URL', optional: false,
         hint: 'CloudFront URL of the deployed Dewy Bank app',
-        default: 'https://NOT_STAMPED_YET.cloudfront.net' }, # stamped before the workshop by scripts/stamp_bank_app_url.py
+        default: 'https://d2c3w0ptk29gf8.cloudfront.net' }, # stamped before the workshop by scripts/stamp_bank_app_url.py
       { name: 'email', label: 'Dewy Bank email', optional: false,
         hint: 'The email you sign in to the Dewy Bank app with' },
       { name: 'password', label: 'Dewy Bank password', control_type: 'password', optional: false,
@@ -33,7 +33,6 @@
         config = get("#{bank_app_url}/config.json").response_format_json
         cognito_region      = config['region']
         user_pool_client_id = config['userPoolClientId']
-        customer_api_url    = config['customerApiUrl']
         response = post("https://cognito-idp.#{cognito_region}.amazonaws.com/")
                    .headers('X-Amz-Target' => 'AWSCognitoIdentityProviderService.InitiateAuth',
                             'Content-Type' => 'application/x-amz-json-1.1')
@@ -45,7 +44,7 @@
                    .response_format_json
         id_token = response.dig('AuthenticationResult', 'IdToken') ||
                    response.dig('authentication_result', 'id_token')
-        { id_token: id_token, customer_api_url: customer_api_url }
+        { id_token: id_token }
       end,
 
       refresh_on: [401],
@@ -56,7 +55,9 @@
     },
 
     base_uri: lambda do |connection|
-      connection['customer_api_url']
+      bank_app_url = connection['bank_app_url']
+      config = get("#{bank_app_url}/config.json").response_format_json
+      config['customerApiUrl']
     end
   },
 
