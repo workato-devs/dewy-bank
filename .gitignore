@@ -27,7 +27,16 @@ cdk.out/
 
 # Editor per-directory tooling settings
 .claude/settings.local.json
-**/.kiro/settings/
+
+# Kiro IDE
+.kiro/
+
+# Kiro workflow agent outputs
+.agents/
+
+# AWS session cache (local MFA caching)
+scripts/aws-session.sh
+docs/aws-mfa-session.md
 
 # Python
 __pycache__/
