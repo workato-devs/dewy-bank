@@ -17,7 +17,8 @@
  *                              relays the conversation's events for the panel to poll
  *
  * Sending is asynchronous on Workato's side (202 + genie_run_id), so nothing here
- * waits on a Genie turn: the panel polls /chat/events until processing.finished.
+ * waits on a Genie turn: the panel polls /chat/events until the run's agent.message
+ * (the events feed has no end-of-turn event; observed 2026-10-22).
  * Events are relayed as Workato returns them.
  */
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
