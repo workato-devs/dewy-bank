@@ -31,6 +31,9 @@ STATIONS = {  # station key in the bank app -> Genie name, as pushed
     'C1': 'Dewy Bank Assistant · C1 flaw',
     'C2': 'Dewy Bank Assistant · C2 fix',
 }
+# Support-role genies: started so they can serve requests, but not given chat clients
+# (they are not customer-facing and the bank app has no chat entry-point for them).
+SUPPORT_GENIES = ['Dewy Bank Support · C2 fix']
 GROUP_NAME = 'Dewy Bank chat'
 CLIENT_NAME = 'Dewy Bank app · {station}'
 
@@ -40,6 +43,18 @@ def wk(profile, *args):
     out = subprocess.run(['wk', *args, '-p', profile, '--json', '--no-input'], capture_output=True, text=True)
     if out.returncode != 0:
         sys.exit(f"wk {' '.join(args)} failed: {(out.stderr or out.stdout).strip()}")
+    try:
+        return json.loads(out.stdout) if out.stdout.strip() else None
+    except json.JSONDecodeError:
+        return out.stdout.strip()
+
+
+def wk_warn(profile, *args):
+    """Like wk(), but on failure logs a warning and returns None instead of exiting."""
+    out = subprocess.run(['wk', *args, '-p', profile, '--json', '--no-input'], capture_output=True, text=True)
+    if out.returncode != 0:
+        print(f"  WARNING: wk {' '.join(args)} failed: {(out.stderr or out.stdout).strip()}", file=sys.stderr)
+        return None
     try:
         return json.loads(out.stdout) if out.stdout.strip() else None
     except json.JSONDecodeError:
@@ -130,6 +145,20 @@ def main():
         blob['genie_api_host'] = issued.get('base_host') or (client or {}).get('base_host') or blob.get('genie_api_host')
         blob['stations'][station] = {'genie_id': genie['id'], 'api_key': issued['api_key']}
         print(f'{station}: {genie_name} started, chat client "{client_name}" ready', file=sys.stderr)
+
+    # Start support-role genies (no chat client, no group assignment needed).
+    for genie_name in SUPPORT_GENIES:
+        if genie_name not in genies:
+            print(f'WARNING: support genie "{genie_name}" not found in workspace; skipping', file=sys.stderr)
+            continue
+        genie = genies[genie_name]
+        if genie.get('state') in ('started', 'active'):
+            wk_warn(args.profile, 'agentic', 'genies', 'stop', genie['id'])
+        result = wk_warn(args.profile, 'agentic', 'genies', 'start', genie['id'])
+        if result is not None:
+            print(f'{genie_name}: started', file=sys.stderr)
+        else:
+            print(f'WARNING: "{genie_name}" failed to start (see warning above)', file=sys.stderr)
 
     print('\nPaste this into the bank app (Settings > Chat). It contains your chat keys: '
           'keep it private, and run this script again if you lose it.\n', file=sys.stderr)

@@ -32,9 +32,10 @@ Steps performed (in order):
   6. Rebuild station-c (customer tools pick up new ID from station-a; support ID fixed next).
   7. Fix station-c support connector IDs (SUPPORT_GEN is hardcoded in build_station_c.py).
   8. Push all three station folders (--skip-hooks to bypass recipe-lint).
-  9. Restore the working tree (git checkout).
- 10. Run setup_chat_clients.py and save the JSON blob.
- 11. Print next-steps instructions.
+  9. Start all skill recipes via the Workato REST API so genies can invoke them.
+ 10. Restore the working tree (git checkout).
+ 11. Run setup_chat_clients.py and save the JSON blob.
+ 12. Print next-steps instructions.
 """
 import argparse, json, os, re, subprocess, sys, urllib.error, urllib.request
 
@@ -246,6 +247,107 @@ def run_build_script(script_name):
         sys.exit(f'{script_name} failed (exit {result.returncode})')
 
 
+def _collect_skill_recipe_names():
+    """Scan station folders for .agentic_skill.json files and return a set of recipe names.
+
+    Each .agentic_skill.json contains a ``references.recipe_id.id.name`` field that
+    gives the recipe name used when the skill is pushed to Workato.  We collect all
+    such names so we can start the matching server-side recipes after pushing.
+    """
+    names: set = set()
+    for station_dir in (STATION_A, STATION_B, STATION_C):
+        for dirpath, _dirs, files in os.walk(station_dir):
+            for fname in files:
+                if not fname.endswith('.agentic_skill.json'):
+                    continue
+                fpath = os.path.join(dirpath, fname)
+                try:
+                    with open(fpath) as f:
+                        data = json.load(f)
+                    recipe_name = (data
+                                   .get('references', {})
+                                   .get('recipe_id', {})
+                                   .get('id', {})
+                                   .get('name'))
+                    if recipe_name:
+                        names.add(recipe_name)
+                except (json.JSONDecodeError, KeyError, OSError):
+                    pass
+    return names
+
+
+def _start_skill_recipes(api_base, api_token, skill_recipe_names):
+    """List all workspace recipes via the REST API and start any that are skills.
+
+    ``skill_recipe_names`` is the set returned by ``_collect_skill_recipe_names()``.
+    Errors per recipe are logged as warnings so one failure does not abort the deploy.
+
+    Returns ``(started_count, error_count)``.
+    """
+    url = f'{api_base}/recipes?per_page=100'
+    req = urllib.request.Request(url, headers={
+        'Authorization': f'Bearer {api_token}',
+        'Content-Type': 'application/json',
+    })
+    try:
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode()
+        print(
+            f'  WARNING: Workato API error {exc.code} listing recipes: {body[:200]}',
+            file=sys.stderr,
+        )
+        return 0, 1
+    except urllib.error.URLError as exc:
+        print(f'  WARNING: Workato API network error listing recipes: {exc.reason}', file=sys.stderr)
+        return 0, 1
+
+    items = data.get('result', data) if isinstance(data, dict) else data
+
+    started = 0
+    errors = 0
+    for recipe in items:
+        if not isinstance(recipe, dict):
+            continue
+        if recipe.get('name') not in skill_recipe_names:
+            continue
+        recipe_id   = recipe.get('id')
+        recipe_name = recipe.get('name')
+        if recipe.get('running'):
+            started += 1
+            continue
+        start_req = urllib.request.Request(
+            f'{api_base}/recipes/{recipe_id}/start',
+            method='PUT',
+            headers={
+                'Authorization': f'Bearer {api_token}',
+                'Content-Type': 'application/json',
+            },
+        )
+        try:
+            with urllib.request.urlopen(start_req) as resp:
+                resp.read()
+            started += 1
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode()
+            print(
+                f'  WARNING: could not start skill "{recipe_name}" (id={recipe_id}):'
+                f' {exc.code} {body[:200]}',
+                file=sys.stderr,
+            )
+            errors += 1
+        except urllib.error.URLError as exc:
+            print(
+                f'  WARNING: network error starting skill "{recipe_name}" (id={recipe_id}):'
+                f' {exc.reason}',
+                file=sys.stderr,
+            )
+            errors += 1
+
+    return started, errors
+
+
 def _push_summary(result):
     """Return 'N created, M updated, K unchanged' from a wk push --json result.
 
@@ -340,9 +442,10 @@ def main():
             '6. Rebuild station-c: python3 scripts/build/build_station_c.py',
             '7. Fix station-c support connector IDs in-place',
             '8. Push station folders: wk push --force --skip-hooks -p ' + profile + ' (A, B, C)',
-            '9. Restore working tree: git checkout -- dewy-bank-station-a/ dewy-bank-station-b/ dewy-bank-station-c/',
-            '10. Run setup_chat_clients.py -p ' + profile + ' and save JSON to ' + CHAT_CONFIG_PATH,
-            '11. Print next-steps instructions',
+            '9. Start skill recipes: PUT /api/recipes/<id>/start for each skill (WORKATO_API_TOKEN)',
+            '10. Restore working tree: git checkout -- dewy-bank-station-a/ dewy-bank-station-b/ dewy-bank-station-c/',
+            '11. Run setup_chat_clients.py -p ' + profile + ' and save JSON to ' + CHAT_CONFIG_PATH,
+            '12. Print next-steps instructions',
         ]
         for s in steps:
             print(f'  {s}', file=sys.stderr)
@@ -518,9 +621,13 @@ def main():
         print('  provider IDs already match the target workspace — remap will be a no-op',
               file=sys.stderr)
 
+    # Collect skill recipe names now, before any file modifications, so the scan
+    # always reads committed content regardless of what the try block rewrites.
+    skill_recipe_names = _collect_skill_recipe_names()
+
     # ------------------------------------------------------------------
-    # Steps 4-9 wrapped in try/finally so the working tree is ALWAYS restored,
-    # even if a push or build step fails mid-way.
+    # Steps 4-9 in try / step 10 in finally so the working tree is ALWAYS
+    # restored, even if a push, build, or skill-start step fails mid-way.
     # ------------------------------------------------------------------
     try:
         # Step 4 — remap station-a in-place
@@ -563,9 +670,27 @@ def main():
             result = wk(profile, 'push', '--force', '--folder', server_path, '--skip-hooks')
             print(f'  {_push_summary(result)}', file=sys.stderr)
 
+        # Step 9 — start skill recipes
+        # Skills must be running before genies can invoke them.  We start them
+        # here, before setup_chat_clients.py starts the genies, so the genies
+        # find their backing recipes live from the first conversation.
+        print('\nStep 9: starting skill recipes...', file=sys.stderr)
+        if not api_token:
+            print(
+                '  WARNING: WORKATO_API_TOKEN not set — skipping skill start.\n'
+                '  Start skill recipes manually before running setup_chat_clients.py.',
+                file=sys.stderr,
+            )
+        else:
+            started_count, error_count = _start_skill_recipes(api_base, api_token, skill_recipe_names)
+            msg = f'{started_count} skill(s) started'
+            if error_count:
+                msg += f', {error_count} error(s) (see warnings above)'
+            print(f'  {msg}', file=sys.stderr)
+
     finally:
-        # Step 9 — restore the working tree regardless of success or failure
-        print('\nStep 9: restoring working tree...', file=sys.stderr)
+        # Step 10 — restore the working tree regardless of success or failure
+        print('\nStep 10: restoring working tree...', file=sys.stderr)
         try:
             subprocess.run(
                 ['git', 'checkout', '--',
@@ -582,9 +707,9 @@ def main():
             )
 
     # ------------------------------------------------------------------
-    # Step 10 — run setup_chat_clients.py
+    # Step 11 — run setup_chat_clients.py
     # ------------------------------------------------------------------
-    print('\nStep 10: running setup_chat_clients.py...', file=sys.stderr)
+    print('\nStep 11: running setup_chat_clients.py...', file=sys.stderr)
     # stdout=subprocess.PIPE captures the JSON blob while stderr streams live to
     # the terminal so the user sees progress during this multi-API-call step.
     result = subprocess.run(
@@ -607,7 +732,7 @@ def main():
         print('  WARNING: setup_chat_clients.py produced no JSON blob', file=sys.stderr)
 
     # ------------------------------------------------------------------
-    # Step 11 — next-steps instructions
+    # Step 12 — next-steps instructions
     # ------------------------------------------------------------------
     base_url = status.get('base_url', 'https://app.workato.com').rstrip('/')
     print(f'''
