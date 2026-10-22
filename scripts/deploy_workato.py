@@ -246,6 +246,32 @@ def run_build_script(script_name):
         sys.exit(f'{script_name} failed (exit {result.returncode})')
 
 
+def _push_summary(result):
+    """Return 'N created, M updated, K unchanged' from a wk push --json result.
+
+    wk push --json returns {"import_results": [{"file_path": "...", "action": "..."}, ...], ...}.
+    This tallies the action field across all entries so the caller can print a
+    human-readable count instead of just 'done'.
+    """
+    if not isinstance(result, dict):
+        return 'done'
+    items = result.get('import_results', [])
+    if not items:
+        return 'done'
+    counts: dict = {}
+    for item in items:
+        if isinstance(item, dict):
+            action = item.get('action', 'unknown')
+            counts[action] = counts.get(action, 0) + 1
+    # Print in a consistent, readable order; skip zero-count actions.
+    order = ['created', 'updated', 'deleted', 'unchanged', 'failed', 'unknown']
+    parts = [f'{counts[k]} {k}' for k in order if counts.get(k)]
+    for k, v in counts.items():
+        if k not in order:
+            parts.append(f'{v} {k}')
+    return ', '.join(parts) if parts else 'done'
+
+
 # ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
@@ -313,7 +339,7 @@ def main():
             '5. Rebuild station-b: python3 scripts/build/build_station_b.py',
             '6. Rebuild station-c: python3 scripts/build/build_station_c.py',
             '7. Fix station-c support connector IDs in-place',
-            '8. Push station folders: wk push --skip-hooks -p ' + profile + ' (A, B, C)',
+            '8. Push station folders: wk push --force --skip-hooks -p ' + profile + ' (A, B, C)',
             '9. Restore working tree: git checkout -- dewy-bank-station-a/ dewy-bank-station-b/ dewy-bank-station-c/',
             '10. Run setup_chat_clients.py -p ' + profile + ' and save JSON to ' + CHAT_CONFIG_PATH,
             '11. Print next-steps instructions',
@@ -522,6 +548,11 @@ def main():
         print(f'  {n} file(s) updated', file=sys.stderr)
 
         # Step 8 — push all three station folders
+        # --force bypasses wk's local hash cache and always uploads every tracked
+        # file, regardless of whether its hash matches the cached state.  This is
+        # necessary when assets (e.g. agentic genies) have been manually deleted
+        # from the Workato workspace: without --force, wk sees the hashes match
+        # and silently skips the files, leaving the server assets missing.
         # --skip-hooks bypasses the pre-push recipe-lint hook, which requires the
         # recipe-skills checkout (not present in a participant workspace).
         # Note: wk push may report some files as "deleted" for connector adapter
@@ -529,8 +560,8 @@ def main():
         # the server assets remain — this is expected behavior.
         for server_path in ('Dewy Bank Station A', 'Dewy Bank Station B', 'Dewy Bank Station C'):
             print(f'\nStep 8: pushing {server_path}...', file=sys.stderr)
-            wk(profile, 'push', '--folder', server_path, '--skip-hooks')
-            print('  done', file=sys.stderr)
+            result = wk(profile, 'push', '--force', '--folder', server_path, '--skip-hooks')
+            print(f'  {_push_summary(result)}', file=sys.stderr)
 
     finally:
         # Step 9 — restore the working tree regardless of success or failure
