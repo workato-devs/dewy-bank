@@ -1,343 +1,1217 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dewy Bank</title>
-  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Besley:wght@600&family=Figtree:wght@400;500;600;700;800&display=swap" />
-  <style>
-    :root {
-      --brand:#0b5cff; --brand-700:#0847c7; --brand-050:#eef4ff;
-      --teal:#0ea5a4; --amber:#f59e0b; --violet:#7c3aed;
-      --bg:#f6f8fc; --surface:#ffffff; --surface-2:#f8fafc;
-      --ink:#0b1324; --muted:#64748b; --faint:#94a3b8; --line:#e6ebf2;
-      --red:#dc2626; --red-050:#fef2f2; --green:#16a34a; --green-050:#f0fdf4;
-      --shadow:0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.06);
-      --radius:16px;
-    }
-    * { box-sizing:border-box; }
-    html,body { height:100%; }
-    body {
-      margin:0; background:var(--bg); color:var(--ink);
-      font-family:'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
-      -webkit-font-smoothing:antialiased;
-    }
-    a { color:inherit; }
-    .hide { display:none !important; }
-    .mono { font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:12px; }
-    .dewy { height:1.2em; width:auto; vertical-align:-.22em; }
-    button {
-      font:inherit; cursor:pointer; border:0; border-radius:10px;
-      padding:11px 18px; background:var(--brand); color:#fff; font-weight:600;
-      transition:background .15s, transform .05s, box-shadow .15s;
-    }
-    button:hover { background:var(--brand-700); }
-    button:active { transform:translateY(1px); }
-    button:disabled { opacity:.5; cursor:not-allowed; }
-    button.ghost { background:transparent; color:var(--brand); border:1px solid var(--line); }
-    button.ghost:hover { background:var(--brand-050); }
-    input, select {
-      width:100%; padding:11px 12px; border:1px solid var(--line);
-      border-radius:10px; font:inherit; background:var(--surface); color:var(--ink);
-    }
-    input:focus, select:focus { outline:2px solid var(--brand-050); border-color:var(--brand); }
-    label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin:0 0 6px; }
-    .msg { padding:10px 14px; border-radius:10px; font-size:13px; margin-top:12px; }
-    .msg.err { background:var(--red-050); color:var(--red); }
-    .msg.ok { background:var(--green-050); color:var(--green); }
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dewy Bank</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Besley:wght@600&family=Figtree:wght@400;500;600;700;800&display=swap"
+    />
+    <style>
+      :root {
+        --brand: #0b5cff;
+        --brand-700: #0847c7;
+        --brand-050: #eef4ff;
+        --teal: #0ea5a4;
+        --amber: #f59e0b;
+        --violet: #7c3aed;
+        --bg: #f6f8fc;
+        --surface: #ffffff;
+        --surface-2: #f8fafc;
+        --ink: #0b1324;
+        --muted: #64748b;
+        --faint: #94a3b8;
+        --line: #e6ebf2;
+        --red: #dc2626;
+        --red-050: #fef2f2;
+        --green: #16a34a;
+        --green-050: #f0fdf4;
+        --shadow:
+          0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.06);
+        --radius: 16px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          "Figtree",
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: inherit;
+      }
+      .hide {
+        display: none !important;
+      }
+      .mono {
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 12px;
+      }
+      .dewy {
+        height: 1.2em;
+        width: auto;
+        vertical-align: -0.22em;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+        border: 0;
+        border-radius: 10px;
+        padding: 11px 18px;
+        background: var(--brand);
+        color: #fff;
+        font-weight: 600;
+        transition:
+          background 0.15s,
+          transform 0.05s,
+          box-shadow 0.15s;
+      }
+      button:hover {
+        background: var(--brand-700);
+      }
+      button:active {
+        transform: translateY(1px);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      button.ghost {
+        background: transparent;
+        color: var(--brand);
+        border: 1px solid var(--line);
+      }
+      button.ghost:hover {
+        background: var(--brand-050);
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 11px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        font: inherit;
+        background: var(--surface);
+        color: var(--ink);
+      }
+      input:focus,
+      select:focus {
+        outline: 2px solid var(--brand-050);
+        border-color: var(--brand);
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        margin: 0 0 6px;
+      }
+      .msg {
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 13px;
+        margin-top: 12px;
+      }
+      .msg.err {
+        background: var(--red-050);
+        color: var(--red);
+      }
+      .msg.ok {
+        background: var(--green-050);
+        color: var(--green);
+      }
 
-    /* ---------- Auth screen ---------- */
-    .auth-wrap { min-height:100vh; display:grid; grid-template-columns:1.1fr .9fr; }
-    .auth-hero {
-      background:#083763;
-      color:#fff; padding:56px 60px; display:flex; flex-direction:column; justify-content:space-between;
-      position:relative; overflow:hidden;
-    }
-    .auth-hero::after {
-      content:''; position:absolute; inset:0;
-      background:radial-gradient(600px 400px at 100% 0%,rgba(255,255,255,.14),transparent 60%);
-    }
-    .auth-hero .logo { font-family:'Besley',Georgia,'Times New Roman',serif; font-size:22px; font-weight:600; letter-spacing:.3px; position:relative; }
-    .auth-hero h2 { font-family:'Besley',Georgia,'Times New Roman',serif; font-size:46px; line-height:1.1; margin:0 0 16px; font-weight:600; letter-spacing:-.01em; position:relative; }
-    .auth-hero p { font-size:18px; line-height:1.5; opacity:.9; max-width:540px; position:relative; }
-    .auth-hero .feats { display:flex; flex-direction:column; gap:14px; position:relative; margin-top:24px; }
-    .auth-hero .feat { display:flex; gap:12px; align-items:center; font-size:14px; opacity:.95; }
-    .auth-hero .feat .ic {
-      width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,.16);
-      display:grid; place-items:center; font-size:16px; flex:none;
-    }
-    .auth-hero .hero-dewy {
-      display:block; width:225px; max-width:60%; height:auto;
-      margin:0 0 18px; position:relative;
-    }
-    .auth-panel { display:grid; place-items:center; padding:40px; }
-    .auth-card { width:100%; max-width:380px; }
-    .auth-card .card-logo { display:none; }
-    .auth-card h1 { font-size:24px; margin:0 0 4px; }
-    .auth-card .sub { color:var(--muted); font-size:14px; margin:0 0 24px; }
-    .tabs { display:flex; gap:6px; background:var(--surface-2); padding:5px; border-radius:12px; margin-bottom:22px; }
-    .tabs button { flex:1; background:transparent; color:var(--muted); border-radius:9px; padding:9px; }
-    .tabs button.active { background:var(--surface); color:var(--brand); box-shadow:var(--shadow); }
-    .field { margin-bottom:14px; }
-    .auth-card button[type],.auth-card .wide { width:100%; margin-top:6px; }
+      /* ---------- Auth screen ---------- */
+      .auth-wrap {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+      }
+      .auth-hero {
+        background: #083763;
+        color: #fff;
+        padding: 56px 60px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+      }
+      .auth-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          600px 400px at 100% 0%,
+          rgba(255, 255, 255, 0.14),
+          transparent 60%
+        );
+      }
+      .auth-hero .logo {
+        font-family: "Besley", Georgia, "Times New Roman", serif;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        position: relative;
+      }
+      .auth-hero h2 {
+        font-family: "Besley", Georgia, "Times New Roman", serif;
+        font-size: 46px;
+        line-height: 1.1;
+        margin: 0 0 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        position: relative;
+      }
+      .auth-hero p {
+        font-size: 18px;
+        line-height: 1.5;
+        opacity: 0.9;
+        max-width: 540px;
+        position: relative;
+      }
+      .auth-hero .feats {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        position: relative;
+        margin-top: 24px;
+      }
+      .auth-hero .feat {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        font-size: 14px;
+        opacity: 0.95;
+      }
+      .auth-hero .feat .ic {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.16);
+        display: grid;
+        place-items: center;
+        font-size: 16px;
+        flex: none;
+      }
+      .auth-hero .hero-dewy {
+        display: block;
+        width: 225px;
+        max-width: 60%;
+        height: auto;
+        margin: 0 0 18px;
+        position: relative;
+      }
+      .auth-panel {
+        display: grid;
+        place-items: center;
+        padding: 40px;
+      }
+      .auth-card {
+        width: 100%;
+        max-width: 380px;
+      }
+      .auth-card .card-logo {
+        display: none;
+      }
+      .auth-card h1 {
+        font-size: 24px;
+        margin: 0 0 4px;
+      }
+      .auth-card .sub {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0 0 24px;
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+        background: var(--surface-2);
+        padding: 5px;
+        border-radius: 12px;
+        margin-bottom: 22px;
+      }
+      .tabs button {
+        flex: 1;
+        background: transparent;
+        color: var(--muted);
+        border-radius: 9px;
+        padding: 9px;
+      }
+      .tabs button.active {
+        background: var(--surface);
+        color: var(--brand);
+        box-shadow: var(--shadow);
+      }
+      .field {
+        margin-bottom: 14px;
+      }
+      .auth-card button[type],
+      .auth-card .wide {
+        width: 100%;
+        margin-top: 6px;
+      }
 
-    /* ---------- App shell ---------- */
-    .shell { display:grid; grid-template-columns:248px 1fr; min-height:100vh; }
-    .side {
-      background:#0b1324; color:#cbd5e1; padding:24px 18px; display:flex; flex-direction:column; gap:6px;
-    }
-    .side .brand { color:#fff; font-family:'Besley',Georgia,'Times New Roman',serif; font-weight:600; font-size:19px; letter-spacing:.3px; padding:4px 10px 22px; display:flex; align-items:center; gap:9px; }
-    .side .nav { font-size:14px; color:#94a3b8; padding:11px 12px; border-radius:10px; display:flex; align-items:center; gap:11px; cursor:pointer; }
-    .side .nav:hover { background:#162136; color:#e2e8f0; }
-    .side .nav.active { background:var(--brand); color:#fff; }
-    .side .spacer { flex:1; }
-    .side .u { font-size:12px; color:#64748b; padding:10px 12px; border-top:1px solid #1e293b; margin-top:8px; }
-    .side .u .email { color:#e2e8f0; font-size:13px; display:block; margin-bottom:8px; word-break:break-all; }
-    .side .u button { width:100%; background:#162136; color:#cbd5e1; font-size:13px; padding:9px; }
-    .side .u button:hover { background:#1e293b; }
+      /* ---------- App shell ---------- */
+      .shell {
+        display: grid;
+        grid-template-columns: 248px 1fr;
+        min-height: 100vh;
+      }
+      .side {
+        background: #0b1324;
+        color: #cbd5e1;
+        padding: 24px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .side .brand {
+        color: #fff;
+        font-family: "Besley", Georgia, "Times New Roman", serif;
+        font-weight: 600;
+        font-size: 19px;
+        letter-spacing: 0.3px;
+        padding: 4px 10px 22px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .side .nav {
+        font-size: 14px;
+        color: #94a3b8;
+        padding: 11px 12px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        cursor: pointer;
+      }
+      .side .nav:hover {
+        background: #162136;
+        color: #e2e8f0;
+      }
+      .side .nav.active {
+        background: var(--brand);
+        color: #fff;
+      }
+      .side .spacer {
+        flex: 1;
+      }
+      .side .u {
+        font-size: 12px;
+        color: #64748b;
+        padding: 10px 12px;
+        border-top: 1px solid #1e293b;
+        margin-top: 8px;
+      }
+      .side .u .email {
+        color: #e2e8f0;
+        font-size: 13px;
+        display: block;
+        margin-bottom: 8px;
+        word-break: break-all;
+      }
+      .side .u button {
+        width: 100%;
+        background: #162136;
+        color: #cbd5e1;
+        font-size: 13px;
+        padding: 9px;
+      }
+      .side .u button:hover {
+        background: #1e293b;
+      }
 
-    /* Off-canvas nav toggle — checkbox so the menu needs no JS. Hidden on desktop. */
-    .nav-toggle { position:absolute; opacity:0; width:0; height:0; }
-    .burger { display:none; }
+      /* Off-canvas nav toggle — checkbox so the menu needs no JS. Hidden on desktop. */
+      .nav-toggle {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .burger {
+        display: none;
+      }
 
-    .main { padding:30px 36px 60px; max-width:1100px; }
-    .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:26px; }
-    .topbar h1 { font-size:24px; margin:0; }
-    .topbar .hello { color:var(--muted); font-size:14px; margin-top:3px; }
-    .pill { background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:8px 14px; font-size:13px; color:var(--muted); box-shadow:var(--shadow); }
+      /* ---------- Main layout ---------- */
+      .main {
+        padding: 30px 36px 60px;
+        display: flex;
+        flex-direction: column;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 26px;
+      }
+      .topbar h1 {
+        font-size: 24px;
+        margin: 0;
+      }
+      .topbar .hello {
+        color: var(--muted);
+        font-size: 14px;
+        margin-top: 3px;
+      }
+      .pill {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 13px;
+        color: var(--muted);
+        box-shadow: var(--shadow);
+      }
 
-    .net {
-      background:#083763; color:#fff; border-radius:var(--radius);
-      padding:26px 28px; box-shadow:var(--shadow); margin-bottom:22px; position:relative; overflow:hidden;
-    }
-    .net::after {
-      content:''; position:absolute; right:0; top:0; width:336px; height:117px;
-      background:url('accent-line.png') no-repeat right top; background-size:contain;
-    }
-    .net .lab { font-size:13px; opacity:.85; }
-    .net .amt { font-size:40px; font-weight:800; margin:6px 0 2px; letter-spacing:-.5px; }
-    .net .meta { font-size:13px; opacity:.85; }
+      .net {
+        background: #083763;
+        color: #fff;
+        border-radius: var(--radius);
+        padding: 26px 28px;
+        box-shadow: var(--shadow);
+        margin-bottom: 22px;
+        position: relative;
+        overflow: hidden;
+      }
+      .net::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 336px;
+        height: 117px;
+        background: url("accent-line.png") no-repeat right top;
+        background-size: contain;
+      }
+      .net .lab {
+        font-size: 13px;
+        opacity: 0.85;
+      }
+      .net .amt {
+        font-size: 40px;
+        font-weight: 800;
+        margin: 6px 0 2px;
+        letter-spacing: -0.5px;
+      }
+      .net .meta {
+        font-size: 13px;
+        opacity: 0.85;
+      }
 
-    .grid { display:grid; gap:18px; }
-    .cards { grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); }
-    .acct-card {
-      background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-      padding:20px; box-shadow:var(--shadow); cursor:pointer; transition:transform .12s, box-shadow .12s; position:relative;
-    }
-    .acct-card:hover { transform:translateY(-2px); box-shadow:0 10px 30px rgba(16,24,40,.1); }
-    /* font-size:0 suppresses the emoji the renderer still writes into this element */
-    .acct-card .ic {
-      width:28px; height:28px; margin-bottom:14px; font-size:0;
-      background-repeat:no-repeat; background-position:left center; background-size:contain;
-    }
-    .ic.checking { background-image:url('shape-circle.svg'); }
-    .ic.savings  { background-image:url('shape-diamond.svg'); }
-    .ic.credit   { background-image:url('shape-triangle.svg'); }
-    .acct-card .nm { font-weight:700; font-size:15px; }
-    .acct-card .no { color:var(--faint); font-size:12px; margin-top:2px; }
-    .acct-card .bal { font-size:26px; font-weight:800; margin-top:14px; letter-spacing:-.3px; }
-    .acct-card .bal.neg { color:var(--red); }
-    .acct-card .tag { position:absolute; top:18px; right:18px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); background:var(--surface-2); padding:4px 9px; border-radius:999px; }
+      .grid {
+        display: grid;
+        gap: 18px;
+        width: 100%;
+      }
+      .cards {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      }
+      .acct-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 20px;
+        box-shadow: var(--shadow);
+        cursor: pointer;
+        transition:
+          transform 0.12s,
+          box-shadow 0.12s;
+        position: relative;
+      }
+      .acct-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(16, 24, 40, 0.1);
+      }
+      /* font-size:0 suppresses the emoji the renderer still writes into this element */
+      .acct-card .ic {
+        width: 28px;
+        height: 28px;
+        margin-bottom: 14px;
+        font-size: 0;
+        background-repeat: no-repeat;
+        background-position: left center;
+        background-size: contain;
+      }
+      .ic.checking {
+        background-image: url("shape-circle.svg");
+      }
+      .ic.savings {
+        background-image: url("shape-diamond.svg");
+      }
+      .ic.credit {
+        background-image: url("shape-triangle.svg");
+      }
+      .acct-card .nm {
+        font-weight: 700;
+        font-size: 15px;
+      }
+      .acct-card .no {
+        color: var(--faint);
+        font-size: 12px;
+        margin-top: 2px;
+      }
+      .acct-card .bal {
+        font-size: 26px;
+        font-weight: 800;
+        margin-top: 14px;
+        letter-spacing: -0.3px;
+      }
+      .acct-card .bal.neg {
+        color: var(--red);
+      }
+      .acct-card .tag {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--muted);
+        background: var(--surface-2);
+        padding: 4px 9px;
+        border-radius: 999px;
+      }
 
-    .card {
-      background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-      padding:22px 24px; box-shadow:var(--shadow); margin-bottom:18px;
-    }
-    .card h2 { font-size:16px; margin:0 0 16px; display:flex; align-items:center; gap:9px; }
-    .row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
-    /* Chat panel (P8) */
-    .chat { margin-bottom:22px; }
-    .chat h2 { flex-wrap:wrap; }
-    .chat-station { width:auto; font-size:13px; padding:6px 10px; }
-    .chat-setup { background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
-    .chat-setup textarea { width:100%; border:1px solid var(--line); border-radius:10px; padding:10px; resize:vertical; margin-bottom:10px; }
-    .chat-log { max-height:340px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:4px 2px 12px; }
-    .chat-empty { color:var(--faint); font-size:13px; }
-    .bubble { max-width:80%; padding:10px 14px; border-radius:14px; font-size:14px; line-height:1.45; white-space:pre-wrap; word-wrap:break-word; }
-    .bubble.me { align-self:flex-end; background:var(--brand); color:#fff; border-bottom-right-radius:4px; }
-    .bubble.dewy { align-self:flex-start; background:var(--surface-2); border:1px solid var(--line); border-bottom-left-radius:4px; }
-    .bubble.status { align-self:center; background:none; color:var(--faint); font-size:12px; padding:2px; }
-    .bubble.confirm { align-self:flex-start; background:var(--brand-050); border:1px solid var(--line); }
-    .bubble.confirm .acts { display:flex; gap:8px; margin-top:10px; }
-    .chat-input { display:flex; gap:10px; }
-    .chat-input input { flex:1; }
-    .chat button.sm { padding:6px 10px; font-size:12px; }
-    .chat .note { font-size:12px; color:var(--muted); margin:0 0 10px; }
-    .chat-setup .wide { width:100%; }
-    .row > .field { flex:1; min-width:150px; margin:0; }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 22px 24px;
+        box-shadow: var(--shadow);
+        margin-bottom: 18px;
+      }
+      .card h2 {
+        font-size: 16px;
+        margin: 0 0 16px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .row {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
 
-    table { width:100%; border-collapse:collapse; }
-    th { text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--faint); padding:0 10px 10px; }
-    td { padding:12px 10px; border-top:1px solid var(--line); font-size:14px; vertical-align:middle; }
-    tr.txn:hover td { background:var(--surface-2); }
-    .tdesc { font-weight:600; } .tsub { color:var(--faint); font-size:12px; margin-top:2px; }
-    .amt-cell { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
-    .amt-cell.credit { color:var(--green); } .amt-cell.debit { color:var(--ink); }
-    .catdot { width:30px; height:30px; border-radius:9px; display:grid; place-items:center; font-size:14px; background:var(--surface-2); }
-    .badge { font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; }
-    .badge.credit { background:var(--green-050); color:var(--green); }
-    .badge.debit { background:var(--surface-2); color:var(--muted); }
+      /* ---------- Cols layout ---------- */
+      .cols {
+        display: grid;
+        grid-template-columns: 1.6fr 1fr;
+        gap: 18px;
+        flex: 1;
+      }
+      /* Right column holds the chat card and stretches to grid row height */
+      .chat-col {
+        display: flex;
+        flex-direction: column;
+      }
 
-    .spend { display:flex; flex-direction:column; gap:12px; }
-    .spend .bar-row { display:grid; grid-template-columns:120px 1fr 72px; align-items:center; gap:12px; font-size:13px; }
-    .spend .track { height:9px; background:var(--surface-2); border-radius:999px; overflow:hidden; }
-    .spend .fill { height:100%; border-radius:999px; }
-    .spend .val { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
+      /* ---------- Chat panel ---------- */
+      .chat {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        margin-bottom: 0;
+      }
+      .chat h2 {
+        flex-wrap: wrap;
+      }
+      .chat-station {
+        width: auto;
+        font-size: 13px;
+        padding: 6px 10px;
+      }
+      .chat-setup {
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 14px;
+      }
+      .chat-setup textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        resize: vertical;
+        margin-bottom: 10px;
+      }
+      #chatSubtitle {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 2px 0 8px;
+      }
+      .chat-log {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 4px 2px 12px;
+      }
+      /* Thin scrollbar */
+      .chat-log::-webkit-scrollbar {
+        width: 4px;
+      }
+      .chat-log::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .chat-log::-webkit-scrollbar-thumb {
+        background: var(--line);
+        border-radius: 4px;
+      }
+      .chat-empty {
+        color: var(--faint);
+        font-size: 13px;
+      }
 
-    .cols { display:grid; grid-template-columns:1.6fr 1fr; gap:18px; align-items:start; }
-    @media (max-width:980px){
-      .auth-wrap{grid-template-columns:1fr;} .auth-hero{display:none;}
-      .auth-panel{place-items:start center;padding:56px 40px;}
-      .auth-card .card-logo{display:flex;align-items:center;gap:11px;font-family:'Besley',Georgia,'Times New Roman',serif;font-size:30px;font-weight:600;letter-spacing:.3px;margin:0 0 26px;}
-      .shell{grid-template-columns:1fr;}
-      .side{flex-direction:row;flex-wrap:wrap;align-items:center;}
-      .side .brand{flex:1;padding:4px 10px;}
-      .side .spacer{display:none;}
-      .burger{display:flex;flex-direction:column;justify-content:center;gap:5px;width:42px;height:42px;padding:10px;border-radius:10px;cursor:pointer;flex:none;}
-      .burger:hover{background:#162136;}
-      .burger span{display:block;height:2px;background:#cbd5e1;border-radius:2px;transition:transform .2s,opacity .2s;}
-      .nav-toggle:focus-visible ~ .burger{outline:2px solid var(--brand);outline-offset:2px;}
-      .net::after{display:none;}
-      .side .nav,.side .u{flex-basis:100%;display:none;}
-      #navToggle:checked ~ .nav{display:flex;}
-      #navToggle:checked ~ .u{display:block;}
-      #navToggle:checked ~ .burger span:nth-child(1){transform:translateY(7px) rotate(45deg);}
-      #navToggle:checked ~ .burger span:nth-child(2){opacity:0;}
-      #navToggle:checked ~ .burger span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
-      .cols{grid-template-columns:1fr;}
-    }
-  </style>
-</head>
-<body>
+      /* ---------- Bubble styles ---------- */
+      .bubble-wrap {
+        display: flex;
+        flex-direction: column;
+      }
+      .bubble-wrap.me-wrap {
+        align-items: flex-end;
+      }
+      .bubble-wrap.dewy-wrap {
+        align-items: flex-start;
+      }
+      .bubble-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      .bubble {
+        max-width: 75%;
+        border-radius: 18px;
+        font-size: 15px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+      .bubble.me {
+        align-self: flex-end;
+        background: var(--brand);
+        color: #fff;
+        padding: 12px 16px;
+        border-radius: 18px;
+        border-bottom-right-radius: 4px;
+      }
+      .bubble.dewy {
+        align-self: flex-start;
+        background: #f1f5f9;
+        padding: 12px 16px;
+        border-radius: 18px;
+        border-bottom-left-radius: 4px;
+        white-space: normal;
+      }
+      .bubble.status {
+        align-self: center;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 13px;
+        font-style: italic;
+        padding: 6px 14px;
+        border-radius: 999px;
+      }
+      .bubble.confirm {
+        align-self: flex-start;
+        background: var(--brand-050);
+        border: 1px solid var(--line);
+        padding: 12px 16px;
+      }
+      .bubble.confirm .acts {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
 
-  <!-- ===================== AUTH ===================== -->
-  <div id="authScreen" class="auth-wrap">
-    <div class="auth-hero">
-      <div class="logo"><img class="dewy" src="dewy-base.svg" alt="" /> Dewy Bank</div>
-      <div>
-        <img class="hero-dewy" src="dewy-genie.png" alt="" />
-        <h2>Banking that stays<br/>out of your way.</h2>
-        <p>Checking, savings and credit in one clean place. Move money in a tap and watch where it goes.</p>
-        <div class="feats">
-          <div class="feat"><span class="ic">⚡</span> Instant transfers between your accounts</div>
-          <div class="feat"><span class="ic">📊</span> Spending insights, automatically categorized</div>
-          <div class="feat"><span class="ic">🔒</span> Bank-grade security on every request</div>
+      /* Code blocks inside chat */
+      .chat-log code {
+        background: #f8fafc;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 2px 6px;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 13px;
+      }
+      .chat-log pre {
+        background: #f8fafc;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+        overflow-x: auto;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 13px;
+        line-height: 1.5;
+        margin: 6px 0;
+      }
+      .chat-log pre code {
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: inherit;
+      }
+
+      /* --- Markdown content inside Dewy chat bubbles --- */
+
+      /* Tables */
+      .chat-log .bubble.dewy table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 8px 0;
+      }
+      .chat-log .bubble.dewy th,
+      .chat-log .bubble.dewy td {
+        border: 1px solid var(--line);
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+      .chat-log .bubble.dewy tr:nth-child(even) {
+        background: var(--surface-2);
+      }
+
+      /* Inline text */
+      .chat-log .bubble.dewy strong {
+        font-weight: 700;
+      }
+      .chat-log .bubble.dewy em {
+        font-style: italic;
+      }
+
+      /* Inline code */
+      .chat-log .bubble.dewy code {
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 1px 4px;
+        font-size: 13px;
+      }
+
+      /* Code blocks */
+      .chat-log .bubble.dewy pre {
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 12px;
+        overflow-x: auto;
+        font-size: 13px;
+      }
+      .chat-log .bubble.dewy pre code {
+        background: none;
+        border: none;
+        padding: 0;
+      }
+
+      /* Lists */
+      .chat-log .bubble.dewy ul,
+      .chat-log .bubble.dewy ol {
+        margin: 6px 0;
+        padding-left: 20px;
+      }
+      .chat-log .bubble.dewy li {
+        margin: 2px 0;
+      }
+
+      /* Paragraph spacing from marked's <p> wrappers */
+      .chat-log .bubble.dewy p {
+        margin: 4px 0;
+      }
+
+      /* Chat input bar */
+      .chat-input {
+        display: flex;
+        gap: 10px;
+        flex-shrink: 0;
+        align-items: center;
+        padding: 12px 0 4px;
+      }
+      .chat-input input {
+        flex: 1;
+        width: auto;
+        padding: 12px 16px;
+        border-radius: 24px;
+        font-size: 15px;
+      }
+      #chatSend {
+        border-radius: 24px;
+        padding: 11px 20px;
+        font-size: 15px;
+        flex-shrink: 0;
+      }
+      .chat button.sm {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+      .chat .note {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 0 0 10px;
+      }
+      .chat-setup .wide {
+        width: 100%;
+      }
+      .row > .field {
+        flex: 1;
+        min-width: 150px;
+        margin: 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        text-align: left;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--faint);
+        padding: 0 10px 10px;
+      }
+      td {
+        padding: 12px 10px;
+        border-top: 1px solid var(--line);
+        font-size: 14px;
+        vertical-align: middle;
+      }
+      tr.txn:hover td {
+        background: var(--surface-2);
+      }
+      .tdesc {
+        font-weight: 600;
+      }
+      .tsub {
+        color: var(--faint);
+        font-size: 12px;
+        margin-top: 2px;
+      }
+      .amt-cell {
+        text-align: right;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .amt-cell.credit {
+        color: var(--green);
+      }
+      .amt-cell.debit {
+        color: var(--ink);
+      }
+      .catdot {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        font-size: 14px;
+        background: var(--surface-2);
+      }
+      .badge {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 3px 9px;
+        border-radius: 999px;
+      }
+      .badge.credit {
+        background: var(--green-050);
+        color: var(--green);
+      }
+      .badge.debit {
+        background: var(--surface-2);
+        color: var(--muted);
+      }
+
+      .spend {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .spend .bar-row {
+        display: grid;
+        grid-template-columns: 120px 1fr 72px;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+      }
+      .spend .track {
+        height: 9px;
+        background: var(--surface-2);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .spend .fill {
+        height: 100%;
+        border-radius: 999px;
+      }
+      .spend .val {
+        text-align: right;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+
+      @media (max-width: 980px) {
+        .auth-wrap {
+          grid-template-columns: 1fr;
+        }
+        .auth-hero {
+          display: none;
+        }
+        .auth-panel {
+          place-items: start center;
+          padding: 56px 40px;
+        }
+        .auth-card .card-logo {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+          font-family: "Besley", Georgia, "Times New Roman", serif;
+          font-size: 30px;
+          font-weight: 600;
+          letter-spacing: 0.3px;
+          margin: 0 0 26px;
+        }
+        .shell {
+          grid-template-columns: 1fr;
+        }
+        .side {
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+        .side .brand {
+          flex: 1;
+          padding: 4px 10px;
+        }
+        .side .spacer {
+          display: none;
+        }
+        .burger {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 5px;
+          width: 42px;
+          height: 42px;
+          padding: 10px;
+          border-radius: 10px;
+          cursor: pointer;
+          flex: none;
+        }
+        .burger:hover {
+          background: #162136;
+        }
+        .burger span {
+          display: block;
+          height: 2px;
+          background: #cbd5e1;
+          border-radius: 2px;
+          transition:
+            transform 0.2s,
+            opacity 0.2s;
+        }
+        .nav-toggle:focus-visible ~ .burger {
+          outline: 2px solid var(--brand);
+          outline-offset: 2px;
+        }
+        .net::after {
+          display: none;
+        }
+        .side .nav,
+        .side .u {
+          flex-basis: 100%;
+          display: none;
+        }
+        #navToggle:checked ~ .nav {
+          display: flex;
+        }
+        #navToggle:checked ~ .u {
+          display: block;
+        }
+        #navToggle:checked ~ .burger span:nth-child(1) {
+          transform: translateY(7px) rotate(45deg);
+        }
+        #navToggle:checked ~ .burger span:nth-child(2) {
+          opacity: 0;
+        }
+        #navToggle:checked ~ .burger span:nth-child(3) {
+          transform: translateY(-7px) rotate(-45deg);
+        }
+        .main {
+          padding: 20px 16px 40px;
+        }
+        .cols {
+          grid-template-columns: 1fr;
+        }
+        .chat-col {
+          min-height: 420px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ===================== AUTH ===================== -->
+    <div id="authScreen" class="auth-wrap">
+      <div class="auth-hero">
+        <div class="logo">
+          <img class="dewy" src="dewy-base.svg" alt="" /> Dewy Bank
+        </div>
+        <div>
+          <img class="hero-dewy" src="dewy-genie.png" alt="" />
+          <h2>Banking that stays<br />out of your way.</h2>
+          <p>
+            Checking, savings and credit in one clean place. Move money in a tap
+            and watch where it goes.
+          </p>
+          <div class="feats">
+            <div class="feat">
+              <span class="ic">⚡</span> Instant transfers between your accounts
+            </div>
+            <div class="feat">
+              <span class="ic">📊</span> Spending insights, automatically
+              categorized
+            </div>
+            <div class="feat">
+              <span class="ic">🔒</span> Bank-grade security on every request
+            </div>
+          </div>
+        </div>
+        <div style="opacity: 0.7; font-size: 13px; position: relative">
+          Member FDIC · Demo environment
         </div>
       </div>
-      <div style="opacity:.7;font-size:13px;position:relative">Member FDIC · Demo environment</div>
+      <div class="auth-panel">
+        <div class="auth-card">
+          <div class="card-logo">
+            <img class="dewy" src="dewy-base.svg" alt="" /> Dewy Bank
+          </div>
+          <h1>Welcome</h1>
+          <p class="sub">Sign in to your Dewy Bank account.</p>
+          <div class="tabs">
+            <button id="tabLogin" class="active">Log in</button>
+            <button id="tabSignup">Sign up</button>
+          </div>
+          <div id="loginForm">
+            <div class="field">
+              <label>Email</label
+              ><input
+                id="loginEmail"
+                type="email"
+                autocomplete="username"
+                placeholder="you@example.com"
+              />
+            </div>
+            <div class="field">
+              <label>Password</label
+              ><input
+                id="loginPass"
+                type="password"
+                autocomplete="current-password"
+                placeholder="••••••••"
+              />
+            </div>
+            <button id="loginBtn" class="wide">Log in</button>
+          </div>
+          <div id="signupForm" class="hide">
+            <div class="field">
+              <label>Email</label
+              ><input id="suEmail" type="email" placeholder="you@example.com" />
+            </div>
+            <div class="field">
+              <label>Password · 8+ chars, letters &amp; digits</label
+              ><input id="suPass" type="password" placeholder="••••••••" />
+            </div>
+            <button id="suBtn" class="wide">Create account</button>
+          </div>
+          <div id="confirmForm" class="hide">
+            <p class="sub">We emailed you a confirmation code.</p>
+            <div class="field">
+              <label>Confirmation code</label
+              ><input id="confCode" placeholder="123456" />
+            </div>
+            <button id="confBtn" class="wide">Confirm &amp; continue</button>
+          </div>
+          <div id="authMsg"></div>
+        </div>
+      </div>
     </div>
-    <div class="auth-panel">
-      <div class="auth-card">
-        <div class="card-logo"><img class="dewy" src="dewy-base.svg" alt="" /> Dewy Bank</div>
-        <h1>Welcome</h1>
-        <p class="sub">Sign in to your Dewy Bank account.</p>
-        <div class="tabs">
-          <button id="tabLogin" class="active">Log in</button>
-          <button id="tabSignup">Sign up</button>
+
+    <!-- ===================== APP ===================== -->
+    <div id="appShell" class="shell hide">
+      <aside class="side">
+        <input type="checkbox" id="navToggle" class="nav-toggle" />
+        <div class="brand">
+          <img class="dewy" src="dewy-base.svg" alt="" /> Dewy Bank
         </div>
-        <div id="loginForm">
-          <div class="field"><label>Email</label><input id="loginEmail" type="email" autocomplete="username" placeholder="you@example.com" /></div>
-          <div class="field"><label>Password</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" /></div>
-          <button id="loginBtn" class="wide">Log in</button>
+        <label for="navToggle" class="burger" aria-label="Menu"
+          ><span></span><span></span><span></span
+        ></label>
+        <div class="nav active"><span>🏠</span> Dashboard</div>
+        <div class="nav"><span>💳</span> Accounts</div>
+        <div class="nav"><span>↔️</span> Transfers</div>
+        <div class="nav"><span>📈</span> Insights</div>
+        <div class="spacer"></div>
+        <a id="adminLink" class="nav hide" href="admin.html"
+          ><img class="dewy" src="dewy-base.svg" alt="" /> Admin Console</a
+        >
+        <div class="u">
+          <span class="email" id="sideEmail">—</span>
+          <button id="logout">Log out</button>
         </div>
-        <div id="signupForm" class="hide">
-          <div class="field"><label>Email</label><input id="suEmail" type="email" placeholder="you@example.com" /></div>
-          <div class="field"><label>Password · 8+ chars, letters &amp; digits</label><input id="suPass" type="password" placeholder="••••••••" /></div>
-          <button id="suBtn" class="wide">Create account</button>
+      </aside>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <h1>Dashboard</h1>
+            <div class="hello" id="hello">Welcome back</div>
+          </div>
+          <div class="pill" id="asOf"></div>
         </div>
-        <div id="confirmForm" class="hide">
-          <p class="sub">We emailed you a confirmation code.</p>
-          <div class="field"><label>Confirmation code</label><input id="confCode" placeholder="123456" /></div>
-          <button id="confBtn" class="wide">Confirm &amp; continue</button>
+
+        <section class="net">
+          <div class="lab">Total balance across your accounts</div>
+          <div class="amt" id="netAmt">—</div>
+          <div class="meta" id="netMeta"></div>
+        </section>
+
+        <div
+          class="grid cards"
+          id="accountCards"
+          style="margin-bottom: 22px"
+        ></div>
+
+        <div class="cols">
+          <!-- Left column: activity, transfers, spending -->
+          <div>
+            <div class="card">
+              <h2>
+                Recent activity
+                <span
+                  id="actAcct"
+                  class="pill"
+                  style="font-size: 12px; margin-left: auto"
+                ></span>
+              </h2>
+              <div id="txns">Select an account to view its activity.</div>
+            </div>
+            <div class="card">
+              <h2>↔️ Move money</h2>
+              <div class="field">
+                <label>From</label
+                ><select id="xferFrom"></select>
+              </div>
+              <div class="field">
+                <label>To</label
+                ><select id="xferTo"></select>
+              </div>
+              <div class="field">
+                <label>Amount (USD)</label
+                ><input
+                  id="xferAmt"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+              </div>
+              <button id="xferBtn" class="wide">Send transfer</button>
+              <div id="xferMsg"></div>
+            </div>
+            <div class="card">
+              <h2>📊 Spending this month</h2>
+              <div class="spend" id="spend">—</div>
+            </div>
+          </div>
+
+          <!-- Right column: chat panel (fills remaining height) -->
+          <div class="chat-col">
+            <div class="card chat" id="chatCard">
+              <h2>
+                <img
+                  class="dewy"
+                  src="dewy-genie.png"
+                  alt=""
+                  style="width: 22px; height: 22px"
+                />
+                Ask Dewy
+                <select
+                  id="chatStation"
+                  class="chat-station"
+                  aria-label="Station"
+                ></select>
+                <button id="chatClearBtn" class="ghost sm">Clear chat</button>
+                <button
+                  id="chatSetupToggle"
+                  class="ghost sm"
+                  style="margin-left: auto"
+                >
+                  Set up chat
+                </button>
+              </h2>
+              <div id="chatSubtitle"></div>
+              <div id="chatSetup" class="chat-setup hide">
+                <p class="note" style="margin-top: 0">
+                  Paste the setup text your facilitator's script printed for you
+                  (it starts with <span class="mono">{"version": 1</span>). You
+                  only need to do this once.
+                </p>
+                <textarea
+                  id="chatBlob"
+                  rows="4"
+                  class="mono"
+                  placeholder='{"version": 1, "genie_api_host": "…", "idp_user_id": "…", "stations": {…}}'
+                ></textarea>
+                <button id="chatSaveBlob" class="wide">Save</button>
+                <div id="chatSetupMsg"></div>
+              </div>
+              <div id="chatLog" class="chat-log" aria-live="polite">
+                <div class="chat-empty">Pick a station and say hello.</div>
+              </div>
+              <div class="chat-input">
+                <input
+                  id="chatText"
+                  placeholder="Ask about your accounts…"
+                  maxlength="4000"
+                />
+                <button id="chatSend">Send</button>
+              </div>
+              <div id="chatMsg"></div>
+            </div>
+          </div>
         </div>
-        <div id="authMsg"></div>
-      </div>
+      </main>
     </div>
-  </div>
 
-  <!-- ===================== APP ===================== -->
-  <div id="appShell" class="shell hide">
-    <aside class="side">
-      <input type="checkbox" id="navToggle" class="nav-toggle" />
-      <div class="brand"><img class="dewy" src="dewy-base.svg" alt="" /> Dewy Bank</div>
-      <label for="navToggle" class="burger" aria-label="Menu"><span></span><span></span><span></span></label>
-      <div class="nav active"><span>🏠</span> Dashboard</div>
-      <div class="nav"><span>💳</span> Accounts</div>
-      <div class="nav"><span>↔️</span> Transfers</div>
-      <div class="nav"><span>📈</span> Insights</div>
-      <div class="spacer"></div>
-      <a id="adminLink" class="nav hide" href="admin.html"><img class="dewy" src="dewy-base.svg" alt="" /> Admin Console</a>
-      <div class="u">
-        <span class="email" id="sideEmail">—</span>
-        <button id="logout">Log out</button>
-      </div>
-    </aside>
-
-    <main class="main">
-      <div class="topbar">
-        <div>
-          <h1>Dashboard</h1>
-          <div class="hello" id="hello">Welcome back</div>
-        </div>
-        <div class="pill" id="asOf"></div>
-      </div>
-
-      <section class="net">
-        <div class="lab">Total balance across your accounts</div>
-        <div class="amt" id="netAmt">—</div>
-        <div class="meta" id="netMeta"></div>
-      </section>
-
-      <div class="grid cards" id="accountCards" style="margin-bottom:22px"></div>
-
-      <div class="card chat" id="chatCard">
-        <h2><img class="dewy" src="dewy-genie.png" alt="" style="width:22px;height:22px" /> Ask Dewy
-          <select id="chatStation" class="chat-station" aria-label="Station"></select>
-          <button id="chatSetupToggle" class="ghost sm" style="margin-left:auto">Set up chat</button>
-        </h2>
-        <div id="chatSetup" class="chat-setup hide">
-          <p class="note" style="margin-top:0">Paste the setup text your facilitator's script printed for you (it starts with <span class="mono">{"version": 1</span>). You only need to do this once.</p>
-          <textarea id="chatBlob" rows="4" class="mono" placeholder='{"version": 1, "genie_api_host": "…", "idp_user_id": "…", "stations": {…}}'></textarea>
-          <button id="chatSaveBlob" class="wide">Save</button>
-          <div id="chatSetupMsg"></div>
-        </div>
-        <div id="chatLog" class="chat-log" aria-live="polite"><div class="chat-empty">Pick a station and say hello.</div></div>
-        <div class="chat-input">
-          <input id="chatText" placeholder="Ask about your accounts…" maxlength="4000" />
-          <button id="chatSend">Send</button>
-        </div>
-        <div id="chatMsg"></div>
-      </div>
-
-      <div class="cols">
-        <div>
-          <div class="card">
-            <h2>Recent activity <span id="actAcct" class="pill" style="font-size:12px;margin-left:auto"></span></h2>
-            <div id="txns">Select an account to view its activity.</div>
-          </div>
-        </div>
-        <div>
-          <div class="card">
-            <h2>↔️ Move money</h2>
-            <div class="field"><label>From</label><select id="xferFrom"></select></div>
-            <div class="field"><label>To</label><select id="xferTo"></select></div>
-            <div class="field"><label>Amount (USD)</label><input id="xferAmt" type="number" min="0.01" step="0.01" placeholder="0.00" /></div>
-            <button id="xferBtn" class="wide">Send transfer</button>
-            <div id="xferMsg"></div>
-          </div>
-          <div class="card">
-            <h2>📊 Spending this month</h2>
-            <div class="spend" id="spend">—</div>
-          </div>
-        </div>
-      </div>
-    </main>
-  </div>
-
-  <script src="config.js"></script>
-  <script src="app.js"></script>
-</body>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
 </html>
