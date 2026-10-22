@@ -683,6 +683,21 @@
     $("chatLog").appendChild(el);
   }
 
+  // Animated "thinking" indicator: 3 bouncing dots appended at the end of the
+  // message list (in-flow, not positioned). The inner HTML is a static literal —
+  // no user input reaches it, so no sanitisation is needed here.
+  function bubbleThinking() {
+    var empty = $("chatLog").querySelector(".chat-empty");
+    if (empty) empty.remove();
+    var el = document.createElement("div");
+    el.className = "bubble thinking";
+    el.setAttribute("aria-label", "Dewy is thinking");
+    el.innerHTML = "<span></span><span></span><span></span>"; // static literal — safe
+    $("chatLog").appendChild(el);
+    $("chatLog").scrollTop = $("chatLog").scrollHeight;
+    return el;
+  }
+
   // Each station keeps its own transcript for this session.
   var transcripts = {};
   function record(station, kind, text, extra) {
@@ -714,6 +729,10 @@
     list.forEach(function (e) {
       drawEntry(station, e);
     });
+    // Re-attach the animated thinking bubble if a request is still in flight
+    if (chat.busy) {
+      chat.thinkingBubble = bubbleThinking();
+    }
   }
 
   function drawEntry(station, e) {
@@ -749,8 +768,8 @@
     $("chatSend").disabled = true;
     msg($("chatMsg"), "");
     record(station, "me", text);
-    // Show thinking placeholder immediately after recording the user message
-    chat.thinkingBubble = bubble("status", "Thinking\u2026");
+    // Show animated thinking indicator immediately after the user message
+    chat.thinkingBubble = bubbleThinking();
     $("chatText").value = "";
     api("POST", "/chat", {
       station: station,
