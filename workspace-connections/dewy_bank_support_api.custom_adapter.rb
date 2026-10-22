@@ -1,34 +1,39 @@
 {
   title: 'Dewy Bank Support API',
 
-  # The support agent's credential (Station C). Participants paste one thing:
-  # the support code their facilitator gives them (the support-agent key).
-  # Everything about the deployment is discovered from the bank app's public
-  # config.json: the Support API URL. The API limits this key to the support
+  # The support agent's credential (Station C). Both support_api_url and
+  # support_api_key are stamped connection fields; participants do not need to
+  # enter anything for this connector. The API limits this key to the support
   # routes and to the fictional customers, so it can't reach a real
   # participant's accounts.
   connection: {
     fields: [
-      { name: 'support_code', label: 'Support code', control_type: 'password', optional: false,
-        hint: 'The support code your facilitator gives you' }
+      { name: 'support_api_url', label: 'Support API URL',
+        hint: 'API Gateway URL — set by stamping, do not edit',
+        default: 'NOT_STAMPED' }, # support_api_url stamped before the workshop by scripts/stamp_bank_app_url.py
+      { name: 'support_api_key', label: 'Support API key', control_type: 'password', optional: false,
+        default: 'NOT_STAMPED' }, # stamped before the workshop by scripts/stamp_bank_app_url.py
     ],
 
     authorization: {
       type: 'custom_auth',
 
       acquire: lambda do |_connection|
-        bank_app_url = 'BANK_APP_URL_NOT_STAMPED' # stamped before the workshop by scripts/stamp_bank_app_url.py
+        bank_app_url = 'NOT_STAMPED' # stamped before the workshop by scripts/stamp_bank_app_url.py
         if bank_app_url.include?('NOT_STAMPED')
           error('This connector has not been set up for a workshop yet: ask your facilitator.')
         end
-        config = get("#{bank_app_url}/config.json").response_format_json
-        { support_api_url: config['supportApiUrl'] }
+        {}
       end,
 
       refresh_on: [401],
 
       apply: lambda do |connection|
-        headers('x-api-key' => connection['support_code'])
+        key = connection['support_api_key']
+        if key.nil? || key.include?('NOT_STAMPED')
+          error('The Support API connector has not been stamped for this workshop yet. Ask your facilitator.')
+        end
+        headers('x-api-key' => key)
       end
     },
 

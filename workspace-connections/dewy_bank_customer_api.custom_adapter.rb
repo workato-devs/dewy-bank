@@ -2,15 +2,23 @@
   title: 'Dewy Bank Customer API',
 
   # Each participant signs in as themselves, with their own Dewy Bank login and
-  # nothing else. Everything about the deployment is discovered from the bank
-  # app's public config.json: the Cognito region and app client ID, and the
-  # customer API URL. The connector exchanges the login for a Cognito ID token,
-  # and gets a new one (rediscovering the config) whenever the customer API
-  # rejects the current token (ID tokens last 1 hour). The customer API scopes
-  # every route to the token's customer, so nothing here can reach another
-  # customer's accounts.
+  # nothing else. The bank_app_url and customer_api_url connection fields point to
+  # the deployed Dewy Bank app; their default values are stamped before the workshop
+  # by scripts/stamp_bank_app_url.py, but a facilitator can override them
+  # per-workspace without touching the connector code. Cognito region and app client
+  # ID are still discovered from the bank app's public config.json at auth time.
+  # The connector exchanges the login for a Cognito ID token, and gets a new one
+  # (rediscovering the config) whenever the customer API rejects the current token
+  # (ID tokens last 1 hour). The customer API scopes every route to the token's
+  # customer, so nothing here can reach another customer's accounts.
   connection: {
     fields: [
+      { name: 'bank_app_url', label: 'Bank app URL', optional: false,
+        hint: 'CloudFront URL of the deployed Dewy Bank app',
+        default: 'NOT_STAMPED' }, # stamped before the workshop by scripts/stamp_bank_app_url.py
+      { name: 'customer_api_url', label: 'Customer API URL',
+        hint: 'API Gateway URL — set by stamping, do not edit',
+        default: 'NOT_STAMPED' }, # customer_api_url stamped before the workshop by scripts/stamp_bank_app_url.py
       { name: 'email', label: 'Dewy Bank email', optional: false,
         hint: 'The email you sign in to the Dewy Bank app with' },
       { name: 'password', label: 'Dewy Bank password', control_type: 'password', optional: false,
@@ -21,22 +29,25 @@
       type: 'custom_auth',
 
       acquire: lambda do |connection|
-        bank_app_url = 'BANK_APP_URL_NOT_STAMPED' # stamped before the workshop by scripts/stamp_bank_app_url.py
-        if bank_app_url.include?('NOT_STAMPED')
+        bank_app_url = connection['bank_app_url']
+        if bank_app_url.nil? || bank_app_url.include?('NOT_STAMPED')
           error('This connector has not been set up for a workshop yet: ask your facilitator.')
         end
         config = get("#{bank_app_url}/config.json").response_format_json
-        response = post("https://cognito-idp.#{config['region']}.amazonaws.com/")
+        cognito_region      = config['region']
+        user_pool_client_id = config['userPoolClientId']
+        response = post("https://cognito-idp.#{cognito_region}.amazonaws.com/")
                    .headers('X-Amz-Target' => 'AWSCognitoIdentityProviderService.InitiateAuth',
                             'Content-Type' => 'application/x-amz-json-1.1')
                    .request_body({
                      AuthFlow: 'USER_PASSWORD_AUTH',
-                     ClientId: config['userPoolClientId'],
+                     ClientId: user_pool_client_id,
                      AuthParameters: { USERNAME: connection['email'], PASSWORD: connection['password'] }
                    }.to_json)
                    .response_format_json
-        { id_token: response.dig('AuthenticationResult', 'IdToken'),
-          customer_api_url: config['customerApiUrl'] }
+        id_token = response.dig('AuthenticationResult', 'IdToken') ||
+                   response.dig('authentication_result', 'id_token')
+        { id_token: id_token }
       end,
 
       refresh_on: [401],
