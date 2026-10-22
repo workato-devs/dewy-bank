@@ -62,7 +62,67 @@
         "comment": "The customer API returns only the signed-in customer's accounts (Factor IV held good).",
         "uuid": "get-my-accounts-001",
         "skip": false,
-        "number": 1
+        "number": 1,
+        "extended_output_schema": [
+          {
+            "name": "accounts",
+            "label": "Accounts",
+            "type": "array",
+            "of": "object",
+            "optional": true,
+            "properties": [
+              {
+                "control_type": "text",
+                "label": "Account ID",
+                "type": "string",
+                "name": "accountId",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Customer ID",
+                "type": "string",
+                "name": "customerId",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Name",
+                "type": "string",
+                "name": "name",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Type",
+                "type": "string",
+                "name": "type",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Currency",
+                "type": "string",
+                "name": "currency",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "number",
+                "label": "Balance",
+                "type": "number",
+                "name": "balance",
+                "optional": true,
+                "extends_schema": false,
+                "parse_output": "float_conversion"
+              }
+            ]
+          }
+        ]
       },
       {
         "provider": "workato_variable",
@@ -251,190 +311,220 @@
                     "comment": "Read this account's history.",
                     "uuid": "get-account-activity-006",
                     "skip": false,
-                    "number": 6
+                    "number": 6,
+                    "extended_output_schema": [
+                      {
+                        "name": "transactions",
+                        "label": "Transactions",
+                        "type": "array",
+                        "of": "object",
+                        "optional": true,
+                        "properties": [
+                          {
+                            "control_type": "text",
+                            "label": "Transaction ID",
+                            "type": "string",
+                            "name": "txnId",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Account ID",
+                            "type": "string",
+                            "name": "accountId",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Type",
+                            "type": "string",
+                            "name": "type",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "number",
+                            "label": "Amount",
+                            "type": "number",
+                            "name": "amount",
+                            "optional": true,
+                            "extends_schema": false,
+                            "parse_output": "float_conversion"
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Counterparty",
+                            "type": "string",
+                            "name": "counterparty",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Memo",
+                            "type": "string",
+                            "name": "memo",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Channel",
+                            "type": "string",
+                            "name": "channel",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Category",
+                            "type": "string",
+                            "name": "category",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Created at",
+                            "type": "string",
+                            "name": "createdAt",
+                            "optional": true,
+                            "extends_schema": false
+                          }
+                        ]
+                      }
+                    ]
                   },
                   {
                     "keyword": "foreach",
                     "as": "for_each_transaction",
                     "input": {
-                      "source": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\"]}').first(_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').present? ? _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').to_i : 100)"
+                      "source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\"]}')}"
                     },
                     "block": [
                       {
-                        "provider": "workato_variable",
-                        "name": "insert_to_list",
-                        "as": "add_to_my_activity",
-                        "keyword": "action",
+                        "keyword": "if",
+                        "as": "if_under_limit",
                         "input": {
-                          "location": "end",
-                          "name": "declare-my-activity-002:declare_my_activity",
-                          "list_item": {
-                            "date": "=_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"createdAt\"]}').to_date.to_s",
-                            "direction": "=_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"type\"]}') == 'credit' ? 'money in' : 'money out'",
-                            "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"amount\"]}')}",
-                            "other_side": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}').where('accountId' => _dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"counterparty\"]}')).present? ? _dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}').where('accountId' => _dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"counterparty\"]}')).pluck('name').first : (_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"counterparty\"]}').to_s.include?('acct-') ? 'another account' : _dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"counterparty\"]}'))",
-                            "category": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"category\"]}')}",
-                            "description": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"memo\"]}')}"
-                          }
+                          "operand": "and",
+                          "type": "compound",
+                          "conditions": [
+                            {
+                              "operand": "is_true",
+                              "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_my_activity\", \"path\": [\"list_items\", {\"path_element_type\": \"size\"}]}') < (_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').present? ? _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').to_i : 100)",
+                              "uuid": "under-limit"
+                            }
+                          ]
                         },
-                        "extended_input_schema": [
-                          {
-                            "extends_schema": false,
-                            "label": "List item",
-                            "name": "list_item",
-                            "type": "object",
-                            "optional": false,
-                            "properties": [
-                              {
-                                "control_type": "text",
-                                "label": "Date",
-                                "type": "string",
-                                "name": "date",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "Direction",
-                                "type": "string",
-                                "name": "direction",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "number",
-                                "label": "Amount",
-                                "type": "number",
-                                "name": "amount",
-                                "optional": true,
-                                "extends_schema": false,
-                                "parse_output": "float_conversion"
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "Other side",
-                                "type": "string",
-                                "name": "other_side",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "Category",
-                                "type": "string",
-                                "name": "category",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "Description",
-                                "type": "string",
-                                "name": "description",
-                                "optional": true,
-                                "extends_schema": false
-                              }
-                            ]
-                          }
-                        ],
-                        "visible_config_fields": [
-                          "location",
-                          "name",
-                          "list_item",
-                          "list_item.date",
-                          "list_item.direction",
-                          "list_item.amount",
-                          "list_item.other_side",
-                          "list_item.category",
-                          "list_item.description"
-                        ],
-                        "comment": "Translate the backend row. Other side: one of the customer's accounts by name, \"another account\" for any other account ID, or the merchant as stored. The description is the memo exactly as its sender wrote it: untrusted content, passed through on purpose and identical in every variant. The shared injection payload arrives here.",
-                        "uuid": "add-to-my-activity-008",
+                        "comment": "At most the number of entries asked for (100 when none is asked).",
+                        "uuid": "if-under-limit-008",
                         "skip": false,
-                        "number": 8
+                        "number": 8,
+                        "block": [
+                          {
+                            "provider": "workato_variable",
+                            "name": "insert_to_list",
+                            "as": "add_to_my_activity",
+                            "keyword": "action",
+                            "input": {
+                              "location": "end",
+                              "name": "declare-my-activity-002:declare_my_activity",
+                              "list_item": {
+                                "date": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"createdAt\"]}').to_date.to_s",
+                                "direction": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"type\"]}') == 'credit' ? 'money in' : 'money out'",
+                                "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"amount\"]}')}",
+                                "other_side": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}').where('accountId' => _dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"counterparty\"]}')).present? ? _dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_my_accounts\", \"path\": [\"accounts\"]}').where('accountId' => _dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"counterparty\"]}')).pluck('name').first : (_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"counterparty\"]}').to_s.include?('acct-') ? 'another account' : _dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"counterparty\"]}'))",
+                                "category": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"category\"]}')}",
+                                "description": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"memo\"]}')}"
+                              }
+                            },
+                            "extended_input_schema": [
+                              {
+                                "extends_schema": false,
+                                "label": "List item",
+                                "name": "list_item",
+                                "type": "object",
+                                "optional": false,
+                                "properties": [
+                                  {
+                                    "control_type": "text",
+                                    "label": "Date",
+                                    "type": "string",
+                                    "name": "date",
+                                    "optional": true,
+                                    "extends_schema": false
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "label": "Direction",
+                                    "type": "string",
+                                    "name": "direction",
+                                    "optional": true,
+                                    "extends_schema": false
+                                  },
+                                  {
+                                    "control_type": "number",
+                                    "label": "Amount",
+                                    "type": "number",
+                                    "name": "amount",
+                                    "optional": true,
+                                    "extends_schema": false,
+                                    "parse_output": "float_conversion"
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "label": "Other side",
+                                    "type": "string",
+                                    "name": "other_side",
+                                    "optional": true,
+                                    "extends_schema": false
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "label": "Category",
+                                    "type": "string",
+                                    "name": "category",
+                                    "optional": true,
+                                    "extends_schema": false
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "label": "Description",
+                                    "type": "string",
+                                    "name": "description",
+                                    "optional": true,
+                                    "extends_schema": false
+                                  }
+                                ]
+                              }
+                            ],
+                            "visible_config_fields": [
+                              "location",
+                              "name",
+                              "list_item",
+                              "list_item.date",
+                              "list_item.direction",
+                              "list_item.amount",
+                              "list_item.other_side",
+                              "list_item.category",
+                              "list_item.description"
+                            ],
+                            "comment": "Translate the backend row. Other side: one of the customer's accounts by name, \"another account\" for any other account ID, or the merchant as stored. The description is the memo exactly as its sender wrote it: untrusted content, passed through on purpose and identical in every variant. The shared injection payload arrives here.",
+                            "uuid": "add-to-my-activity-009",
+                            "skip": false,
+                            "number": 9
+                          }
+                        ]
                       }
                     ],
-                    "comment": "FLAW: as many entries as the model asked for.",
+                    "comment": "Every entry the bank returned, newest first; the check inside stops at the limit.",
                     "uuid": "for-each-transaction-007",
                     "skip": false,
                     "number": 7,
                     "repeat_mode": "simple",
-                    "source": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\"]}').first(_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').present? ? _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').to_i : 100)",
-                    "extended_output_schema": [
-                      {
-                        "control_type": "text",
-                        "label": "Transaction ID",
-                        "type": "string",
-                        "name": "txnId",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Account ID",
-                        "type": "string",
-                        "name": "accountId",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Type",
-                        "type": "string",
-                        "name": "type",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "number",
-                        "label": "Amount",
-                        "type": "number",
-                        "name": "amount",
-                        "optional": true,
-                        "extends_schema": false,
-                        "parse_output": "float_conversion"
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Counterparty",
-                        "type": "string",
-                        "name": "counterparty",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Memo",
-                        "type": "string",
-                        "name": "memo",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Channel",
-                        "type": "string",
-                        "name": "channel",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Category",
-                        "type": "string",
-                        "name": "category",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Created at",
-                        "type": "string",
-                        "name": "createdAt",
-                        "optional": true,
-                        "extends_schema": false
-                      }
-                    ]
+                    "source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\"]}')}"
                   }
                 ],
                 "comment": "FLAW (Station A, Factor II): the agent owns the read (rubber stamp). No account named means every account; nothing in the recipe decides.",
@@ -672,9 +762,9 @@
               "result.activity.description"
             ],
             "comment": "Domain outcome: the activity in the customer's terms.",
-            "uuid": "return-activity-009",
+            "uuid": "return-activity-010",
             "skip": false,
-            "number": 9
+            "number": 10
           },
           {
             "keyword": "catch",
@@ -684,9 +774,9 @@
               "max_retry_count": "0",
               "retry_interval": "2"
             },
-            "uuid": "catch-activity-error-010",
+            "uuid": "catch-activity-error-011",
             "skip": false,
-            "number": 10,
+            "number": 11,
             "block": [
               {
                 "provider": "workato_skill",
@@ -894,9 +984,9 @@
                   "result.activity"
                 ],
                 "comment": "Return a typed result instead of failing the job.",
-                "uuid": "return-failed-011",
+                "uuid": "return-failed-012",
                 "skip": false,
-                "number": 11
+                "number": 12
               }
             ]
           }

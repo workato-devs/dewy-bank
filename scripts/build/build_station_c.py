@@ -13,7 +13,7 @@ Only the Genies differ (Factor IV): which skills each holds, and its instruction
 """
 import copy, json, os, re, shutil
 
-from recipe_shapes import SUPPORT_ACCOUNT, complete_foreach, repoint_items, to_source_current_item
+from recipe_shapes import SUPPORT_ACCOUNT, add_output_schemas, complete_foreach, repoint_items, to_source_current_item
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..', '..')
@@ -37,6 +37,7 @@ def save(rel, obj):
     os.makedirs(os.path.dirname(p), exist_ok=True)
     if rel.endswith('.recipe.json'):
         obj = to_source_current_item(obj)  # Workato's exported form for loop items (recipe_shapes.py)
+        obj = add_output_schemas(obj)  # connector steps carry their output fields (recipe_shapes.py)
     with open(p, 'w') as f:
         json.dump(obj, f, indent=2, ensure_ascii=False)
         f.write('\n')

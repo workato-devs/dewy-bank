@@ -34,7 +34,67 @@
         "comment": "The customer API returns only the signed-in customer's accounts (Factor IV held good).",
         "uuid": "get-my-accounts-001",
         "skip": false,
-        "number": 1
+        "number": 1,
+        "extended_output_schema": [
+          {
+            "name": "accounts",
+            "label": "Accounts",
+            "type": "array",
+            "of": "object",
+            "optional": true,
+            "properties": [
+              {
+                "control_type": "text",
+                "label": "Account ID",
+                "type": "string",
+                "name": "accountId",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Customer ID",
+                "type": "string",
+                "name": "customerId",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Name",
+                "type": "string",
+                "name": "name",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Type",
+                "type": "string",
+                "name": "type",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Currency",
+                "type": "string",
+                "name": "currency",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "number",
+                "label": "Balance",
+                "type": "number",
+                "name": "balance",
+                "optional": true,
+                "extends_schema": false,
+                "parse_output": "float_conversion"
+              }
+            ]
+          }
+        ]
       },
       {
         "provider": "workato_skill",
