@@ -38,11 +38,13 @@
     });
   }
   function msg(el, text, ok) {
-    el.innerHTML = DOMPurify.sanitize(
-      text
-        ? '<div class="msg ' + (ok ? "ok" : "err") + '">' + esc(text) + "</div>"
-        : "",
-    );
+    el.textContent = "";
+    if (text) {
+      var div = document.createElement("div");
+      div.className = "msg " + (ok ? "ok" : "err");
+      div.textContent = text;
+      el.appendChild(div);
+    }
   }
   function money(n, opts) {
     var neg = n < 0;
@@ -354,7 +356,7 @@
             '<div class="bal' +
             (neg ? " neg" : "") +
             '">' +
-            money(a.balance) +
+            esc(money(a.balance)) +
             "</div>" +
             "</div>"
           );
@@ -381,7 +383,7 @@
             '">' +
             esc(a.name) +
             " — " +
-            money(a.balance) +
+            esc(money(a.balance)) +
             "</option>"
           );
         })
@@ -481,7 +483,7 @@
         '<td class="amt-cell ' +
         (credit ? "credit" : "debit") +
         '">' +
-        money(t.amount, { sign: credit }) +
+        esc(money(t.amount, { sign: credit })) +
         "</td></tr>";
     });
     html += "</tbody></table>";
@@ -528,7 +530,7 @@
             color +
             '"></div></div>' +
             '<div class="val">' +
-            money(by[c]) +
+            esc(money(by[c])) +
             "</div></div>"
           );
         })
