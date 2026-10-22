@@ -6,9 +6,10 @@ Provide the bank app CloudFront URL.  The script stamps the connector files
 with the bank URL and public API endpoints (fetched from the app's
 ``config.json``), then runs the full Workato deployment.
 
-A facilitator must have pre-stamped the support API key into the connector
-files using ``scripts/stamp_bank_app_url.py`` with AWS credentials before
-participants run this script.  Participants only need the CloudFront URL.
+The support API key can be supplied via ``--support-api-key`` or the
+``DEWY_SUPPORT_API_KEY`` environment variable.  If neither is provided, the
+script falls back to the key already stamped in the connector file (if a
+facilitator pre-stamped it with AWS credentials) or to an AWS SSM lookup.
 
 Requirements:
   - wk CLI installed and on your PATH
@@ -17,6 +18,7 @@ Requirements:
 
 Usage:
     python3 scripts/deploy_workato.py --bank-url <bank-url> --profile <wk-profile> [--dry-run]
+    python3 scripts/deploy_workato.py --bank-url <bank-url> --support-api-key <key> --profile <wk-profile>
 
 Steps performed (in order):
   1. Stamp bank URL and public API endpoints into the connector files.
@@ -152,13 +154,16 @@ def main():
             '\n'
             'The bank URL can also be set in .env as BANK_APP_URL or SPA_URL.\n'
             '\n'
-            'Note: a facilitator must pre-stamp the support API key with AWS credentials:\n'
-            '  python3 scripts/stamp_bank_app_url.py <bank-url>\n'
-            'Participants only need the CloudFront URL to run this script.'
+            'The support API key can be supplied via --support-api-key or DEWY_SUPPORT_API_KEY.\n'
+            'Without either, the script falls back to the key already stamped in the connector\n'
+            'file (if a facilitator pre-stamped it) or to an AWS SSM lookup.\n'
         ),
     )
     ap.add_argument('--bank-url',
                     help='Bank app CloudFront URL (or set BANK_APP_URL / SPA_URL in .env)')
+    ap.add_argument('--support-api-key', metavar='KEY',
+                    help='Support API key (forwarded to stamp_bank_app_url.py; '
+                         'overrides DEWY_SUPPORT_API_KEY env var and SSM lookup)')
     ap.add_argument('-p', '--profile', required=True, help='wk auth profile name')
     ap.add_argument('--dry-run', action='store_true',
                     help='print what would happen without making any changes')
@@ -191,7 +196,8 @@ def main():
     if dry_run:
         print('\nDRY RUN — no changes will be made.\n', file=sys.stderr)
         steps = [
-            '1. Stamp connector files: python3 scripts/stamp_bank_app_url.py ' + bank_url,
+            '1. Stamp connector files: python3 scripts/stamp_bank_app_url.py ' + bank_url
+            + (' --support-api-key <key>' if args.support_api_key else ''),
             '2. Push Workspace Connections: wk push --folder "Workspace Connections" -p ' + profile,
             '3. Discover new connector provider IDs: wk connectors list -p ' + profile,
             '4. Rewrite provider IDs in station-a JSON files in-place',
@@ -220,10 +226,10 @@ def main():
     # Step 1 — stamp connector files
     # ------------------------------------------------------------------
     print('\nStep 1: stamping connector files...', file=sys.stderr)
-    result = subprocess.run(
-        [sys.executable, os.path.join(HERE, 'stamp_bank_app_url.py'), bank_url],
-        check=False, cwd=ROOT,
-    )
+    stamp_cmd = [sys.executable, os.path.join(HERE, 'stamp_bank_app_url.py'), bank_url]
+    if args.support_api_key:
+        stamp_cmd += ['--support-api-key', args.support_api_key]
+    result = subprocess.run(stamp_cmd, check=False, cwd=ROOT)
     if result.returncode != 0:
         sys.exit('stamp_bank_app_url.py failed (see output above)')
     print('  done', file=sys.stderr)
