@@ -673,7 +673,7 @@
   }
 
   function chatStatusOnly(text) {
-    $("chatLog").innerHTML = "";
+    $("chatLog").textContent = "";
     chat.thinkingBubble = null; // DOM was cleared
     var el = document.createElement("div");
     el.className = "chat-empty";
@@ -707,7 +707,7 @@
       chatStatusOnly("Say hello to " + station + ".");
       return;
     }
-    $("chatLog").innerHTML = "";
+    $("chatLog").textContent = "";
     chat.thinkingBubble = null; // DOM was cleared
     list.forEach(function (e) {
       drawEntry(station, e);
