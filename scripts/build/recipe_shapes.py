@@ -1,17 +1,17 @@
 """Shapes that Workato needs at design time, shared by the station builders and checks.
 
-Inside a foreach loop, Workato's own exports reach the current item through the
-step that produced the list, with a current_item marker:
+Inside a foreach loop, the body reads the current item from the loop step itself:
+    {"provider": "foreach", "line": "for_each_account", "path": ["name"]}
+A pill through the step that produced the list, with a current_item marker
     {"line": "get_my_accounts", "path": ["accounts", {"path_element_type": "current_item"}, "name"]}
-and the loop carries no schema of its own: the fields come from that step's output
-(the connector's output_fields). A `provider: "foreach"` pill is resolved against the
-loop step instead, and at activation Workato reported its fields missing ("Name").
-`to_source_current_item` rewrites loops into the exported form.
+is the list-mapping form (`____source`): in a loop it reads the list's first item on
+every pass (job traces, 2026-10-22: every insert wrote the newest transaction, and every
+pass fetched the first account). `to_loop_item` rewrites loops into the loop form.
 
-That form needs a plain datapill as the loop's source. A loop whose source is a
-formula (e.g. `.first(n)`) keeps `provider: "foreach"` pills and declares its item
-fields itself; the field lists below mirror the connectors' object_definitions in
-workspace-connections/, which are what the API returns.
+The loop's source must be a plain datapill: the platform rejects a formula there
+("Source does not support formula-mode"). A loop's item fields come from its source
+step's output (the connector's output_fields); the field lists below mirror the
+connectors' object_definitions in workspace-connections/, which are what the API returns.
 
 Every connector step carries its action's output fields (`extended_output_schema`).
 An import doesn't derive them from the custom connector's output_fields, so a step
@@ -119,30 +119,28 @@ def _rewrite_strings(node, fn):
     return fn(node) if isinstance(node, str) else node
 
 
-def repoint_items(node, old_line, provider, line):
-    """For a step copied into another recipe: point its current-item pills at that recipe's list step."""
-    def swap(match):
-        pill = json.loads(match.group(1))
-        if pill.get('line') != old_line or {'path_element_type': 'current_item'} not in pill.get('path', []):
-            return match.group(0)
-        return "_dp('" + json.dumps({**pill, 'provider': provider, 'line': line}) + "')"
-    return _rewrite_strings(node, lambda s: PILL.sub(swap, s))
+CURRENT_ITEM = {'path_element_type': 'current_item'}
 
 
-def to_source_current_item(recipe):
-    """Rewrite each plain-source loop's `provider: foreach` pills into Workato's exported form.
-    Innermost loops first: rewriting an outer loop's block replaces the steps inside it."""
-    for loop in reversed([s for s in walk(recipe['code']) if s.get('keyword') == 'foreach']):
+def reads_source_item(pill, src):
+    """Whether a pill reads the current item of the loop source `src` through its source step."""
+    n = len(src['path'])
+    return (pill.get('provider') == src['provider'] and pill.get('line') == src['line']
+            and pill.get('path', [])[:n + 1] == src['path'] + [CURRENT_ITEM])
+
+
+def to_loop_item(recipe):
+    """Rewrite each plain-source loop's body to read its item from the loop step (`provider: foreach`)."""
+    for loop in [s for s in walk(recipe['code']) if s.get('keyword') == 'foreach']:
         src = plain_source(loop)
         if not src:
             continue
 
         def swap(match, alias=loop['as'], src=src):
             pill = json.loads(match.group(1))
-            if pill.get('provider') != 'foreach' or pill.get('line') != alias:
+            if not reads_source_item(pill, src):
                 return match.group(0)
-            new = {'pill_type': 'output', 'provider': src['provider'], 'line': src['line'],
-                   'path': src['path'] + [{'path_element_type': 'current_item'}] + pill['path']}
+            new = {'pill_type': 'output', 'provider': 'foreach', 'line': alias, 'path': pill['path'][len(src['path']) + 1:]}
             return "_dp('" + json.dumps(new) + "')"
 
         loop['block'] = _rewrite_strings(loop['block'], lambda s: PILL.sub(swap, s))

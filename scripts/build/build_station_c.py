@@ -13,7 +13,7 @@ Only the Genies differ (Factor IV): which skills each holds, and its instruction
 """
 import copy, json, os, re, shutil
 
-from recipe_shapes import SUPPORT_ACCOUNT, add_output_schemas, complete_foreach, repoint_items, to_source_current_item
+from recipe_shapes import SUPPORT_ACCOUNT, add_output_schemas, complete_foreach, to_loop_item
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..', '..')
@@ -36,7 +36,7 @@ def save(rel, obj):
     p = os.path.join(C, rel)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     if rel.endswith('.recipe.json'):
-        obj = to_source_current_item(obj)  # Workato's exported form for loop items (recipe_shapes.py)
+        obj = to_loop_item(obj)  # loop bodies read the loop's own item (recipe_shapes.py)
         obj = add_output_schemas(obj)  # connector steps carry their output fields (recipe_shapes.py)
     with open(p, 'w') as f:
         json.dump(obj, f, indent=2, ensure_ascii=False)
@@ -324,8 +324,8 @@ def refusal(alias, message, comment):
                                            'account': param('account'), 'amount': param('amount')}, CREDIT_VIS, comment)
 
 
-# Copied from A2's review, whose loop iterates the customer's own accounts: point it at this recipe's list.
-set_sel = repoint_items(copy.deepcopy(T_SET_SEL), 'get_my_accounts', SUPPORT_GEN, 'get_customer_accounts')
+# Copied from A2's review: it reads the for_each_account loop's item, and this recipe's loop has the same alias.
+set_sel = copy.deepcopy(T_SET_SEL)
 set_sel['comment'] = "Remember the customer's account."
 declare_sel = copy.deepcopy(T_DECLARE_SEL)
 declare_sel['comment'] = 'The account the support agent named, resolved among the customer\'s accounts. The model never supplies an account ID; the recipe looks it up.'
