@@ -310,11 +310,8 @@ def _collect_skill_recipe_names():
                 try:
                     with open(fpath) as f:
                         data = json.load(f)
-                    recipe_name = (data
-                                   .get('references', {})
-                                   .get('recipe_id', {})
-                                   .get('id', {})
-                                   .get('name'))
+                    # Top-level "name" is the recipe/skill name as deployed to Workato
+                    recipe_name = data.get('name')
                     if recipe_name:
                         names.add(recipe_name)
                 except (json.JSONDecodeError, KeyError, OSError):
