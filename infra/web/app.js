@@ -38,9 +38,11 @@
     });
   }
   function msg(el, text, ok) {
-    el.innerHTML = text
-      ? '<div class="msg ' + (ok ? "ok" : "err") + '">' + esc(text) + "</div>"
-      : "";
+    el.innerHTML = DOMPurify.sanitize(
+      text
+        ? '<div class="msg ' + (ok ? "ok" : "err") + '">' + esc(text) + "</div>"
+        : "",
+    );
   }
   function money(n, opts) {
     var neg = n < 0;
@@ -295,8 +297,9 @@
         }
       })
       .catch(function (e) {
-        $("accountCards").innerHTML =
-          '<div class="msg err">' + esc(e.message) + "</div>";
+        $("accountCards").innerHTML = DOMPurify.sanitize(
+          '<div class="msg err">' + esc(e.message) + "</div>",
+        );
       });
   }
   function find(id) {
@@ -319,41 +322,45 @@
 
   function renderCards() {
     if (!accountsCache.length) {
-      $("accountCards").innerHTML = '<div class="card">No accounts yet.</div>';
+      $("accountCards").innerHTML = DOMPurify.sanitize(
+        '<div class="card">No accounts yet.</div>',
+      );
       return;
     }
-    $("accountCards").innerHTML = accountsCache
-      .map(function (a) {
-        var t = acctType(a),
-          neg = a.balance < 0;
-        var last4 = (a.accountId || "").slice(-4);
-        return (
-          '<div class="acct-card" data-id="' +
-          esc(a.accountId) +
-          '">' +
-          '<span class="tag">' +
-          esc(t) +
-          "</span>" +
-          '<div class="ic ' +
-          esc(t) +
-          '">' +
-          (ACCT_ICON[t] || "💳") +
-          "</div>" +
-          '<div class="nm">' +
-          esc(a.name) +
-          "</div>" +
-          '<div class="no mono">•••• ' +
-          esc(last4) +
-          "</div>" +
-          '<div class="bal' +
-          (neg ? " neg" : "") +
-          '">' +
-          money(a.balance) +
-          "</div>" +
-          "</div>"
-        );
-      })
-      .join("");
+    $("accountCards").innerHTML = DOMPurify.sanitize(
+      accountsCache
+        .map(function (a) {
+          var t = acctType(a),
+            neg = a.balance < 0;
+          var last4 = (a.accountId || "").slice(-4);
+          return (
+            '<div class="acct-card" data-id="' +
+            esc(a.accountId) +
+            '">' +
+            '<span class="tag">' +
+            esc(t) +
+            "</span>" +
+            '<div class="ic ' +
+            esc(t) +
+            '">' +
+            (ACCT_ICON[t] || "💳") +
+            "</div>" +
+            '<div class="nm">' +
+            esc(a.name) +
+            "</div>" +
+            '<div class="no mono">•••• ' +
+            esc(last4) +
+            "</div>" +
+            '<div class="bal' +
+            (neg ? " neg" : "") +
+            '">' +
+            money(a.balance) +
+            "</div>" +
+            "</div>"
+          );
+        })
+        .join(""),
+    );
     Array.prototype.forEach.call(
       document.querySelectorAll(".acct-card"),
       function (c) {
@@ -365,19 +372,21 @@
   }
 
   function renderTransferOptions() {
-    var opts = accountsCache
-      .map(function (a) {
-        return (
-          '<option value="' +
-          esc(a.accountId) +
-          '">' +
-          esc(a.name) +
-          " — " +
-          money(a.balance) +
-          "</option>"
-        );
-      })
-      .join("");
+    var opts = DOMPurify.sanitize(
+      accountsCache
+        .map(function (a) {
+          return (
+            '<option value="' +
+            esc(a.accountId) +
+            '">' +
+            esc(a.name) +
+            " — " +
+            money(a.balance) +
+            "</option>"
+          );
+        })
+        .join(""),
+    );
     $("xferFrom").innerHTML = opts;
     $("xferTo").innerHTML = opts;
     if (accountsCache.length > 1) $("xferTo").selectedIndex = 1;
@@ -418,8 +427,9 @@
         renderSpend(res.transactions || []);
       })
       .catch(function (e) {
-        $("txns").innerHTML =
-          '<div class="msg err">' + esc(e.message) + "</div>";
+        $("txns").innerHTML = DOMPurify.sanitize(
+          '<div class="msg err">' + esc(e.message) + "</div>",
+        );
       });
   }
 
@@ -463,7 +473,7 @@
         "</td></tr>";
     });
     html += "</tbody></table>";
-    $("txns").innerHTML = html;
+    $("txns").innerHTML = DOMPurify.sanitize(html);
   }
 
   function renderSpend(txns) {
@@ -489,27 +499,29 @@
         return by[c];
       }),
     );
-    $("spend").innerHTML = cats
-      .map(function (c) {
-        var pct = Math.max(6, Math.round((by[c] / max) * 100));
-        var color = CAT_COLOR[c] || CAT_COLOR.Other;
-        return (
-          '<div class="bar-row"><div>' +
-          (CAT_ICON[c] || "•") +
-          " " +
-          esc(c) +
-          "</div>" +
-          '<div class="track"><div class="fill" style="width:' +
-          pct +
-          "%;background:" +
-          color +
-          '"></div></div>' +
-          '<div class="val">' +
-          money(by[c]) +
-          "</div></div>"
-        );
-      })
-      .join("");
+    $("spend").innerHTML = DOMPurify.sanitize(
+      cats
+        .map(function (c) {
+          var pct = Math.max(6, Math.round((by[c] / max) * 100));
+          var color = CAT_COLOR[c] || CAT_COLOR.Other;
+          return (
+            '<div class="bar-row"><div>' +
+            (CAT_ICON[c] || "•") +
+            " " +
+            esc(c) +
+            "</div>" +
+            '<div class="track"><div class="fill" style="width:' +
+            pct +
+            "%;background:" +
+            color +
+            '"></div></div>' +
+            '<div class="val">' +
+            money(by[c]) +
+            "</div></div>"
+          );
+        })
+        .join(""),
+    );
   }
 
   // ---- Chat panel (P8) -------------------------------------------------
@@ -571,11 +583,13 @@
     var ready = STATIONS.filter(function (s) {
       return chat.configured[s[0]];
     });
-    sel.innerHTML = ready
-      .map(function (s) {
-        return '<option value="' + esc(s[0]) + '">' + esc(s[1]) + "</option>";
-      })
-      .join("");
+    sel.innerHTML = DOMPurify.sanitize(
+      ready
+        .map(function (s) {
+          return '<option value="' + esc(s[0]) + '">' + esc(s[1]) + "</option>";
+        })
+        .join(""),
+    );
     if (
       ready.some(function (s) {
         return s[0] === current;
@@ -603,7 +617,7 @@
     var el = document.createElement("div");
     el.className = "bubble " + kind;
     if (kind === "dewy") {
-      el.innerHTML = marked.parse(text);
+      el.innerHTML = DOMPurify.sanitize(marked.parse(text));
     } else {
       el.textContent = text;
     }

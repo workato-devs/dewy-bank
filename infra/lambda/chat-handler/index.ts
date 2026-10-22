@@ -38,8 +38,16 @@ const GENIE_CLIENTS_TABLE = process.env.GENIE_CLIENTS_TABLE!;
 export const STATIONS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 type Station = (typeof STATIONS)[number];
 
-/** Workato's Headless API hosts, per data center (e.g. genie-api.trial.workato.com). */
-const GENIE_HOST = /^genie-api(\.[a-z0-9-]+)*\.workato\.com$/;
+/** Workato's Headless API hosts, per data center (e.g. genie-api.trial.workato.com).
+ * Implemented as a function rather than a nested-quantifier regex to avoid
+ * potential ReDoS (CWE-1333). */
+function isValidGenieHost(host: string): boolean {
+  return (
+    host.startsWith("genie-api.") &&
+    host.endsWith(".workato.com") &&
+    /^[a-z0-9.-]+$/.test(host)
+  );
+}
 /** The Headless API's limit on one message. */
 const MAX_MESSAGE_BYTES = 12 * 1024;
 const UPSTREAM_TIMEOUT_MS = 10_000;
@@ -203,7 +211,7 @@ export const handler = async (event: ApiEvent): Promise<Resp> => {
       return json(200, { conversation: q.conversation, events: raw, status });
     }
 
-    return json(404, { message: `No route for ${method} ${path}` });
+    return json(404, { message: "Not found" });
   } catch (err: any) {
     // Never log request headers or the row: they hold Genie keys.
     console.error("chat-handler error", err?.name, err?.message);
@@ -239,7 +247,7 @@ export function parseClientsBlob(b: Record<string, unknown>): Parsed {
     return { ok: false, message: "Unsupported blob version (expected 1)" };
   const host =
     typeof b.genie_api_host === "string" ? b.genie_api_host.toLowerCase() : "";
-  if (!GENIE_HOST.test(host))
+  if (!isValidGenieHost(host))
     return {
       ok: false,
       message: "genie_api_host must be a Workato Genie API host",
