@@ -11,6 +11,8 @@
   var COGNITO = "https://cognito-idp." + cfg.region + ".amazonaws.com/";
   var API = (cfg.customerApiUrl || "").replace(/\/+$/, "");
   var idToken = sessionStorage.getItem("dewy_id_token") || null;
+  var accessToken = sessionStorage.getItem("dewy_access_token") || null;
+  var refreshToken = sessionStorage.getItem("dewy_refresh_token") || null;
 
   var $ = function (id) {
     return document.getElementById(id);
@@ -36,9 +38,11 @@
     });
   }
   function msg(el, text, ok) {
-    el.innerHTML = text
-      ? '<div class="msg ' + (ok ? "ok" : "err") + '">' + esc(text) + "</div>"
-      : "";
+    el.innerHTML = DOMPurify.sanitize(
+      text
+        ? '<div class="msg ' + (ok ? "ok" : "err") + '">' + esc(text) + "</div>"
+        : "",
+    );
   }
   function money(n, opts) {
     var neg = n < 0;
@@ -119,7 +123,11 @@
       var r = j.AuthenticationResult;
       if (!r || !r.IdToken) throw new Error("No token returned");
       idToken = r.IdToken;
+      accessToken = r.AccessToken;
+      refreshToken = r.RefreshToken;
       sessionStorage.setItem("dewy_id_token", idToken);
+      sessionStorage.setItem("dewy_access_token", accessToken);
+      sessionStorage.setItem("dewy_refresh_token", refreshToken);
       return r;
     });
   }
@@ -134,6 +142,18 @@
       return {};
     }
   }
+  // Returns true if the JWT is missing, malformed, or past its exp claim.
+  function isTokenExpired(token) {
+    try {
+      var payload = JSON.parse(
+        atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+      );
+      return payload.exp * 1000 < Date.now();
+    } catch (e) {
+      return true; // treat malformed or missing tokens as expired
+    }
+  }
+
   function isFacilitator() {
     var g = claims()["cognito:groups"] || [];
     if (typeof g === "string") g = g.replace(/[\[\]]/g, "").split(/[,\s]+/);
@@ -149,6 +169,7 @@
         "content-type": "application/json",
       },
       body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(30000),
     }).then(function (r) {
       return r.json().then(function (j) {
         if (r.status === 401) {
@@ -224,7 +245,11 @@
   };
   function logout() {
     idToken = null;
+    accessToken = null;
+    refreshToken = null;
     sessionStorage.removeItem("dewy_id_token");
+    sessionStorage.removeItem("dewy_access_token");
+    sessionStorage.removeItem("dewy_refresh_token");
     if (typeof chatReset === "function") chatReset();
     hide($("appShell"));
     show($("authScreen"));
@@ -272,8 +297,9 @@
         }
       })
       .catch(function (e) {
-        $("accountCards").innerHTML =
-          '<div class="msg err">' + esc(e.message) + "</div>";
+        $("accountCards").innerHTML = DOMPurify.sanitize(
+          '<div class="msg err">' + esc(e.message) + "</div>",
+        );
       });
   }
   function find(id) {
@@ -296,41 +322,45 @@
 
   function renderCards() {
     if (!accountsCache.length) {
-      $("accountCards").innerHTML = '<div class="card">No accounts yet.</div>';
+      $("accountCards").innerHTML = DOMPurify.sanitize(
+        '<div class="card">No accounts yet.</div>',
+      );
       return;
     }
-    $("accountCards").innerHTML = accountsCache
-      .map(function (a) {
-        var t = acctType(a),
-          neg = a.balance < 0;
-        var last4 = (a.accountId || "").slice(-4);
-        return (
-          '<div class="acct-card" data-id="' +
-          esc(a.accountId) +
-          '">' +
-          '<span class="tag">' +
-          esc(t) +
-          "</span>" +
-          '<div class="ic ' +
-          esc(t) +
-          '">' +
-          (ACCT_ICON[t] || "💳") +
-          "</div>" +
-          '<div class="nm">' +
-          esc(a.name) +
-          "</div>" +
-          '<div class="no mono">•••• ' +
-          esc(last4) +
-          "</div>" +
-          '<div class="bal' +
-          (neg ? " neg" : "") +
-          '">' +
-          money(a.balance) +
-          "</div>" +
-          "</div>"
-        );
-      })
-      .join("");
+    $("accountCards").innerHTML = DOMPurify.sanitize(
+      accountsCache
+        .map(function (a) {
+          var t = acctType(a),
+            neg = a.balance < 0;
+          var last4 = (a.accountId || "").slice(-4);
+          return (
+            '<div class="acct-card" data-id="' +
+            esc(a.accountId) +
+            '">' +
+            '<span class="tag">' +
+            esc(t) +
+            "</span>" +
+            '<div class="ic ' +
+            esc(t) +
+            '">' +
+            (ACCT_ICON[t] || "💳") +
+            "</div>" +
+            '<div class="nm">' +
+            esc(a.name) +
+            "</div>" +
+            '<div class="no mono">•••• ' +
+            esc(last4) +
+            "</div>" +
+            '<div class="bal' +
+            (neg ? " neg" : "") +
+            '">' +
+            money(a.balance) +
+            "</div>" +
+            "</div>"
+          );
+        })
+        .join(""),
+    );
     Array.prototype.forEach.call(
       document.querySelectorAll(".acct-card"),
       function (c) {
@@ -342,19 +372,21 @@
   }
 
   function renderTransferOptions() {
-    var opts = accountsCache
-      .map(function (a) {
-        return (
-          '<option value="' +
-          esc(a.accountId) +
-          '">' +
-          esc(a.name) +
-          " — " +
-          money(a.balance) +
-          "</option>"
-        );
-      })
-      .join("");
+    var opts = DOMPurify.sanitize(
+      accountsCache
+        .map(function (a) {
+          return (
+            '<option value="' +
+            esc(a.accountId) +
+            '">' +
+            esc(a.name) +
+            " — " +
+            money(a.balance) +
+            "</option>"
+          );
+        })
+        .join(""),
+    );
     $("xferFrom").innerHTML = opts;
     $("xferTo").innerHTML = opts;
     if (accountsCache.length > 1) $("xferTo").selectedIndex = 1;
@@ -381,14 +413,13 @@
         $("xferAmt").value = "";
         $("xferMemo").value = "";
         if (memo) {
-          // Set innerHTML directly (not via msg()) so esc(memo) is applied exactly once;
-          // msg() calls esc() internally, which would double-encode an already-escaped string.
-          $("xferMsg").innerHTML =
-            '<div class="msg ok">Transfer complete \u2713  \u00b7 \u201c' +
-            esc(memo) +
-            "\u201d</div>";
+          $("xferMsg").innerHTML = DOMPurify.sanitize(
+            '<div class="msg ok">Transfer complete \u2713 \u00b7 \u201c' +
+              esc(memo) +
+              "\u201d</div>",
+          );
         } else {
-          msg($("xferMsg"), "Transfer complete ✓", true);
+          msg($("xferMsg"), "Transfer complete \u2713", true);
         }
         loadAccounts();
       })
@@ -408,8 +439,9 @@
         renderSpend(res.transactions || []);
       })
       .catch(function (e) {
-        $("txns").innerHTML =
-          '<div class="msg err">' + esc(e.message) + "</div>";
+        $("txns").innerHTML = DOMPurify.sanitize(
+          '<div class="msg err">' + esc(e.message) + "</div>",
+        );
       });
   }
 
@@ -453,7 +485,7 @@
         "</td></tr>";
     });
     html += "</tbody></table>";
-    $("txns").innerHTML = html;
+    $("txns").innerHTML = DOMPurify.sanitize(html);
   }
 
   function renderSpend(txns) {
@@ -479,27 +511,29 @@
         return by[c];
       }),
     );
-    $("spend").innerHTML = cats
-      .map(function (c) {
-        var pct = Math.max(6, Math.round((by[c] / max) * 100));
-        var color = CAT_COLOR[c] || CAT_COLOR.Other;
-        return (
-          '<div class="bar-row"><div>' +
-          (CAT_ICON[c] || "•") +
-          " " +
-          esc(c) +
-          "</div>" +
-          '<div class="track"><div class="fill" style="width:' +
-          pct +
-          "%;background:" +
-          color +
-          '"></div></div>' +
-          '<div class="val">' +
-          money(by[c]) +
-          "</div></div>"
-        );
-      })
-      .join("");
+    $("spend").innerHTML = DOMPurify.sanitize(
+      cats
+        .map(function (c) {
+          var pct = Math.max(6, Math.round((by[c] / max) * 100));
+          var color = CAT_COLOR[c] || CAT_COLOR.Other;
+          return (
+            '<div class="bar-row"><div>' +
+            (CAT_ICON[c] || "•") +
+            " " +
+            esc(c) +
+            "</div>" +
+            '<div class="track"><div class="fill" style="width:' +
+            pct +
+            "%;background:" +
+            color +
+            '"></div></div>' +
+            '<div class="val">' +
+            money(by[c]) +
+            "</div></div>"
+          );
+        })
+        .join(""),
+    );
   }
 
   // ---- Chat panel (P8) -------------------------------------------------
@@ -522,9 +556,21 @@
     seen: {},
     polling: null,
     busy: false,
+    thinkingBubble: null,
   };
 
   function chatLoad() {
+    console.log("[chat] init");
+    try {
+      var saved = sessionStorage.getItem("dewy_chat_transcripts");
+      if (saved) {
+        transcripts = JSON.parse(saved);
+        var n = Object.keys(transcripts).reduce(function (s, k) {
+          return s + transcripts[k].length;
+        }, 0);
+        console.log("[chat] restored " + n + " messages from session storage");
+      }
+    } catch (e) {}
     api("GET", "/me/genie-clients")
       .then(function (r) {
         chat.configured = r.stations || {};
@@ -535,17 +581,27 @@
       });
   }
 
+  function updateChatSubtitle() {
+    var stationKey = $("chatStation").value;
+    var entry = STATIONS.filter(function (s) {
+      return s[0] === stationKey;
+    })[0];
+    $("chatSubtitle").textContent = entry ? entry[1] : "";
+  }
+
   function renderStations() {
     var sel = $("chatStation"),
       current = sel.value;
     var ready = STATIONS.filter(function (s) {
       return chat.configured[s[0]];
     });
-    sel.innerHTML = ready
-      .map(function (s) {
-        return '<option value="' + esc(s[0]) + '">' + esc(s[1]) + "</option>";
-      })
-      .join("");
+    sel.innerHTML = DOMPurify.sanitize(
+      ready
+        .map(function (s) {
+          return '<option value="' + esc(s[0]) + '">' + esc(s[1]) + "</option>";
+        })
+        .join(""),
+    );
     if (
       ready.some(function (s) {
         return s[0] === current;
@@ -559,22 +615,66 @@
       show($("chatSetup"));
       chatStatusOnly("Set up chat to talk to your stations.");
     } else {
+      updateChatSubtitle();
       chatRedraw();
     }
   }
 
+  // bubble() appends a message to the chat log and returns the bubble element.
+  // For 'me' and 'dewy' kinds it adds a small sender label above the bubble.
   function bubble(kind, text) {
-    var empty = $("chatLog").querySelector(".chat-empty");
+    var log = $("chatLog");
+    var empty = log.querySelector(".chat-empty");
     if (empty) empty.remove();
     var el = document.createElement("div");
     el.className = "bubble " + kind;
-    el.textContent = text;
-    $("chatLog").appendChild(el);
-    $("chatLog").scrollTop = $("chatLog").scrollHeight;
+    if (kind === "dewy") {
+      el.innerHTML = DOMPurify.sanitize(marked.parse(text));
+    } else {
+      el.textContent = text;
+    }
+
+    if (kind === "me" || kind === "dewy") {
+      var wrap = document.createElement("div");
+      wrap.className =
+        "bubble-wrap " + (kind === "me" ? "me-wrap" : "dewy-wrap");
+      var label = document.createElement("div");
+      label.className = "bubble-label";
+      if (kind === "me") {
+        label.textContent = "You";
+      } else {
+        label.textContent = $("chatStation").value || "Dewy";
+      }
+      wrap.appendChild(label);
+      wrap.appendChild(el);
+      var anchor =
+        chat.thinkingBubble && log.contains(chat.thinkingBubble)
+          ? chat.thinkingBubble
+          : null;
+      if (anchor) {
+        log.insertBefore(wrap, anchor);
+      } else {
+        log.appendChild(wrap);
+      }
+    } else {
+      var anchor2 =
+        chat.thinkingBubble && log.contains(chat.thinkingBubble)
+          ? chat.thinkingBubble
+          : null;
+      if (anchor2) {
+        log.insertBefore(el, anchor2);
+      } else {
+        log.appendChild(el);
+      }
+    }
+
+    log.scrollTop = log.scrollHeight;
     return el;
   }
+
   function chatStatusOnly(text) {
     $("chatLog").innerHTML = "";
+    chat.thinkingBubble = null; // DOM was cleared
     var el = document.createElement("div");
     el.className = "chat-empty";
     el.textContent = text;
@@ -584,6 +684,7 @@
   // Each station keeps its own transcript for this session.
   var transcripts = {};
   function record(station, kind, text, extra) {
+    console.log("[chat] record station=%s kind=%s", station, kind);
     (transcripts[station] = transcripts[station] || []).push({
       kind: kind,
       text: text,
@@ -591,7 +692,14 @@
     });
     if ($("chatStation").value === station)
       drawEntry(station, transcripts[station][transcripts[station].length - 1]);
+    try {
+      sessionStorage.setItem(
+        "dewy_chat_transcripts",
+        JSON.stringify(transcripts),
+      );
+    } catch (e) {}
   }
+
   function chatRedraw() {
     var station = $("chatStation").value;
     var list = transcripts[station] || [];
@@ -600,10 +708,12 @@
       return;
     }
     $("chatLog").innerHTML = "";
+    chat.thinkingBubble = null; // DOM was cleared
     list.forEach(function (e) {
       drawEntry(station, e);
     });
   }
+
   function drawEntry(station, e) {
     if (e.kind !== "confirm") {
       bubble(e.kind, e.text);
@@ -632,10 +742,13 @@
     var station = $("chatStation").value,
       text = $("chatText").value.trim();
     if (!station || !text || chat.busy) return;
+    console.log("[chat] send station=%s text=%s", station, text);
     chat.busy = true;
     $("chatSend").disabled = true;
     msg($("chatMsg"), "");
     record(station, "me", text);
+    // Show thinking placeholder immediately after recording the user message
+    chat.thinkingBubble = bubble("status", "Thinking\u2026");
     $("chatText").value = "";
     api("POST", "/chat", {
       station: station,
@@ -647,6 +760,7 @@
         pollEvents(station, r.run);
       })
       .catch(function (e) {
+        console.error("[chat] error: " + e.message);
         msg($("chatMsg"), e.message, false);
         chatDone();
       });
@@ -695,6 +809,8 @@
   function pollEvents(station, run) {
     clearTimeout(chat.polling);
     var started = Date.now();
+    var messageCount = 0;
+
     (function tick() {
       var conv = chat.conversations[station];
       var q =
@@ -718,7 +834,11 @@
             seen[key] = true;
             var at = field(e, ["created_at", "createdAt"]);
             if (at) chat.since[conv] = at;
+
+            console.log("[chat] event type=%s id=%s", type, id);
+
             if (type === "agent.message") {
+              // Keep thinkingBubble visible until chatDone() — do NOT remove it here.
               var text = field(e, [
                 "data.message",
                 "data.content",
@@ -728,18 +848,21 @@
                 "text",
                 "payload.message",
               ]);
-              if (text)
+              if (text) {
                 record(
                   station,
                   "dewy",
                   typeof text === "string" ? text : JSON.stringify(text),
                 );
-              if (
-                !run ||
-                field(e, ["genie_run_id", "data.genie_run_id"]) === run
-              )
-                finished = true;
+                messageCount++;
+              }
+              // No finished = true. Turn ends on status check below, processing.finished,
+              // or skill.confirmation_required.
             } else if (type === "skill.confirmation_required") {
+              if (chat.thinkingBubble) {
+                chat.thinkingBubble.remove();
+                chat.thinkingBubble = null;
+              }
               var callId = field(e, [
                 "data.call_id",
                 "call_id",
@@ -760,6 +883,10 @@
               );
               finished = true; // the turn pauses until the person answers
             } else if (type === "processing.finished") {
+              if (chat.thinkingBubble) {
+                chat.thinkingBubble.remove();
+                chat.thinkingBubble = null;
+              }
               finished = true;
             }
           });
@@ -767,7 +894,21 @@
             chatDone();
             return;
           }
-          if (Date.now() - started > 90000) {
+          // Check top-level status from the Lambda response
+          var status = r.status || null;
+          console.log(
+            "[chat] poll: status=" + status + ", messages=" + messageCount,
+          );
+          if (status === "completed" || status === "waiting_for_customer") {
+            console.log("[chat] poll: turn complete");
+            chatDone();
+            return;
+          }
+          if (Date.now() - started > 120000) {
+            if (chat.thinkingBubble) {
+              chat.thinkingBubble.remove();
+              chat.thinkingBubble = null;
+            }
             record(station, "status", "No reply yet. Try again in a moment.");
             chatDone();
             return;
@@ -775,6 +916,11 @@
           chat.polling = setTimeout(tick, 1200);
         })
         .catch(function (e) {
+          console.error("[chat] error: " + e.message);
+          if (chat.thinkingBubble) {
+            chat.thinkingBubble.remove();
+            chat.thinkingBubble = null;
+          }
           msg($("chatMsg"), e.message, false);
           chatDone();
         });
@@ -782,11 +928,19 @@
   }
 
   function chatDone() {
+    console.log("[chat] done");
+    if (chat.thinkingBubble) {
+      chat.thinkingBubble.remove();
+      chat.thinkingBubble = null;
+    }
     chat.busy = false;
     $("chatSend").disabled = false;
+    var log = $("chatLog");
+    log.scrollTop = log.scrollHeight;
   }
 
   function chatReset() {
+    sessionStorage.removeItem("dewy_chat_transcripts");
     clearTimeout(chat.polling);
     chat = {
       configured: {},
@@ -795,6 +949,7 @@
       seen: {},
       polling: null,
       busy: false,
+      thinkingBubble: null,
     };
     transcripts = {};
     chatStatusOnly("Pick a station and say hello.");
@@ -804,7 +959,19 @@
   $("chatText").onkeydown = function (e) {
     if (e.key === "Enter") chatSend();
   };
-  $("chatStation").onchange = chatRedraw;
+  $("chatStation").onchange = function () {
+    var station = $("chatStation").value;
+    var msgs = (transcripts[station] || []).length;
+    console.log(
+      "[chat] switched to " + station + ", restored " + msgs + " messages",
+    );
+    updateChatSubtitle();
+    chatRedraw();
+  };
+  $("chatClearBtn").onclick = function () {
+    chatReset();
+    chatLoad();
+  };
   $("chatSetupToggle").onclick = function () {
     $("chatSetup").classList.toggle("hide");
   };
@@ -815,17 +982,17 @@
     } catch (e) {
       msg(
         $("chatSetupMsg"),
-        "That isn’t valid setup text: paste the whole block, including the braces.",
+        "That isn\u2019t valid setup text: paste the whole block, including the braces.",
         false,
       );
       return;
     }
-    msg($("chatSetupMsg"), "Saving…", true);
+    msg($("chatSetupMsg"), "Saving\u2026", true);
     api("PUT", "/me/genie-clients", blob)
       .then(function (r) {
         $("chatBlob").value = "";
         chat.configured = r.stations || {};
-        msg($("chatSetupMsg"), "Saved ✓", true);
+        msg($("chatSetupMsg"), "Saved \u2713", true);
         hide($("chatSetup"));
         renderStations();
       })
@@ -837,7 +1004,45 @@
   // ---- boot ------------------------------------------------------------
   if (!cfg.userPoolClientId) {
     msg($("authMsg"), "Config not loaded (config.js missing).", false);
-  } else if (idToken) {
+  } else if (idToken && !isTokenExpired(idToken)) {
+    // Branch 1: idToken present and still valid — restore immediately.
+    console.log("[auth] restored session from storage");
     enterApp();
+  } else if (idToken && refreshToken) {
+    // Branch 2: idToken expired but we have a refresh token — try a silent refresh.
+    console.log("[auth] token expired, refreshing");
+    cognito("InitiateAuth", {
+      ClientId: cfg.userPoolClientId,
+      AuthFlow: "REFRESH_TOKEN_AUTH",
+      AuthParameters: { REFRESH_TOKEN: refreshToken },
+    })
+      .then(function (j) {
+        var r = j.AuthenticationResult;
+        if (!r || !r.IdToken) throw new Error("No token returned");
+        idToken = r.IdToken;
+        accessToken = r.AccessToken;
+        // Cognito's REFRESH_TOKEN_AUTH does not issue a new RefreshToken;
+        // keep the existing one (refreshToken variable is unchanged).
+        sessionStorage.setItem("dewy_id_token", idToken);
+        sessionStorage.setItem("dewy_access_token", accessToken);
+        enterApp();
+      })
+      .catch(function () {
+        console.log("[auth] refresh failed, redirecting to login");
+        idToken = null;
+        accessToken = null;
+        refreshToken = null;
+        sessionStorage.removeItem("dewy_id_token");
+        sessionStorage.removeItem("dewy_access_token");
+        sessionStorage.removeItem("dewy_refresh_token");
+      });
+  } else if (idToken) {
+    // Branch 3: idToken expired and no refresh token — clear the stale id token.
+    console.log("[auth] token expired, no refresh token available");
+    idToken = null;
+    accessToken = null;
+    sessionStorage.removeItem("dewy_id_token");
+    sessionStorage.removeItem("dewy_access_token");
   }
+  // If none of the branches fire, idToken was null to begin with → login screen shown.
 })();
