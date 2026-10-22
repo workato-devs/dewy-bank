@@ -53,7 +53,6 @@
     skill_running: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
     skill_ok: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>`,
     skill_fail: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>`,
-    lock: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>`,
   };
 
   // ─── Lightweight Markdown renderer ───────────────────────────────────────
@@ -61,10 +60,11 @@
   function renderMarkdown(text) {
     if (!text) return "";
     let html = text
-      // Escape HTML entities first (prevent XSS)
+      // Escape HTML entities first (prevent XSS); include " to prevent href injection in links
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
 
     // Fenced code blocks
     html = html.replace(
@@ -134,7 +134,10 @@
       authHeaders,
       (opts && opts.headers) || {},
     );
-    const res = await fetch(url, Object.assign({}, opts, { headers: mergedHeaders }));
+    const res = await fetch(
+      url,
+      Object.assign({}, opts, { headers: mergedHeaders }),
+    );
     return res;
   }
 
@@ -143,8 +146,7 @@
   }
 
   async function fetchGenies() {
-    const stations =
-      window.WkChatConfig && window.WkChatConfig.stations;
+    const stations = window.WkChatConfig && window.WkChatConfig.stations;
     if (!stations) return [];
     return Object.entries(stations).map(function ([key, val]) {
       return {
@@ -155,39 +157,12 @@
     });
   }
 
-  async function fetchConversations(genieHandle) {
-    const res = await apiFetch(
-      apiUrl() +
-        "/api/chat/conversations?genie_handle=" +
-        encodeURIComponent(genieHandle) +
-        "&limit=50",
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.conversations || data.result?.conversations || [];
-  }
-
   async function createConversation(genieHandle) {
     return null;
   }
 
   async function fetchMessages(conversationId, genieHandle) {
     return [];
-  }
-
-  async function startLogin() {
-    const redirectUri = window.location.origin + "/auth/callback";
-    const res = await apiFetch(
-      apiUrl() +
-        "/api/auth/login?redirect_uri=" +
-        encodeURIComponent(redirectUri),
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (data.authorize_url) {
-        window.location.href = data.authorize_url;
-      }
-    }
   }
 
   async function logout() {
@@ -267,7 +242,8 @@
         apiFetch(url)
           .then(function (r) {
             if (!r.ok) {
-              onError && onError("Error polling for response. Please try again.");
+              onError &&
+                onError("Error polling for response. Please try again.");
               onTyping && onTyping(false);
               finished = true;
               resolve();
@@ -277,16 +253,12 @@
               const events = evtData.events || evtData.result || [];
               events.forEach(function (evt) {
                 // Deduplicate by seq_num, falling back to id
-                const dedupeKey =
-                  evt.seq_num != null ? evt.seq_num : evt.id;
+                const dedupeKey = evt.seq_num != null ? evt.seq_num : evt.id;
                 if (dedupeKey != null && seen.has(dedupeKey)) return;
                 if (dedupeKey != null) seen.add(dedupeKey);
 
                 // Advance the since cursor
-                if (
-                  typeof evt.seq_num === "number" &&
-                  evt.seq_num > since
-                ) {
+                if (typeof evt.seq_num === "number" && evt.seq_num > since) {
                   since = evt.seq_num;
                 }
 
@@ -296,13 +268,10 @@
                   onMessage &&
                     onMessage({
                       message_id:
-                        evt.message_id ||
-                        evt.id ||
-                        "msg-" + Date.now(),
+                        evt.message_id || evt.id || "msg-" + Date.now(),
                       source: "genie",
                       content: evt.message || evt.content || "",
-                      created_at:
-                        evt.created_at || new Date().toISOString(),
+                      created_at: evt.created_at || new Date().toISOString(),
                     });
                 } else if (evType && evType.startsWith("skill.")) {
                   const status =
@@ -356,58 +325,6 @@
     });
   }
 
-  function handleSseEvent(type, rawData, callbacks) {
-    const { onTyping, onMessage, onSkill, onDone } = callbacks;
-    let event;
-    try {
-      event = JSON.parse(rawData);
-    } catch {
-      return;
-    }
-
-    // Use event.type from JSON body (Workato embeds type in the payload)
-    const evType = event.type || type;
-
-    switch (evType) {
-      case "processing.started":
-        onTyping && onTyping(true);
-        break;
-      case "processing.finished":
-        onTyping && onTyping(false);
-        onDone && onDone();
-        break;
-      case "agent.message":
-        onTyping && onTyping(false);
-        onMessage &&
-          onMessage({
-            message_id: event.message_id || `msg-${Date.now()}`,
-            source: "genie",
-            content: event.message || "",
-            created_at: event.created_at || new Date().toISOString(),
-            genie_run_id: event.genie_run_id || "",
-          });
-        break;
-      case "skill.running":
-        onSkill && onSkill({ name: event.skill_name, status: "running" });
-        break;
-      case "skill.completed":
-      case "skill.stopped":
-        onSkill && onSkill({ name: event.skill_name, status: "completed" });
-        break;
-      case "skill.failed":
-        onSkill &&
-          onSkill({
-            name: event.skill_name,
-            status: "failed",
-            error: event.error,
-          });
-        break;
-      case "system.ping":
-      case "system.stream_interrupted":
-        break;
-    }
-  }
-
   // ─── State ────────────────────────────────────────────────────────────────
 
   const state = {
@@ -441,7 +358,7 @@
     root.setAttribute("aria-label", "Genie Chat Widget");
 
     // ── FAB ──
-    root.innerHTML = `
+    root.innerHTML = /* nosemgrep: javascript.browser.security.insecure-document-methods.insecure-document-method -- workshop widget: static SVG/HTML template only */ `
       <!-- FAB -->
       <button
         class="wk-cw-fab"
@@ -669,7 +586,7 @@
           : "");
       btn.setAttribute("role", "menuitem");
       btn.setAttribute("aria-label", `Switch to ${genie.name}`);
-      btn.innerHTML = `
+      btn.innerHTML = /* nosemgrep: javascript.browser.security.insecure-document-methods.insecure-document-method -- workshop widget: all interpolations are HTML-escaped or compile-time SVG constants */ `
         <span class="wk-cw-genie-avatar">${SVG.sparkle}</span>
         <span class="wk-cw-genie-info">
           <span class="wk-cw-genie-name">${escapeHtml(genie.name)}</span>
@@ -752,7 +669,7 @@
           `Open conversation: ${formatTopic(c.topic)}`,
         );
         btn.dataset.convId = c.conversation_id;
-        btn.innerHTML = `
+        btn.innerHTML = /* nosemgrep: javascript.browser.security.insecure-document-methods.insecure-document-method -- workshop widget: all interpolations are HTML-escaped or compile-time SVG constants */ `
           <span class="wk-cw-history-icon">${SVG.history}</span>
           <span class="wk-cw-history-topic">${escapeHtml(formatTopic(c.topic))}</span>
         `;
@@ -785,7 +702,7 @@
   function renderEmptyState() {
     const el = document.createElement("div");
     el.className = "wk-cw-empty-state";
-    el.innerHTML = `
+    el.innerHTML = /* nosemgrep: javascript.browser.security.insecure-document-methods.insecure-document-method -- workshop widget: static SVG/HTML template only */ `
       <div class="wk-cw-empty-icon" aria-hidden="true">${SVG.sparkle}</div>
       <p class="wk-cw-empty-title">Start a conversation</p>
       <p class="wk-cw-empty-sub">
@@ -811,7 +728,7 @@
     });
 
     if (isUser) {
-      wrapper.innerHTML = `
+      wrapper.innerHTML = /* nosemgrep: javascript.browser.security.insecure-document-methods.insecure-document-method -- workshop widget: content is HTML-escaped via escapeHtml() */ `
         <div class="wk-cw-msg-col">
           <div class="wk-cw-bubble">${escapeHtml(msg.content)}</div>
           <div class="wk-cw-msg-time">${time}</div>
@@ -819,7 +736,7 @@
         <div class="wk-cw-avatar" aria-hidden="true">U</div>
       `;
     } else {
-      wrapper.innerHTML = `
+      wrapper.innerHTML = /* nosemgrep: javascript.browser.security.insecure-document-methods.insecure-document-method -- workshop widget: renderMarkdown() HTML-escapes input before processing; links sanitized via &quot; escaping */ `
         <div class="wk-cw-avatar" aria-hidden="true">G</div>
         <div class="wk-cw-msg-col">
           <div class="wk-cw-bubble">${renderMarkdown(msg.content)}</div>
@@ -852,10 +769,10 @@
           ? SVG.skill_ok
           : SVG.skill_fail;
 
-    el.innerHTML = `
+    el.innerHTML = /* nosemgrep: javascript.browser.security.insecure-document-methods.insecure-document-method -- workshop widget: all interpolations are HTML-escaped or compile-time SVG constants */ `
       <span class="wk-cw-skill-card-icon" aria-hidden="true">${iconSvg}</span>
       <span class="wk-cw-skill-name">${escapeHtml(card.name)}</span>
-      <span class="wk-cw-skill-status ${card.status}">${card.status}</span>
+      <span class="wk-cw-skill-status ${escapeHtml(card.status)}">${escapeHtml(card.status)}</span>
     `;
     dom.body.appendChild(el);
     scrollToBottom();
@@ -867,27 +784,6 @@
     el.textContent = text;
     dom.body.appendChild(el);
     scrollToBottom();
-  }
-
-  // ─── Render: Auth screen ──────────────────────────────────────────────────
-
-  function renderAuthScreen() {
-    dom.body.innerHTML = `
-      <div class="wk-cw-auth-screen">
-        <div class="wk-cw-auth-icon" aria-hidden="true">${SVG.lock}</div>
-        <p class="wk-cw-auth-title">Sign in to chat</p>
-        <p class="wk-cw-auth-sub">
-          Connect with your Workato account to start a conversation with your AI assistant.
-        </p>
-        <button class="wk-cw-login-btn" id="wk-cw-login-btn">
-          Continue with Workato
-        </button>
-      </div>
-    `;
-    dom.body
-      .querySelector("#wk-cw-login-btn")
-      .addEventListener("click", handleLogin);
-    dom.inputArea.style.display = "none";
   }
 
   function renderLoadingScreen() {
@@ -960,15 +856,6 @@
   }
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-
-  async function handleLogin() {
-    const btn = dom.body.querySelector("#wk-cw-login-btn");
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "Redirecting…";
-    }
-    await startLogin();
-  }
 
   async function handleSend() {
     const text = dom.textarea.value.trim();
