@@ -250,6 +250,24 @@ def run_build_script(script_name):
         sys.exit(f'{script_name} failed (exit {result.returncode})')
 
 
+def strip_wk_toml(repo_root):
+    """Remove workspace-specific fields from .wk/wk.toml, leaving only neutral config.
+
+    wk link and wk push write profile, email, workspace_id, folder_id and
+    project_id into wk.toml.  After all server assets are deleted those IDs
+    point at non-existent resources; wk push then fails to resolve folder paths.
+    Stripping them before wk link lets wk create a fresh project from scratch.
+    Called again at the end of the deploy so the committed file stays neutral.
+    """
+    toml_path = os.path.join(repo_root, '.wk', 'wk.toml')
+    content = open(toml_path).read()
+    # Remove lines that wk writes after link/push (workspace-specific)
+    for key in ('profile', 'email', 'workspace_id', 'folder_id', 'project_id'):
+        content = re.sub(rf'^{key}\s*=.*\n', '', content, flags=re.MULTILINE)
+    open(toml_path, 'w').write(content)
+    print('  stripped workspace-specific fields from .wk/wk.toml', file=sys.stderr)
+
+
 def _clear_wk_state():
     """Delete .wk/ state subdirectories for every [[sync]] entry in wk.toml.
 
@@ -497,6 +515,7 @@ def main():
     # ------------------------------------------------------------------
     print('\nClearing .wk/ state cache...', file=sys.stderr)
     _clear_wk_state()
+    strip_wk_toml(ROOT)
 
     # ------------------------------------------------------------------
     # Step 1 — stamp connector files
@@ -807,6 +826,10 @@ Deployment complete. Two manual steps remain:
 3. In the bank app, open "Ask Dewy → Set up chat" and paste the JSON
    that was printed above (also saved to {CHAT_CONFIG_PATH}).
 ─────────────────────────────────────────────────────────────────''', file=sys.stderr)
+
+    # Strip workspace-specific fields written by wk push/link so the committed
+    # wk.toml stays workspace-neutral (AGENTS.md rule 7).
+    strip_wk_toml(ROOT)
 
 
 if __name__ == '__main__':
