@@ -349,7 +349,9 @@ def _start_skill_recipes(api_base, api_token, skill_recipe_names):
         print(f'  WARNING: Workato API network error listing recipes: {exc.reason}', file=sys.stderr)
         return 0, 1
 
-    items = data.get('result', data) if isinstance(data, dict) else data
+    # The Workato REST API returns {"items": [...], "count": N, "page": 1, "per_page": 100}.
+    # Older API versions used "result"; fall back for compatibility.
+    items = (data.get('items') or data.get('result') or data) if isinstance(data, dict) else data
 
     started = 0
     errors = 0
@@ -816,15 +818,11 @@ def main():
     base_url = status.get('base_url', 'https://app.workato.com').rstrip('/')
     print(f'''
 ─────────────────────────────────────────────────────────────────
-Deployment complete. Two manual steps remain:
-1. Connect the Workato connections in the UI:
-   {base_url}/app/connections
-   • "Dewy Bank Customer API" — enter your Dewy Bank email and password
-   • "Dewy Bank Support API"  — enter the support code (Station C only)
-2. Start recipes for each station you want to use:
-   {base_url}/recipes
-3. In the bank app, open "Ask Dewy → Set up chat" and paste the JSON
-   that was printed above (also saved to {CHAT_CONFIG_PATH}).
+Deployment complete.
+
+One manual step remains:
+  In the bank app, open "Ask Dewy → Set up chat" and paste the JSON
+  printed above (also saved to {CHAT_CONFIG_PATH}).
 ─────────────────────────────────────────────────────────────────''', file=sys.stderr)
 
     # Strip workspace-specific fields written by wk push/link so the committed
