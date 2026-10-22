@@ -12,6 +12,12 @@ That form needs a plain datapill as the loop's source. A loop whose source is a
 formula (e.g. `.first(n)`) keeps `provider: "foreach"` pills and declares its item
 fields itself; the field lists below mirror the connectors' object_definitions in
 workspace-connections/, which are what the API returns.
+
+Every connector step carries its action's output fields (`extended_output_schema`).
+An import doesn't derive them from the custom connector's output_fields, so a step
+without them has no outputs at activation ("Unknown data field 'Accounts'", observed
+2026-10-21). ACTION_OUTPUTS mirrors each action's output_fields;
+`add_output_schemas` writes them onto the steps.
 """
 import json
 import re
@@ -42,6 +48,39 @@ def item_schema(fields):
             f['parse_output'] = 'float_conversion'
         out.append(f)
     return out
+
+
+def _list(name, label, fields):
+    return {'name': name, 'label': label, 'type': 'array', 'of': 'object', 'optional': True,
+            'properties': item_schema(fields)}
+
+
+def _object(name, label, fields):
+    return {'name': name, 'label': label, 'type': 'object', 'optional': True, 'properties': item_schema(fields)}
+
+
+# Each connector action's output_fields, by action name (the names are unique across both connectors).
+ACTION_OUTPUTS = {
+    'list_accounts': [_list('accounts', 'Accounts', ACCOUNT)],
+    'list_account_transactions': [_list('transactions', 'Transactions', TRANSACTION)],
+    'create_transfer': item_schema([('message', 'Message', 'string'), ('from', 'From', 'string'),
+                                    ('to', 'To', 'string'), ('amount', 'Amount', 'number')]),
+    'create_payment': item_schema([('message', 'Message', 'string'), ('from', 'From', 'string'),
+                                   ('to_email', 'To email', 'string'), ('amount', 'Amount', 'number')]),
+    'look_up_customer_accounts': [_object('customer', 'Customer', [('email', 'Email', 'string')]),
+                                  _list('accounts', 'Accounts', SUPPORT_ACCOUNT)],
+    'adjust_balance': item_schema([('message', 'Message', 'string'), ('account_id', 'Account ID', 'string'),
+                                   ('amount', 'Amount', 'number'), ('balance', 'Balance', 'number')]),
+}
+CONNECTOR_PROVIDER = re.compile(r'^dewy_bank_(customer|support)_api_connector_')
+
+
+def add_output_schemas(recipe):
+    """Give every connector step its action's output fields."""
+    for step in walk(recipe['code']):
+        if CONNECTOR_PROVIDER.match(step.get('provider') or ''):
+            step['extended_output_schema'] = ACTION_OUTPUTS[step['name']]
+    return recipe
 
 
 PLAIN_PILL = re.compile(r"^#\{_dp\('(\{.*\})'\)\}$", re.S)
@@ -91,8 +130,9 @@ def repoint_items(node, old_line, provider, line):
 
 
 def to_source_current_item(recipe):
-    """Rewrite each plain-source loop's `provider: foreach` pills into Workato's exported form."""
-    for loop in [s for s in walk(recipe['code']) if s.get('keyword') == 'foreach']:
+    """Rewrite each plain-source loop's `provider: foreach` pills into Workato's exported form.
+    Innermost loops first: rewriting an outer loop's block replaces the steps inside it."""
+    for loop in reversed([s for s in walk(recipe['code']) if s.get('keyword') == 'foreach']):
         src = plain_source(loop)
         if not src:
             continue

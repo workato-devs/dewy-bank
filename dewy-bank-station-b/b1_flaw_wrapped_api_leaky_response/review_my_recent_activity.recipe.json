@@ -62,7 +62,67 @@
         "comment": "Fetch the customer's accounts so the account name can be resolved to an ID inside the recipe. The customer API returns only this customer's accounts (Factor IV held good).",
         "uuid": "get-my-accounts-001",
         "skip": false,
-        "number": 1
+        "number": 1,
+        "extended_output_schema": [
+          {
+            "name": "accounts",
+            "label": "Accounts",
+            "type": "array",
+            "of": "object",
+            "optional": true,
+            "properties": [
+              {
+                "control_type": "text",
+                "label": "Account ID",
+                "type": "string",
+                "name": "accountId",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Customer ID",
+                "type": "string",
+                "name": "customerId",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Name",
+                "type": "string",
+                "name": "name",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Type",
+                "type": "string",
+                "name": "type",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Currency",
+                "type": "string",
+                "name": "currency",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "number",
+                "label": "Balance",
+                "type": "number",
+                "name": "balance",
+                "optional": true,
+                "extends_schema": false,
+                "parse_output": "float_conversion"
+              }
+            ]
+          }
+        ]
       },
       {
         "provider": "workato_variable",
@@ -298,7 +358,91 @@
                     "comment": "Both read rules passed: the recipe, not the model, decided this read is allowed.",
                     "uuid": "get-account-activity-009",
                     "skip": false,
-                    "number": 9
+                    "number": 9,
+                    "extended_output_schema": [
+                      {
+                        "name": "transactions",
+                        "label": "Transactions",
+                        "type": "array",
+                        "of": "object",
+                        "optional": true,
+                        "properties": [
+                          {
+                            "control_type": "text",
+                            "label": "Transaction ID",
+                            "type": "string",
+                            "name": "txnId",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Account ID",
+                            "type": "string",
+                            "name": "accountId",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Type",
+                            "type": "string",
+                            "name": "type",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "number",
+                            "label": "Amount",
+                            "type": "number",
+                            "name": "amount",
+                            "optional": true,
+                            "extends_schema": false,
+                            "parse_output": "float_conversion"
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Counterparty",
+                            "type": "string",
+                            "name": "counterparty",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Memo",
+                            "type": "string",
+                            "name": "memo",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Channel",
+                            "type": "string",
+                            "name": "channel",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Category",
+                            "type": "string",
+                            "name": "category",
+                            "optional": true,
+                            "extends_schema": false
+                          },
+                          {
+                            "control_type": "text",
+                            "label": "Created at",
+                            "type": "string",
+                            "name": "createdAt",
+                            "optional": true,
+                            "extends_schema": false
+                          }
+                        ]
+                      }
+                    ]
                   },
                   {
                     "provider": "workato_variable",
@@ -477,204 +621,150 @@
                     "keyword": "foreach",
                     "as": "for_each_transaction",
                     "input": {
-                      "source": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\"]}').first(_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').present? ? _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').to_i : 20)"
+                      "source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\"]}')}"
                     },
                     "block": [
                       {
-                        "provider": "workato_variable",
-                        "name": "insert_to_list",
-                        "as": "add_to_my_activity",
-                        "keyword": "action",
+                        "keyword": "if",
+                        "as": "if_under_limit",
                         "input": {
-                          "location": "end",
-                          "name": "declare-my-activity-010:declare_my_activity",
-                          "list_item": {
-                            "txnId": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"txnId\"]}')}",
-                            "accountId": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"accountId\"]}')}",
-                            "type": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"type\"]}')}",
-                            "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"amount\"]}')}",
-                            "counterparty": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"counterparty\"]}')}",
-                            "memo": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"memo\"]}')}",
-                            "category": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"category\"]}')}",
-                            "createdAt": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"foreach\", \"line\": \"for_each_transaction\", \"path\": [\"createdAt\"]}')}"
-                          }
+                          "operand": "and",
+                          "type": "compound",
+                          "conditions": [
+                            {
+                              "operand": "is_true",
+                              "lhs": "=_dp('{\"pill_type\": \"output\", \"provider\": \"workato_variable\", \"line\": \"declare_my_activity\", \"path\": [\"list_items\", {\"path_element_type\": \"size\"}]}') < (_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').present? ? _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').to_i : 20)",
+                              "uuid": "under-limit"
+                            }
+                          ]
                         },
-                        "extended_input_schema": [
-                          {
-                            "extends_schema": false,
-                            "label": "List item",
-                            "name": "list_item",
-                            "type": "object",
-                            "optional": false,
-                            "properties": [
-                              {
-                                "control_type": "text",
-                                "label": "Transaction ID",
-                                "type": "string",
-                                "name": "txnId",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "Account ID",
-                                "type": "string",
-                                "name": "accountId",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "Type",
-                                "type": "string",
-                                "name": "type",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "number",
-                                "label": "Amount",
-                                "type": "number",
-                                "name": "amount",
-                                "optional": true,
-                                "extends_schema": false,
-                                "parse_output": "float_conversion"
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "Counterparty",
-                                "type": "string",
-                                "name": "counterparty",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "Memo",
-                                "type": "string",
-                                "name": "memo",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "Category",
-                                "type": "string",
-                                "name": "category",
-                                "optional": true,
-                                "extends_schema": false
-                              },
-                              {
-                                "control_type": "text",
-                                "label": "Created at",
-                                "type": "string",
-                                "name": "createdAt",
-                                "optional": true,
-                                "extends_schema": false
-                              }
-                            ]
-                          }
-                        ],
-                        "visible_config_fields": [
-                          "location",
-                          "name",
-                          "list_item",
-                          "list_item.txnId",
-                          "list_item.accountId",
-                          "list_item.type",
-                          "list_item.amount",
-                          "list_item.counterparty",
-                          "list_item.memo",
-                          "list_item.category",
-                          "list_item.createdAt"
-                        ],
-                        "comment": "FLAW (Station B, Factor III): the row as the API returned it.",
-                        "uuid": "add-to-my-activity-012",
+                        "comment": "At most the number of entries asked for (20 when none is asked).",
+                        "uuid": "if-under-limit-012",
                         "skip": false,
-                        "number": 12
+                        "number": 12,
+                        "block": [
+                          {
+                            "provider": "workato_variable",
+                            "name": "insert_to_list",
+                            "as": "add_to_my_activity",
+                            "keyword": "action",
+                            "input": {
+                              "location": "end",
+                              "name": "declare-my-activity-010:declare_my_activity",
+                              "list_item": {
+                                "txnId": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"txnId\"]}')}",
+                                "accountId": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"accountId\"]}')}",
+                                "type": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"type\"]}')}",
+                                "amount": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"amount\"]}')}",
+                                "counterparty": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"counterparty\"]}')}",
+                                "memo": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"memo\"]}')}",
+                                "category": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"category\"]}')}",
+                                "createdAt": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\", {\"path_element_type\": \"current_item\"}, \"createdAt\"]}')}"
+                              }
+                            },
+                            "extended_input_schema": [
+                              {
+                                "extends_schema": false,
+                                "label": "List item",
+                                "name": "list_item",
+                                "type": "object",
+                                "optional": false,
+                                "properties": [
+                                  {
+                                    "control_type": "text",
+                                    "label": "Transaction ID",
+                                    "type": "string",
+                                    "name": "txnId",
+                                    "optional": true,
+                                    "extends_schema": false
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "label": "Account ID",
+                                    "type": "string",
+                                    "name": "accountId",
+                                    "optional": true,
+                                    "extends_schema": false
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "label": "Type",
+                                    "type": "string",
+                                    "name": "type",
+                                    "optional": true,
+                                    "extends_schema": false
+                                  },
+                                  {
+                                    "control_type": "number",
+                                    "label": "Amount",
+                                    "type": "number",
+                                    "name": "amount",
+                                    "optional": true,
+                                    "extends_schema": false,
+                                    "parse_output": "float_conversion"
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "label": "Counterparty",
+                                    "type": "string",
+                                    "name": "counterparty",
+                                    "optional": true,
+                                    "extends_schema": false
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "label": "Memo",
+                                    "type": "string",
+                                    "name": "memo",
+                                    "optional": true,
+                                    "extends_schema": false
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "label": "Category",
+                                    "type": "string",
+                                    "name": "category",
+                                    "optional": true,
+                                    "extends_schema": false
+                                  },
+                                  {
+                                    "control_type": "text",
+                                    "label": "Created at",
+                                    "type": "string",
+                                    "name": "createdAt",
+                                    "optional": true,
+                                    "extends_schema": false
+                                  }
+                                ]
+                              }
+                            ],
+                            "visible_config_fields": [
+                              "location",
+                              "name",
+                              "list_item",
+                              "list_item.txnId",
+                              "list_item.accountId",
+                              "list_item.type",
+                              "list_item.amount",
+                              "list_item.counterparty",
+                              "list_item.memo",
+                              "list_item.category",
+                              "list_item.createdAt"
+                            ],
+                            "comment": "FLAW (Station B, Factor III): the row as the API returned it.",
+                            "uuid": "add-to-my-activity-013",
+                            "skip": false,
+                            "number": 13
+                          }
+                        ]
                       }
                     ],
-                    "comment": "At most the number of entries the rules allow.",
+                    "comment": "Every entry the bank returned, newest first; the check inside stops at the limit.",
                     "uuid": "for-each-transaction-011",
                     "skip": false,
                     "number": 11,
                     "repeat_mode": "simple",
-                    "source": "=_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\"]}').first(_dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').present? ? _dp('{\"pill_type\": \"output\", \"provider\": \"workato_skill\", \"line\": \"trigger\", \"path\": [\"parameters\", \"limit\"]}').to_i : 20)",
-                    "extended_output_schema": [
-                      {
-                        "control_type": "text",
-                        "label": "Transaction ID",
-                        "type": "string",
-                        "name": "txnId",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Account ID",
-                        "type": "string",
-                        "name": "accountId",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Type",
-                        "type": "string",
-                        "name": "type",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "number",
-                        "label": "Amount",
-                        "type": "number",
-                        "name": "amount",
-                        "optional": true,
-                        "extends_schema": false,
-                        "parse_output": "float_conversion"
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Counterparty",
-                        "type": "string",
-                        "name": "counterparty",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Memo",
-                        "type": "string",
-                        "name": "memo",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Channel",
-                        "type": "string",
-                        "name": "channel",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Category",
-                        "type": "string",
-                        "name": "category",
-                        "optional": true,
-                        "extends_schema": false
-                      },
-                      {
-                        "control_type": "text",
-                        "label": "Created at",
-                        "type": "string",
-                        "name": "createdAt",
-                        "optional": true,
-                        "extends_schema": false
-                      }
-                    ]
+                    "source": "#{_dp('{\"pill_type\": \"output\", \"provider\": \"dewy_bank_customer_api_connector_2100009826_1792537811\", \"line\": \"get_account_activity\", \"path\": [\"transactions\"]}')}"
                   },
                   {
                     "provider": "workato_skill",
@@ -916,9 +1006,9 @@
                       "result.transactions.createdAt"
                     ],
                     "comment": "FLAW (Station B, Factor III, leaky response): the raw transaction rows go straight back to the model: txnIds, and counterparty as a raw accountId for transfers. Memos are passed through unchanged, as in B2.",
-                    "uuid": "return-raw-transactions-013",
+                    "uuid": "return-raw-transactions-014",
                     "skip": false,
-                    "number": 13
+                    "number": 14
                   },
                   {
                     "keyword": "catch",
@@ -928,9 +1018,9 @@
                       "max_retry_count": "0",
                       "retry_interval": "2"
                     },
-                    "uuid": "catch-activity-error-014",
+                    "uuid": "catch-activity-error-015",
                     "skip": false,
-                    "number": 14,
+                    "number": 15,
                     "block": [
                       {
                         "provider": "workato_skill",
@@ -1151,9 +1241,9 @@
                           "result.message"
                         ],
                         "comment": "FLAW (Station B, Factor III): the connector's raw error text (status and body) goes back to the model. Still a typed result, so the job does not fail.",
-                        "uuid": "return-failed-015",
+                        "uuid": "return-failed-016",
                         "skip": false,
-                        "number": 15
+                        "number": 16
                       }
                     ]
                   }
@@ -1385,14 +1475,14 @@
                       "result.message"
                     ],
                     "comment": "Read rule 2 (Factor II held good) failed. FLAW (Station B, Factor III): the refusal comes back in the customer API's error shape, not in plain language.",
-                    "uuid": "refuse-over-read-limit-017",
+                    "uuid": "refuse-over-read-limit-018",
                     "skip": false,
-                    "number": 17
+                    "number": 18
                   }
                 ],
-                "uuid": "else-within-read-limit-016",
+                "uuid": "else-within-read-limit-017",
                 "skip": false,
-                "number": 16
+                "number": 17
               }
             ],
             "comment": "Read rule 2 (Factor II held good): at most 20 entries per call.",
@@ -1626,14 +1716,14 @@
                   "result.message"
                 ],
                 "comment": "Read rule 1 (Factor II held good) failed. FLAW (Station B, Factor III): the refusal comes back in the customer API's error shape (status code and backend message), not in plain language.",
-                "uuid": "refuse-account-not-named-019",
+                "uuid": "refuse-account-not-named-020",
                 "skip": false,
-                "number": 19
+                "number": 20
               }
             ],
-            "uuid": "else-account-named-018",
+            "uuid": "else-account-named-019",
             "skip": false,
-            "number": 18
+            "number": 19
           }
         ],
         "comment": "Reads held good (Factor II): the Station A2 read rules, copied step for step. Read rule 1: exactly one named account per call, never every account.",

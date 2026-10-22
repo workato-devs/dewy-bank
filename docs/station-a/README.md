@@ -116,6 +116,6 @@ A2 doesn't stop the injection itself: the poisoned memo still reaches the model 
 
 - **`adjustBalance`:** the factor matrix stages "minting money" with an `adjustBalance` tool. The customer API has no such route, so this project doesn't include one.
 - **Audit:** the Factor II fix says the control plane also writes an audit record. A2 validates and executes but doesn't write a dedicated audit entry.
-- **Pushed 2026-10-20, not run.** Pushed with Station B into the test workspace; every recipe is bound to the `Dewy Bank Customer API` connection. Not yet run: the connection needs the deployed stack, the bank app's `config.json` (P9) and a stamped bank app URL (`scripts/stamp_bank_app_url.py`), plus a participant's login; memos need P2. Still to check on the first run:
+- **Activated 2026-10-21, not run.** Every recipe at every station activates in a sandbox with stamped connectors and a connected participant login. Not yet run as a Genie tool; memos need P2. Still to check on the first run:
   - Does the connector's `acquire` get a token, and does `refresh_on: [401]` renew it?
-  - Do the formulas behave as expected: `.to_currency`, `.strip.downcase`, `.first(n)` on the transaction list, and `.where`/`.pluck` for showing other accounts by name?
+  - Do the formulas behave as expected: `.to_currency`, `.strip.downcase`, the entry limit checked inside the transaction loop, and `.where`/`.pluck` for showing other accounts by name?

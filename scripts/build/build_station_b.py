@@ -11,7 +11,7 @@ B1 = the same recipes with only the Factor III layer swapped: raw IDs in,
 """
 import copy, json, os, re, shutil, sys
 
-from recipe_shapes import to_source_current_item
+from recipe_shapes import add_output_schemas, to_source_current_item
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..', '..')
@@ -30,6 +30,7 @@ def save(rel, obj):
     os.makedirs(os.path.dirname(p), exist_ok=True)
     if rel.endswith('.recipe.json'):
         obj = to_source_current_item(obj)  # Workato's exported form for loop items (recipe_shapes.py)
+        obj = add_output_schemas(obj)  # connector steps carry their output fields (recipe_shapes.py)
     with open(p, 'w') as f:
         json.dump(obj, f, indent=2, ensure_ascii=False)
         f.write('\n')

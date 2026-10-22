@@ -80,7 +80,67 @@
         "comment": "Fetch the signed-in customer's accounts so the names the customer used can be resolved to IDs inside the recipe (Factor III held good: names in, not IDs). The customer API returns only this customer's accounts (Factor IV held good).",
         "uuid": "get-my-accounts-001",
         "skip": false,
-        "number": 1
+        "number": 1,
+        "extended_output_schema": [
+          {
+            "name": "accounts",
+            "label": "Accounts",
+            "type": "array",
+            "of": "object",
+            "optional": true,
+            "properties": [
+              {
+                "control_type": "text",
+                "label": "Account ID",
+                "type": "string",
+                "name": "accountId",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Customer ID",
+                "type": "string",
+                "name": "customerId",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Name",
+                "type": "string",
+                "name": "name",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Type",
+                "type": "string",
+                "name": "type",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "text",
+                "label": "Currency",
+                "type": "string",
+                "name": "currency",
+                "optional": true,
+                "extends_schema": false
+              },
+              {
+                "control_type": "number",
+                "label": "Balance",
+                "type": "number",
+                "name": "balance",
+                "optional": true,
+                "extends_schema": false,
+                "parse_output": "float_conversion"
+              }
+            ]
+          }
+        ]
       },
       {
         "provider": "workato_variable",
@@ -446,7 +506,42 @@
                 "comment": "FLAW (Station A, Factor II): the agent owns the write. Whatever the model chose goes to the bank.",
                 "uuid": "transfer-funds-010",
                 "skip": false,
-                "number": 10
+                "number": 10,
+                "extended_output_schema": [
+                  {
+                    "control_type": "text",
+                    "label": "Message",
+                    "type": "string",
+                    "name": "message",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "control_type": "text",
+                    "label": "From",
+                    "type": "string",
+                    "name": "from",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "control_type": "text",
+                    "label": "To",
+                    "type": "string",
+                    "name": "to",
+                    "optional": true,
+                    "extends_schema": false
+                  },
+                  {
+                    "control_type": "number",
+                    "label": "Amount",
+                    "type": "number",
+                    "name": "amount",
+                    "optional": true,
+                    "extends_schema": false,
+                    "parse_output": "float_conversion"
+                  }
+                ]
               },
               {
                 "provider": "workato_skill",

@@ -24,11 +24,12 @@ This is build time, for whoever authors the workshop content. Participants only 
 ```bash
 python3 scripts/build/build_station_b.py && python3 scripts/build/check_invariants.py
 python3 scripts/build/build_station_c.py && python3 scripts/build/check_station_c.py
+python3 scripts/build/check_recipe_structure.py   # what activation rejects and lint misses
 wk lint --skills-path <path-to>/recipe-skills/skills $(find dewy-bank-station-* -name '*.recipe.json')
 wk push --dry-run -p <profile>     # read it for `deleted` rows
 wk push -p <profile>               # never `wk recipes import` (it strips HTTP config)
 ```
 
-Commit the rebuilt `dewy-bank-station-b/` and `dewy-bank-station-c/` with the change. CI (`.github/workflows/stations.yml`) rebuilds them on every pull request, fails if the committed files are stale, and runs both invariant checks; `wk lint` stays local, because it needs the wk CLI and the recipe-skills checkout.
+Commit the rebuilt `dewy-bank-station-b/` and `dewy-bank-station-c/` with the change. CI (`.github/workflows/stations.yml`) rebuilds them on every pull request, fails if the committed files are stale, and runs both invariant checks and the structure check; `wk lint` stays local, because it needs the wk CLI and the recipe-skills checkout.
 
 Pass `-p <profile>` on every `wk` command, and pick the profile by the account email behind it (`wk workspace info -p <profile>`), not by its name.
