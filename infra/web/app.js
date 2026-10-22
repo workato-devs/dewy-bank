@@ -11,6 +11,8 @@
   var COGNITO = "https://cognito-idp." + cfg.region + ".amazonaws.com/";
   var API = (cfg.customerApiUrl || "").replace(/\/+$/, "");
   var idToken = sessionStorage.getItem("dewy_id_token") || null;
+  var accessToken = sessionStorage.getItem("dewy_access_token") || null;
+  var refreshToken = sessionStorage.getItem("dewy_refresh_token") || null;
 
   var $ = function (id) {
     return document.getElementById(id);
@@ -119,7 +121,11 @@
       var r = j.AuthenticationResult;
       if (!r || !r.IdToken) throw new Error("No token returned");
       idToken = r.IdToken;
+      accessToken = r.AccessToken;
+      refreshToken = r.RefreshToken;
       sessionStorage.setItem("dewy_id_token", idToken);
+      sessionStorage.setItem("dewy_access_token", accessToken);
+      sessionStorage.setItem("dewy_refresh_token", refreshToken);
       return r;
     });
   }
@@ -134,6 +140,18 @@
       return {};
     }
   }
+  // Returns true if the JWT is missing, malformed, or past its exp claim.
+  function isTokenExpired(token) {
+    try {
+      var payload = JSON.parse(
+        atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+      );
+      return payload.exp * 1000 < Date.now();
+    } catch (e) {
+      return true; // treat malformed or missing tokens as expired
+    }
+  }
+
   function isFacilitator() {
     var g = claims()["cognito:groups"] || [];
     if (typeof g === "string") g = g.replace(/[\[\]]/g, "").split(/[,\s]+/);
@@ -225,7 +243,11 @@
   };
   function logout() {
     idToken = null;
+    accessToken = null;
+    refreshToken = null;
     sessionStorage.removeItem("dewy_id_token");
+    sessionStorage.removeItem("dewy_access_token");
+    sessionStorage.removeItem("dewy_refresh_token");
     if (typeof chatReset === "function") chatReset();
     hide($("appShell"));
     show($("authScreen"));
@@ -580,7 +602,11 @@
     if (empty) empty.remove();
     var el = document.createElement("div");
     el.className = "bubble " + kind;
-    el.textContent = text;
+    if (kind === "dewy") {
+      el.innerHTML = marked.parse(text);
+    } else {
+      el.textContent = text;
+    }
 
     if (kind === "me" || kind === "dewy") {
       var wrap = document.createElement("div");
@@ -931,7 +957,45 @@
   // ---- boot ------------------------------------------------------------
   if (!cfg.userPoolClientId) {
     msg($("authMsg"), "Config not loaded (config.js missing).", false);
-  } else if (idToken) {
+  } else if (idToken && !isTokenExpired(idToken)) {
+    // Branch 1: idToken present and still valid — restore immediately.
+    console.log("[auth] restored session from storage");
     enterApp();
+  } else if (idToken && refreshToken) {
+    // Branch 2: idToken expired but we have a refresh token — try a silent refresh.
+    console.log("[auth] token expired, refreshing");
+    cognito("InitiateAuth", {
+      ClientId: cfg.userPoolClientId,
+      AuthFlow: "REFRESH_TOKEN_AUTH",
+      AuthParameters: { REFRESH_TOKEN: refreshToken },
+    })
+      .then(function (j) {
+        var r = j.AuthenticationResult;
+        if (!r || !r.IdToken) throw new Error("No token returned");
+        idToken = r.IdToken;
+        accessToken = r.AccessToken;
+        // Cognito's REFRESH_TOKEN_AUTH does not issue a new RefreshToken;
+        // keep the existing one (refreshToken variable is unchanged).
+        sessionStorage.setItem("dewy_id_token", idToken);
+        sessionStorage.setItem("dewy_access_token", accessToken);
+        enterApp();
+      })
+      .catch(function () {
+        console.log("[auth] refresh failed, redirecting to login");
+        idToken = null;
+        accessToken = null;
+        refreshToken = null;
+        sessionStorage.removeItem("dewy_id_token");
+        sessionStorage.removeItem("dewy_access_token");
+        sessionStorage.removeItem("dewy_refresh_token");
+      });
+  } else if (idToken) {
+    // Branch 3: idToken expired and no refresh token — clear the stale id token.
+    console.log("[auth] token expired, no refresh token available");
+    idToken = null;
+    accessToken = null;
+    sessionStorage.removeItem("dewy_id_token");
+    sessionStorage.removeItem("dewy_access_token");
   }
+  // If none of the branches fire, idToken was null to begin with → login screen shown.
 })();
