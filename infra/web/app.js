@@ -38,11 +38,13 @@
     });
   }
   function msg(el, text, ok) {
-    el.innerHTML = DOMPurify.sanitize(
-      text
-        ? '<div class="msg ' + (ok ? "ok" : "err") + '">' + esc(text) + "</div>"
-        : "",
-    );
+    el.textContent = "";
+    if (text) {
+      var div = document.createElement("div");
+      div.className = "msg " + (ok ? "ok" : "err");
+      div.textContent = text;
+      el.appendChild(div);
+    }
   }
   function money(n, opts) {
     var neg = n < 0;
@@ -354,7 +356,7 @@
             '<div class="bal' +
             (neg ? " neg" : "") +
             '">' +
-            money(a.balance) +
+            esc(money(a.balance)) +
             "</div>" +
             "</div>"
           );
@@ -381,7 +383,7 @@
             '">' +
             esc(a.name) +
             " — " +
-            money(a.balance) +
+            esc(money(a.balance)) +
             "</option>"
           );
         })
@@ -396,6 +398,7 @@
     var from = $("xferFrom").value,
       to = $("xferTo").value,
       amount = parseFloat($("xferAmt").value);
+    var memo = $("xferMemo").value.trim();
     if (!(amount > 0)) {
       msg($("xferMsg"), "Enter a positive amount", false);
       return;
@@ -405,10 +408,21 @@
       return;
     }
     msg($("xferMsg"), "Sending…", true);
-    api("POST", "/transfers", { from: from, to: to, amount: amount })
+    var body = { from: from, to: to, amount: amount };
+    if (memo) body.memo = memo;
+    api("POST", "/transfers", body)
       .then(function () {
-        msg($("xferMsg"), "Transfer complete ✓", true);
         $("xferAmt").value = "";
+        $("xferMemo").value = "";
+        if (memo) {
+          $("xferMsg").innerHTML = DOMPurify.sanitize(
+            '<div class="msg ok">Transfer complete \u2713 \u00b7 \u201c' +
+              esc(memo) +
+              "\u201d</div>",
+          );
+        } else {
+          msg($("xferMsg"), "Transfer complete \u2713", true);
+        }
         loadAccounts();
       })
       .catch(function (e) {
@@ -469,7 +483,7 @@
         '<td class="amt-cell ' +
         (credit ? "credit" : "debit") +
         '">' +
-        money(t.amount, { sign: credit }) +
+        esc(money(t.amount, { sign: credit })) +
         "</td></tr>";
     });
     html += "</tbody></table>";
@@ -516,7 +530,7 @@
             color +
             '"></div></div>' +
             '<div class="val">' +
-            money(by[c]) +
+            esc(money(by[c])) +
             "</div></div>"
           );
         })
@@ -661,7 +675,7 @@
   }
 
   function chatStatusOnly(text) {
-    $("chatLog").innerHTML = "";
+    $("chatLog").textContent = "";
     chat.thinkingBubble = null; // DOM was cleared
     var el = document.createElement("div");
     el.className = "chat-empty";
@@ -695,7 +709,7 @@
       chatStatusOnly("Say hello to " + station + ".");
       return;
     }
-    $("chatLog").innerHTML = "";
+    $("chatLog").textContent = "";
     chat.thinkingBubble = null; // DOM was cleared
     list.forEach(function (e) {
       drawEntry(station, e);
