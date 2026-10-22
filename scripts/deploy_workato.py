@@ -433,7 +433,7 @@ def main():
         steps = [
             '1. Stamp connector files: python3 scripts/stamp_bank_app_url.py ' + bank_url
             + (' --support-api-key <key>' if args.support_api_key else ''),
-            '2. Push Workspace Connections: wk push --folder "Workspace Connections" -p ' + profile,
+            '2. Push Workspace Connections: wk push --force --skip-hooks --folder "Workspace Connections" -p ' + profile,
             '2a. Ensure connections exist (POST /api/connections if missing) via WORKATO_API_TOKEN',
             '2b. Verify connections authenticated via Workato REST API (WORKATO_API_TOKEN)',
             '3. Discover new connector provider IDs: wk connectors list -p ' + profile,
@@ -476,9 +476,10 @@ def main():
     # Step 2 — push Workspace Connections
     # ------------------------------------------------------------------
     print('\nStep 2: pushing Workspace Connections...', file=sys.stderr)
-    # No --skip-hooks here; workspace-connections contains connector files, not recipes.
-    wk(profile, 'push', '--folder', 'Workspace Connections')
-    print('  done', file=sys.stderr)
+    # --force bypasses wk's local hash cache so connector/connection files are
+    # always uploaded, even after the workspace assets have been manually deleted.
+    result = wk(profile, 'push', '--force', '--skip-hooks', '--folder', 'Workspace Connections')
+    print(f'  {_push_summary(result)}', file=sys.stderr)
 
     # Discover connector IDs right after push — needed both for step 2a (creating
     # connections via the REST API) and for step 3 (remapping provider IDs).
