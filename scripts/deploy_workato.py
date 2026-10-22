@@ -22,6 +22,9 @@ Usage:
 
 Steps performed (in order):
   1. Stamp bank URL and public API endpoints into the connector files.
+  1a. Clear .wk/ state cache so wk treats every file as new on the next push.
+  1b. Run `wk link` to reconnect the local project to the workspace and recreate
+      any missing server folder structure (needed after deleting all assets).
   2. Push Workspace Connections so the connector is live with a fresh provider ID.
   2a. Ensure both connections exist in the workspace (creates shell connections via the
       REST API if wk push skipped them because they were already in its local hash cache).
@@ -458,7 +461,8 @@ def main():
         steps = [
             '1. Stamp connector files: python3 scripts/stamp_bank_app_url.py ' + bank_url
             + (' --support-api-key <key>' if args.support_api_key else ''),
-            '2. Push Workspace Connections: wk push --skip-hooks -p ' + profile + ' (all sync entries; state cache cleared before this)',
+            'wk link: wk link --profile ' + profile + ' --no-input (reconnect workspace, recreate server folder structure)',
+            '2. Push Workspace Connections: wk push --skip-hooks -p ' + profile + ' (all sync entries; state cache cleared and workspace relinked before this)',
             '2a. Ensure connections exist (POST /api/connections if missing) via WORKATO_API_TOKEN',
             '2b. Verify connections authenticated via Workato REST API (WORKATO_API_TOKEN)',
             '3. Discover new connector provider IDs: wk connectors list -p ' + profile,
@@ -507,12 +511,33 @@ def main():
     print('  done', file=sys.stderr)
 
     # ------------------------------------------------------------------
+    # wk link — reconnect local project to workspace before the first push.
+    #
+    # When all Workato assets have been deleted the server folder structure
+    # ("Workspace Connections", "Dewy Bank Station A", …) no longer exists,
+    # and the folder_id / project_id values in .wk/wk.toml point at IDs that
+    # are gone.  wk push resolves folders by those IDs first; it only falls
+    # back to auto-creating a folder when there is no ID in wk.toml.  Running
+    # wk link refreshes the workspace binding and (re)creates the server folder
+    # structure so the subsequent push succeeds.
+    # ------------------------------------------------------------------
+    print('\nLinking workspace (recreating server folder structure)...', file=sys.stderr)
+    link_result = subprocess.run(
+        ['wk', 'link', '--profile', profile, '--no-input'],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    if link_result.returncode != 0:
+        sys.exit(f'wk link failed: {(link_result.stderr or link_result.stdout).strip()}')
+    print('  done', file=sys.stderr)
+
+    # ------------------------------------------------------------------
     # Step 2 — push Workspace Connections (and all other sync entries)
-    # .wk/ state was cleared above, so wk creates any missing server folders
-    # from scratch.  All sync entries are pushed in wk.toml order (Workspace
-    # Connections first) without --folder or --force.  The station folders are
-    # pushed here with the original provider IDs; step 8 re-pushes them after
-    # the IDs have been remapped in steps 4–7.
+    # .wk/ state was cleared above and wk link has recreated the server
+    # folder structure, so wk push can resolve all folders cleanly.
+    # All sync entries are pushed in wk.toml order (Workspace Connections
+    # first) without --folder or --force.  The station folders are pushed
+    # here with the original provider IDs; step 8 re-pushes them after the
+    # IDs have been remapped in steps 4–7.
     # ------------------------------------------------------------------
     print('\nStep 2: pushing Workspace Connections...', file=sys.stderr)
     result = wk(profile, 'push', '--skip-hooks')
