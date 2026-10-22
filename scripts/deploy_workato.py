@@ -37,7 +37,7 @@ Steps performed (in order):
  11. Run setup_chat_clients.py and save the JSON blob.
  12. Print next-steps instructions.
 """
-import argparse, json, os, re, subprocess, sys, urllib.error, urllib.request
+import argparse, json, os, re, shutil, subprocess, sys, urllib.error, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..'))
@@ -247,6 +247,31 @@ def run_build_script(script_name):
         sys.exit(f'{script_name} failed (exit {result.returncode})')
 
 
+def _clear_wk_state():
+    """Delete .wk/ state subdirectories for every [[sync]] entry in wk.toml.
+
+    Clearing the state forces wk to treat every tracked file as new on the
+    next push, so it creates missing server folders from scratch instead of
+    consulting a stale hash cache and silently skipping unchanged files.
+    Preserves .wk/wk.toml and .wk/.gitignore.
+    """
+    wk_dir   = os.path.join(ROOT, '.wk')
+    toml_path = os.path.join(wk_dir, 'wk.toml')
+    local_paths: list = []
+    if os.path.exists(toml_path):
+        with open(toml_path) as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('local_path') and '=' in line:
+                    _, _, v = line.partition('=')
+                    local_paths.append(v.strip().strip("'\""))
+    for lp in local_paths:
+        state_dir = os.path.join(wk_dir, lp)
+        if os.path.isdir(state_dir):
+            shutil.rmtree(state_dir)
+            print(f'  cleared .wk/{lp}/', file=sys.stderr)
+
+
 def _collect_skill_recipe_names():
     """Scan station folders for .agentic_skill.json files and return a set of recipe names.
 
@@ -433,7 +458,7 @@ def main():
         steps = [
             '1. Stamp connector files: python3 scripts/stamp_bank_app_url.py ' + bank_url
             + (' --support-api-key <key>' if args.support_api_key else ''),
-            '2. Push Workspace Connections: wk push --force --skip-hooks --folder "Workspace Connections" -p ' + profile,
+            '2. Push Workspace Connections: wk push --skip-hooks -p ' + profile + ' (all sync entries; state cache cleared before this)',
             '2a. Ensure connections exist (POST /api/connections if missing) via WORKATO_API_TOKEN',
             '2b. Verify connections authenticated via Workato REST API (WORKATO_API_TOKEN)',
             '3. Discover new connector provider IDs: wk connectors list -p ' + profile,
@@ -441,7 +466,7 @@ def main():
             '5. Rebuild station-b: python3 scripts/build/build_station_b.py',
             '6. Rebuild station-c: python3 scripts/build/build_station_c.py',
             '7. Fix station-c support connector IDs in-place',
-            '8. Push station folders: wk push --force --skip-hooks -p ' + profile + ' (A, B, C)',
+            '8. Push station folders (remapped IDs): wk push --skip-hooks -p ' + profile,
             '9. Start skill recipes: PUT /api/recipes/<id>/start for each skill (WORKATO_API_TOKEN)',
             '10. Restore working tree: git checkout -- dewy-bank-station-a/ dewy-bank-station-b/ dewy-bank-station-c/',
             '11. Run setup_chat_clients.py -p ' + profile + ' and save JSON to ' + CHAT_CONFIG_PATH,
@@ -461,6 +486,15 @@ def main():
     print(f'  support  API old ID : {old_support_gen}', file=sys.stderr)
 
     # ------------------------------------------------------------------
+    # Clear .wk/ state cache before any push
+    # Clears hash-cache directories so wk treats every file as new and
+    # creates missing server folders from scratch on the next push, instead
+    # of consulting a stale cache and failing with "folder not found".
+    # ------------------------------------------------------------------
+    print('\nClearing .wk/ state cache...', file=sys.stderr)
+    _clear_wk_state()
+
+    # ------------------------------------------------------------------
     # Step 1 — stamp connector files
     # ------------------------------------------------------------------
     print('\nStep 1: stamping connector files...', file=sys.stderr)
@@ -473,12 +507,15 @@ def main():
     print('  done', file=sys.stderr)
 
     # ------------------------------------------------------------------
-    # Step 2 — push Workspace Connections
+    # Step 2 — push Workspace Connections (and all other sync entries)
+    # .wk/ state was cleared above, so wk creates any missing server folders
+    # from scratch.  All sync entries are pushed in wk.toml order (Workspace
+    # Connections first) without --folder or --force.  The station folders are
+    # pushed here with the original provider IDs; step 8 re-pushes them after
+    # the IDs have been remapped in steps 4–7.
     # ------------------------------------------------------------------
     print('\nStep 2: pushing Workspace Connections...', file=sys.stderr)
-    # --force bypasses wk's local hash cache so connector/connection files are
-    # always uploaded, even after the workspace assets have been manually deleted.
-    result = wk(profile, 'push', '--force', '--skip-hooks', '--folder', 'Workspace Connections')
+    result = wk(profile, 'push', '--skip-hooks')
     print(f'  {_push_summary(result)}', file=sys.stderr)
 
     # Discover connector IDs right after push — needed both for step 2a (creating
@@ -655,21 +692,18 @@ def main():
         n = remap_ids_in_folder(STATION_C, old_support_gen, new_support_gen)
         print(f'  {n} file(s) updated', file=sys.stderr)
 
-        # Step 8 — push all three station folders
-        # --force bypasses wk's local hash cache and always uploads every tracked
-        # file, regardless of whether its hash matches the cached state.  This is
-        # necessary when assets (e.g. agentic genies) have been manually deleted
-        # from the Workato workspace: without --force, wk sees the hashes match
-        # and silently skips the files, leaving the server assets missing.
+        # Step 8 — push all sync entries so remapped station files reach the server
+        # .wk/ state reflects the step-2 push, so only files whose content
+        # changed (i.e. the remapped provider-ID references) are uploaded again.
+        # Workspace Connections files are unchanged and will be skipped.
         # --skip-hooks bypasses the pre-push recipe-lint hook, which requires the
         # recipe-skills checkout (not present in a participant workspace).
         # Note: wk push may report some files as "deleted" for connector adapter
         # files tracked in .wk state from a prior pull; per AGENTS.md rule 6,
         # the server assets remain — this is expected behavior.
-        for server_path in ('Dewy Bank Station A', 'Dewy Bank Station B', 'Dewy Bank Station C'):
-            print(f'\nStep 8: pushing {server_path}...', file=sys.stderr)
-            result = wk(profile, 'push', '--force', '--folder', server_path, '--skip-hooks')
-            print(f'  {_push_summary(result)}', file=sys.stderr)
+        print('\nStep 8: pushing station folders (remapped provider IDs)...', file=sys.stderr)
+        result = wk(profile, 'push', '--skip-hooks')
+        print(f'  {_push_summary(result)}', file=sys.stderr)
 
         # Step 9 — start skill recipes
         # Skills must be running before genies can invoke them.  We start them
