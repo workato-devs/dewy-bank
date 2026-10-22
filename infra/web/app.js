@@ -324,7 +324,7 @@
     api('POST', '/chat', { station: station, message: text, conversation: chat.conversations[station] })
       .then(function (r) {
         chat.conversations[station] = r.conversation;
-        pollEvents(station);
+        pollEvents(station, r.run);
       })
       .catch(function (e) { msg($('chatMsg'), e.message, false); chatDone(); });
   }
@@ -355,7 +355,10 @@
     return null;
   }
 
-  function pollEvents(station) {
+  // The events feed has no end-of-turn event: a turn ends with its run's agent.message
+  // (observed 2026-10-22; processing.finished never arrives). Without the run's ID, the
+  // next agent.message ends the turn.
+  function pollEvents(station, run) {
     clearTimeout(chat.polling);
     var started = Date.now();
     (function tick() {
@@ -375,6 +378,7 @@
           if (type === 'agent.message') {
             var text = field(e, ['data.message', 'data.content', 'data.text', 'message', 'content', 'text', 'payload.message']);
             if (text) record(station, 'dewy', typeof text === 'string' ? text : JSON.stringify(text));
+            if (!run || field(e, ['genie_run_id', 'data.genie_run_id']) === run) finished = true;
           } else if (type === 'skill.confirmation_required') {
             var callId = field(e, ['data.call_id', 'call_id', 'data.id', 'payload.call_id']);
             var skill = field(e, ['data.skill_name', 'data.skill', 'skill_name', 'data.name']);
