@@ -86,11 +86,23 @@ missing = [k for k in required if not config.get(k)]
 if missing:
     sys.exit(f'config.json is missing required keys: {missing}')
 
-support_api_key = fetch_ssm_parameter('/dewybank/demo01/support-api-key')
-
 # Check every connector before writing any, so a failure never leaves them half-stamped.
 rb_customer = os.path.join(CONN, 'dewy_bank_customer_api.custom_adapter.rb')
 rb_support  = os.path.join(CONN, 'dewy_bank_support_api.custom_adapter.rb')
+
+# Fetch (or reuse) the support API key.  Once a facilitator stamps the key
+# with AWS credentials, participants re-running the script (who only have the
+# CloudFront URL) skip the SSM step automatically.
+_key_m = re.search(
+    r"default: '([^']*)' \}, # stamped before the workshop by scripts/stamp_bank_app_url\.py",
+    open(rb_support).read(),
+)
+_current_key = _key_m.group(1) if _key_m else 'NOT_STAMPED'
+if 'NOT_STAMPED' not in _current_key and _current_key:
+    support_api_key = _current_key
+    print('Support API key already stamped — skipping SSM fetch.')
+else:
+    support_api_key = fetch_ssm_parameter('/dewybank/demo01/support-api-key')
 
 if len(CUSTOMER_LINE.findall(open(rb_customer).read())) != 1:
     sys.exit(f'{rb_customer}: expected exactly one stampable bank_app_url default line')

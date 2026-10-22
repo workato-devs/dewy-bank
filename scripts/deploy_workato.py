@@ -2,10 +2,13 @@
 
 This script is for WORKSHOP PARTICIPANTS only.
 
-Before running this script, a facilitator must have run
-``scripts/stamp_bank_app_url.py`` to embed the bank app URL and API
-endpoints into the connector files.  If that step was skipped you will
-see an error below.
+Provide the bank app CloudFront URL.  The script stamps the connector files
+with the bank URL and public API endpoints (fetched from the app's
+``config.json``), then runs the full Workato deployment.
+
+A facilitator must have pre-stamped the support API key into the connector
+files using ``scripts/stamp_bank_app_url.py`` with AWS credentials before
+participants run this script.  Participants only need the CloudFront URL.
 
 Requirements:
   - wk CLI installed and on your PATH
@@ -13,10 +16,10 @@ Requirements:
     (``wk auth login -p <profile>``)
 
 Usage:
-    python3 scripts/deploy_workato.py --profile <wk-profile> [--dry-run]
+    python3 scripts/deploy_workato.py --bank-url <bank-url> --profile <wk-profile> [--dry-run]
 
 Steps performed (in order):
-  1. Pre-flight: verify connector files have been stamped by the facilitator.
+  1. Stamp bank URL and public API endpoints into the connector files.
   2. Push Workspace Connections so the connector is live with a fresh provider ID.
   3. Discover the new provider IDs via ``wk connectors list``.
   4. Rewrite provider IDs in station-a JSON files in-place.
@@ -38,10 +41,6 @@ STATION_C = os.path.join(ROOT, 'dewy-bank-station-c')
 CUSTOMER_CONN_TITLE = 'Dewy Bank Customer API'
 SUPPORT_CONN_TITLE  = 'Dewy Bank Support API'
 CHAT_CONFIG_PATH = os.path.join(ROOT, '.agents', 'tasks', 'chat-config.json')
-
-# Sentinel written into connector default: fields before stamping.
-# stamp_bank_app_url.py replaces these with real URLs/keys.
-_UNSTAMPED_SENTINEL = 'NOT_STAMPED'
 
 # ---------------------------------------------------------------------------
 # wk CLI helper (same pattern as setup_chat_clients.py)
@@ -65,32 +64,20 @@ def wk(profile, *args):
 # Helper functions
 # ---------------------------------------------------------------------------
 
-def check_stamped():
-    """Return True if every connector .rb file has been stamped.
-
-    Checks that no ``default:`` field still holds the sentinel value
-    ``NOT_STAMPED``.  If any are found, prints an actionable error and
-    returns False.
-    """
-    rb_files = [
-        os.path.join(ROOT, 'workspace-connections', 'dewy_bank_customer_api.custom_adapter.rb'),
-        os.path.join(ROOT, 'workspace-connections', 'dewy_bank_support_api.custom_adapter.rb'),
-    ]
-    unstamped = []
-    for path in rb_files:
-        if not os.path.exists(path):
-            continue
-        if _UNSTAMPED_SENTINEL in open(path).read():
-            unstamped.append(os.path.relpath(path, ROOT))
-    if unstamped:
-        print(
-            'ERROR: Connectors have not been stamped. '
-            'Ask your facilitator to run stamp_bank_app_url.py first.\n'
-            f'  Unstamped files: {", ".join(unstamped)}',
-            file=sys.stderr,
-        )
-        return False
-    return True
+def _load_dotenv_value(*keys):
+    """Return the first value found for any of *keys* in ROOT/.env, or None."""
+    env_path = os.path.join(ROOT, '.env')
+    if not os.path.exists(env_path):
+        return None
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            k, _, v = line.partition('=')
+            if k.strip() in keys:
+                return v.strip().strip('"\'')
+    return None
 
 
 def extract_old_gen():
@@ -160,14 +147,18 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             'Examples:\n'
-            '  python3 scripts/deploy_workato.py -p MyProfile --dry-run\n'
-            '  python3 scripts/deploy_workato.py -p MyProfile\n'
+            '  python3 scripts/deploy_workato.py --bank-url https://<dist>.cloudfront.net -p MyProfile --dry-run\n'
+            '  python3 scripts/deploy_workato.py --bank-url https://<dist>.cloudfront.net -p MyProfile\n'
             '\n'
-            'Note: connector stamping is a facilitator task. Run\n'
+            'The bank URL can also be set in .env as BANK_APP_URL or SPA_URL.\n'
+            '\n'
+            'Note: a facilitator must pre-stamp the support API key with AWS credentials:\n'
             '  python3 scripts/stamp_bank_app_url.py <bank-url>\n'
-            'before distributing the repo to participants.'
+            'Participants only need the CloudFront URL to run this script.'
         ),
     )
+    ap.add_argument('--bank-url',
+                    help='Bank app CloudFront URL (or set BANK_APP_URL / SPA_URL in .env)')
     ap.add_argument('-p', '--profile', required=True, help='wk auth profile name')
     ap.add_argument('--dry-run', action='store_true',
                     help='print what would happen without making any changes')
@@ -175,17 +166,20 @@ def main():
     profile  = args.profile
     dry_run  = args.dry_run
 
+    bank_url = args.bank_url
+    if not bank_url:
+        bank_url = (os.environ.get('BANK_APP_URL')
+                    or os.environ.get('SPA_URL')
+                    or _load_dotenv_value('BANK_APP_URL', 'SPA_URL'))
+    if not bank_url:
+        ap.error('--bank-url is required (or set BANK_APP_URL or SPA_URL in .env)')
+
     # ------------------------------------------------------------------
     # Pre-flight checks
     # ------------------------------------------------------------------
     print('Pre-flight checks...', file=sys.stderr)
 
-    # 1. Verify connectors have been stamped by the facilitator
-    if not check_stamped():
-        sys.exit(1)
-    print('  connectors: stamped', file=sys.stderr)
-
-    # 2. Profile / workspace reachable
+    # Profile / workspace reachable
     status = wk(profile, 'auth', 'status')
     if not status or not status.get('connected'):
         sys.exit(f'wk profile "{profile}" is not connected. Run: wk auth login -p {profile}')
@@ -197,16 +191,17 @@ def main():
     if dry_run:
         print('\nDRY RUN — no changes will be made.\n', file=sys.stderr)
         steps = [
-            '1. Push Workspace Connections: wk push --folder "Workspace Connections" -p ' + profile,
-            '2. Discover new connector provider IDs: wk connectors list -p ' + profile,
-            '3. Rewrite provider IDs in station-a JSON files in-place',
-            '4. Rebuild station-b: python3 scripts/build/build_station_b.py',
-            '5. Rebuild station-c: python3 scripts/build/build_station_c.py',
-            '6. Fix station-c support connector IDs in-place',
-            '7. Push station folders: wk push --skip-hooks -p ' + profile + ' (A, B, C)',
-            '8. Restore working tree: git checkout -- dewy-bank-station-a/ dewy-bank-station-b/ dewy-bank-station-c/',
-            '9. Run setup_chat_clients.py -p ' + profile + ' and save JSON to ' + CHAT_CONFIG_PATH,
-            '10. Print next-steps instructions',
+            '1. Stamp connector files: python3 scripts/stamp_bank_app_url.py ' + bank_url,
+            '2. Push Workspace Connections: wk push --folder "Workspace Connections" -p ' + profile,
+            '3. Discover new connector provider IDs: wk connectors list -p ' + profile,
+            '4. Rewrite provider IDs in station-a JSON files in-place',
+            '5. Rebuild station-b: python3 scripts/build/build_station_b.py',
+            '6. Rebuild station-c: python3 scripts/build/build_station_c.py',
+            '7. Fix station-c support connector IDs in-place',
+            '8. Push station folders: wk push --skip-hooks -p ' + profile + ' (A, B, C)',
+            '9. Restore working tree: git checkout -- dewy-bank-station-a/ dewy-bank-station-b/ dewy-bank-station-c/',
+            '10. Run setup_chat_clients.py -p ' + profile + ' and save JSON to ' + CHAT_CONFIG_PATH,
+            '11. Print next-steps instructions',
         ]
         for s in steps:
             print(f'  {s}', file=sys.stderr)
@@ -222,17 +217,29 @@ def main():
     print(f'  support  API old ID : {old_support_gen}', file=sys.stderr)
 
     # ------------------------------------------------------------------
-    # Step 1 — push Workspace Connections
+    # Step 1 — stamp connector files
     # ------------------------------------------------------------------
-    print('\nStep 1: pushing Workspace Connections...', file=sys.stderr)
+    print('\nStep 1: stamping connector files...', file=sys.stderr)
+    result = subprocess.run(
+        [sys.executable, os.path.join(HERE, 'stamp_bank_app_url.py'), bank_url],
+        check=False, cwd=ROOT,
+    )
+    if result.returncode != 0:
+        sys.exit('stamp_bank_app_url.py failed (see output above)')
+    print('  done', file=sys.stderr)
+
+    # ------------------------------------------------------------------
+    # Step 2 — push Workspace Connections
+    # ------------------------------------------------------------------
+    print('\nStep 2: pushing Workspace Connections...', file=sys.stderr)
     # No --skip-hooks here; workspace-connections contains connector files, not recipes.
     wk(profile, 'push', '--folder', 'Workspace Connections')
     print('  done', file=sys.stderr)
 
     # ------------------------------------------------------------------
-    # Step 2 — discover new provider IDs
+    # Step 3 — discover new provider IDs
     # ------------------------------------------------------------------
-    print('\nStep 2: discovering new connector provider IDs...', file=sys.stderr)
+    print('\nStep 3: discovering new connector provider IDs...', file=sys.stderr)
     connectors = {c['title']: c['name'] for c in wk(profile, 'connectors', 'list')}
     new_gen         = connectors.get(CUSTOMER_CONN_TITLE)
     new_support_gen = connectors.get(SUPPORT_CONN_TITLE)
@@ -258,48 +265,48 @@ def main():
               file=sys.stderr)
 
     # ------------------------------------------------------------------
-    # Steps 3-8 wrapped in try/finally so the working tree is ALWAYS restored,
+    # Steps 4-9 wrapped in try/finally so the working tree is ALWAYS restored,
     # even if a push or build step fails mid-way.
     # ------------------------------------------------------------------
     try:
-        # Step 3 — remap station-a in-place
-        print('\nStep 3: remapping station-a provider IDs...', file=sys.stderr)
+        # Step 4 — remap station-a in-place
+        print('\nStep 4: remapping station-a provider IDs...', file=sys.stderr)
         n = remap_ids_in_folder(STATION_A, old_gen, new_gen)
         print(f'  {n} file(s) updated', file=sys.stderr)
 
-        # Step 4 — rebuild station-b
+        # Step 5 — rebuild station-b
         # build_station_b.py reads GEN dynamically from station-a, so it picks
         # up the new customer ID automatically.
-        print('\nStep 4: rebuilding station-b...', file=sys.stderr)
+        print('\nStep 5: rebuilding station-b...', file=sys.stderr)
         run_build_script('build_station_b.py')
         print('  done', file=sys.stderr)
 
-        # Step 5 — rebuild station-c
+        # Step 6 — rebuild station-c
         # Customer tools inherit the new customer ID from station-a.
-        # SUPPORT_GEN is still the old hardcoded value at this point — fixed in step 6.
-        print('\nStep 5: rebuilding station-c...', file=sys.stderr)
+        # SUPPORT_GEN is still the old hardcoded value at this point — fixed in step 7.
+        print('\nStep 6: rebuilding station-c...', file=sys.stderr)
         run_build_script('build_station_c.py')
         print('  done', file=sys.stderr)
 
-        # Step 6 — fix station-c support connector IDs
-        print('\nStep 6: remapping station-c support connector IDs...', file=sys.stderr)
+        # Step 7 — fix station-c support connector IDs
+        print('\nStep 7: remapping station-c support connector IDs...', file=sys.stderr)
         n = remap_ids_in_folder(STATION_C, old_support_gen, new_support_gen)
         print(f'  {n} file(s) updated', file=sys.stderr)
 
-        # Step 7 — push all three station folders
+        # Step 8 — push all three station folders
         # --skip-hooks bypasses the pre-push recipe-lint hook, which requires the
         # recipe-skills checkout (not present in a participant workspace).
         # Note: wk push may report some files as "deleted" for connector adapter
         # files tracked in .wk state from a prior pull; per AGENTS.md rule 6,
         # the server assets remain — this is expected behavior.
         for server_path in ('Dewy Bank Station A', 'Dewy Bank Station B', 'Dewy Bank Station C'):
-            print(f'\nStep 7: pushing {server_path}...', file=sys.stderr)
+            print(f'\nStep 8: pushing {server_path}...', file=sys.stderr)
             wk(profile, 'push', '--folder', server_path, '--skip-hooks')
             print('  done', file=sys.stderr)
 
     finally:
-        # Step 8 — restore the working tree regardless of success or failure
-        print('\nStep 8: restoring working tree...', file=sys.stderr)
+        # Step 9 — restore the working tree regardless of success or failure
+        print('\nStep 9: restoring working tree...', file=sys.stderr)
         try:
             subprocess.run(
                 ['git', 'checkout', '--',
@@ -316,9 +323,9 @@ def main():
             )
 
     # ------------------------------------------------------------------
-    # Step 9 — run setup_chat_clients.py
+    # Step 10 — run setup_chat_clients.py
     # ------------------------------------------------------------------
-    print('\nStep 9: running setup_chat_clients.py...', file=sys.stderr)
+    print('\nStep 10: running setup_chat_clients.py...', file=sys.stderr)
     # stdout=subprocess.PIPE captures the JSON blob while stderr streams live to
     # the terminal so the user sees progress during this multi-API-call step.
     result = subprocess.run(
@@ -341,7 +348,7 @@ def main():
         print('  WARNING: setup_chat_clients.py produced no JSON blob', file=sys.stderr)
 
     # ------------------------------------------------------------------
-    # Step 10 — next-steps instructions
+    # Step 11 — next-steps instructions
     # ------------------------------------------------------------------
     base_url = status.get('base_url', 'https://app.workato.com').rstrip('/')
     print(f'''
