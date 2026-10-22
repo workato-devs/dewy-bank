@@ -33,7 +33,7 @@ Steps performed (in order):
  10. Run setup_chat_clients.py and save the JSON blob.
  11. Print next-steps instructions.
 """
-import argparse, json, os, re, subprocess, sys
+import argparse, json, os, re, subprocess, sys, urllib.error, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..'))
@@ -80,6 +80,43 @@ def _load_dotenv_value(*keys):
             if k.strip() in keys:
                 return v.strip().strip('"\'')
     return None
+
+
+def _workato_api_base(base_url):
+    """Return the REST API base URL for a given Workato app base URL.
+
+    Regular US:  https://app.workato.com        ->  https://www.workato.com/api
+    Trial/other: https://app.trial.workato.com  ->  https://app.trial.workato.com/api
+    """
+    base = base_url.rstrip('/')
+    if base == 'https://app.workato.com':
+        return 'https://www.workato.com/api'
+    return base + '/api'
+
+
+def _fetch_connection_statuses(api_base, api_token):
+    """Return {connection_name: authorization_status} for all workspace connections.
+
+    Calls GET /api/connections with a Bearer token.  Exits on HTTP or network errors.
+    """
+    url = f'{api_base}/connections'
+    req = urllib.request.Request(url, headers={
+        'Authorization': f'Bearer {api_token}',
+        'Content-Type': 'application/json',
+    })
+    try:
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode()
+        sys.exit(
+            f'Workato API error {exc.code} fetching connections: {body}\n'
+            'Check that WORKATO_API_TOKEN in .env is valid.'
+        )
+    except urllib.error.URLError as exc:
+        sys.exit(f'Workato API network error: {exc.reason}')
+    items = data.get('result', data) if isinstance(data, dict) else data
+    return {c['name']: c.get('authorization_status') for c in items}
 
 
 def extract_old_gen():
@@ -199,6 +236,7 @@ def main():
             '1. Stamp connector files: python3 scripts/stamp_bank_app_url.py ' + bank_url
             + (' --support-api-key <key>' if args.support_api_key else ''),
             '2. Push Workspace Connections: wk push --folder "Workspace Connections" -p ' + profile,
+            '2b. Verify connections authenticated via Workato REST API (WORKATO_API_TOKEN)',
             '3. Discover new connector provider IDs: wk connectors list -p ' + profile,
             '4. Rewrite provider IDs in station-a JSON files in-place',
             '5. Rebuild station-b: python3 scripts/build/build_station_b.py',
@@ -241,6 +279,75 @@ def main():
     # No --skip-hooks here; workspace-connections contains connector files, not recipes.
     wk(profile, 'push', '--folder', 'Workspace Connections')
     print('  done', file=sys.stderr)
+
+    # ------------------------------------------------------------------
+    # Step 2b — verify connections are authenticated
+    # ------------------------------------------------------------------
+    api_token = (os.environ.get('WORKATO_API_TOKEN')
+                 or _load_dotenv_value('WORKATO_API_TOKEN'))
+    if not api_token:
+        print(
+            '\n  WARNING: WORKATO_API_TOKEN not set in .env — skipping connection auth check',
+            file=sys.stderr,
+        )
+    else:
+        app_base_url = status.get('base_url', 'https://app.workato.com').rstrip('/')
+        api_base = _workato_api_base(app_base_url)
+
+        conn_statuses    = _fetch_connection_statuses(api_base, api_token)
+        customer_status  = conn_statuses.get(CUSTOMER_CONN_TITLE)
+        support_status   = conn_statuses.get(SUPPORT_CONN_TITLE)
+        both_ok          = (customer_status == 'success' and support_status == 'success')
+
+        if both_ok:
+            print('\nStep 2b: connections already authenticated ✓', file=sys.stderr)
+        else:
+            lines = ['\nStep 2b: connections need authentication']
+            lines.append(f'  Go to: {app_base_url}/connections')
+            lines.append('  Authenticate:')
+            if customer_status != 'success':
+                lines.append(
+                    f'    • {CUSTOMER_CONN_TITLE} — use your bank app URL + email + password'
+                    f' (current status: {customer_status!r})'
+                )
+            if support_status != 'success':
+                lines.append(
+                    f'    • {SUPPORT_CONN_TITLE} — key is pre-stamped, just click Connect'
+                    f' (current status: {support_status!r})'
+                )
+            lines.append('  Press Enter when both connections show status: Connected...')
+            print('\n'.join(lines), file=sys.stderr)
+
+            try:
+                input()
+            except EOFError:
+                # Non-interactive environment: can't prompt — treat as unrecoverable.
+                sys.exit(
+                    'Running non-interactively; cannot wait for connections to be authenticated.\n'
+                    f'Authenticate both connections at {app_base_url}/connections and re-run.'
+                )
+
+            # Re-check after user input
+            conn_statuses   = _fetch_connection_statuses(api_base, api_token)
+            customer_status = conn_statuses.get(CUSTOMER_CONN_TITLE)
+            support_status  = conn_statuses.get(SUPPORT_CONN_TITLE)
+
+            if customer_status != 'success' or support_status != 'success':
+                errors = []
+                if customer_status != 'success':
+                    errors.append(
+                        f'  • {CUSTOMER_CONN_TITLE}: status={customer_status!r}'
+                    )
+                if support_status != 'success':
+                    errors.append(
+                        f'  • {SUPPORT_CONN_TITLE}: status={support_status!r}'
+                    )
+                sys.exit(
+                    'Connections still not authenticated after re-check:\n'
+                    + '\n'.join(errors)
+                    + f'\nRe-run the script after authenticating both connections at {app_base_url}/connections'
+                )
+            print('  connections: authenticated ✓', file=sys.stderr)
 
     # ------------------------------------------------------------------
     # Step 3 — discover new provider IDs
