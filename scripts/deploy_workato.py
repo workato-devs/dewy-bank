@@ -23,6 +23,9 @@ Usage:
 Steps performed (in order):
   1. Stamp bank URL and public API endpoints into the connector files.
   2. Push Workspace Connections so the connector is live with a fresh provider ID.
+  2a. Ensure both connections exist in the workspace (creates shell connections via the
+      REST API if wk push skipped them because they were already in its local hash cache).
+  2b. Prompt the user to authenticate both connections in the Workato UI.
   3. Discover the new provider IDs via ``wk connectors list``.
   4. Rewrite provider IDs in station-a JSON files in-place.
   5. Rebuild station-b (reads GEN dynamically from station-a, gets new ID automatically).
@@ -97,6 +100,9 @@ def _workato_api_base(base_url):
 def _fetch_connection_statuses(api_base, api_token):
     """Return {connection_name: authorization_status} for all workspace connections.
 
+    A name present in the dict means the connection exists (status may be None
+    if unauthenticated).  A name absent from the dict means it doesn't exist at all.
+
     Calls GET /api/connections with a Bearer token.  Exits on HTTP or network errors.
     """
     url = f'{api_base}/connections'
@@ -117,6 +123,70 @@ def _fetch_connection_statuses(api_base, api_token):
         sys.exit(f'Workato API network error: {exc.reason}')
     items = data.get('result', data) if isinstance(data, dict) else data
     return {c['name']: c.get('authorization_status') for c in items}
+
+
+def _read_wk_folder_id(server_path_name):
+    """Return the folder_id for the named [[sync]] entry from .wk/wk.toml, or None.
+
+    wk link / wk push writes workspace-specific folder_id values into wk.toml.
+    This reads the value for the given server_path so we can target the right
+    Workato folder when creating connections via the REST API.
+    """
+    toml_path = os.path.join(ROOT, '.wk', 'wk.toml')
+    if not os.path.exists(toml_path):
+        return None
+    current_block = {}
+    in_sync = False
+    with open(toml_path) as f:
+        for line in f:
+            line = line.strip()
+            if line == '[[sync]]':
+                if in_sync and current_block.get('server_path') == server_path_name:
+                    return current_block.get('folder_id')
+                current_block = {}
+                in_sync = True
+            elif in_sync and '=' in line and not line.startswith('#'):
+                k, _, v = line.partition('=')
+                k = k.strip()
+                v = v.strip().strip("'\"")
+                if k == 'folder_id':
+                    try:
+                        current_block[k] = int(v)
+                    except ValueError:
+                        pass
+                elif k == 'server_path':
+                    current_block[k] = v
+    # Check the last [[sync]] block
+    if in_sync and current_block.get('server_path') == server_path_name:
+        return current_block.get('folder_id')
+    return None
+
+
+def _create_shell_connection(api_base, api_token, name, provider, folder_id):
+    """Create a new unauthenticated (shell) connection via the Workato REST API.
+
+    A shell connection exists in the workspace and can be found by recipes, but
+    requires the user to authenticate it in the Workato UI before it can be used.
+    """
+    url = f'{api_base}/connections'
+    payload = json.dumps({
+        'name': name,
+        'provider': provider,
+        'folder_id': folder_id,
+        'shell_connection': True,
+    }).encode()
+    req = urllib.request.Request(url, data=payload, method='POST', headers={
+        'Authorization': f'Bearer {api_token}',
+        'Content-Type': 'application/json',
+    })
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode()
+        sys.exit(f'Workato API error {exc.code} creating connection "{name}": {body}')
+    except urllib.error.URLError as exc:
+        sys.exit(f'Workato API network error creating connection "{name}": {exc.reason}')
 
 
 def extract_old_gen():
@@ -236,6 +306,7 @@ def main():
             '1. Stamp connector files: python3 scripts/stamp_bank_app_url.py ' + bank_url
             + (' --support-api-key <key>' if args.support_api_key else ''),
             '2. Push Workspace Connections: wk push --folder "Workspace Connections" -p ' + profile,
+            '2a. Ensure connections exist (POST /api/connections if missing) via WORKATO_API_TOKEN',
             '2b. Verify connections authenticated via Workato REST API (WORKATO_API_TOKEN)',
             '3. Discover new connector provider IDs: wk connectors list -p ' + profile,
             '4. Rewrite provider IDs in station-a JSON files in-place',
@@ -280,21 +351,80 @@ def main():
     wk(profile, 'push', '--folder', 'Workspace Connections')
     print('  done', file=sys.stderr)
 
+    # Discover connector IDs right after push — needed both for step 2a (creating
+    # connections via the REST API) and for step 3 (remapping provider IDs).
+    # Results are reported in the Step 3 block below.
+    connectors = {c['title']: c['name'] for c in wk(profile, 'connectors', 'list')}
+    new_gen         = connectors.get(CUSTOMER_CONN_TITLE)
+    new_support_gen = connectors.get(SUPPORT_CONN_TITLE)
+    if not new_gen:
+        sys.exit(
+            f'connector "{CUSTOMER_CONN_TITLE}" not found after push. '
+            'Check that workspace-connections pushed cleanly.'
+        )
+    if not new_support_gen:
+        sys.exit(
+            f'connector "{SUPPORT_CONN_TITLE}" not found after push. '
+            'Check that workspace-connections pushed cleanly and that '
+            'the Support API connector is present in workspace-connections/.'
+        )
+
     # ------------------------------------------------------------------
-    # Step 2b — verify connections are authenticated
+    # Step 2a — ensure connections exist
+    #
+    # wk push tracks file hashes in .wk/<folder>/*.meta.json.  If connections
+    # were manually deleted from the Workato workspace, the hashes still match
+    # and wk reports the files as "unchanged" — it never re-creates the
+    # connection objects.  This step fills that gap by creating each missing
+    # connection as a shell (unauthenticated) connection via the REST API.
+    # Step 2b then prompts the user to authenticate them.
     # ------------------------------------------------------------------
     api_token = (os.environ.get('WORKATO_API_TOKEN')
                  or _load_dotenv_value('WORKATO_API_TOKEN'))
+    app_base_url = status.get('base_url', 'https://app.workato.com').rstrip('/')
+    api_base     = _workato_api_base(app_base_url)
+
     if not api_token:
         print(
-            '\n  WARNING: WORKATO_API_TOKEN not set in .env — skipping connection auth check',
+            '\n  WARNING: WORKATO_API_TOKEN not set in .env — '
+            'skipping connection creation and auth check.\n'
+            f'  Create "{CUSTOMER_CONN_TITLE}" and "{SUPPORT_CONN_TITLE}" '
+            f'connections manually at {app_base_url}/connections before continuing.',
             file=sys.stderr,
         )
+        conn_statuses = {}
     else:
-        app_base_url = status.get('base_url', 'https://app.workato.com').rstrip('/')
-        api_base = _workato_api_base(app_base_url)
+        print('\nStep 2a: ensuring connections exist...', file=sys.stderr)
+        conn_statuses = _fetch_connection_statuses(api_base, api_token)
 
-        conn_statuses    = _fetch_connection_statuses(api_base, api_token)
+        folder_id = _read_wk_folder_id('Workspace Connections')
+        if folder_id is None:
+            sys.exit(
+                'Cannot determine folder_id for "Workspace Connections" from .wk/wk.toml.\n'
+                'Run `wk link -p <profile>` first to populate workspace IDs, then re-run.'
+            )
+
+        created = []
+        for conn_name, provider_id in (
+            (CUSTOMER_CONN_TITLE, new_gen),
+            (SUPPORT_CONN_TITLE,  new_support_gen),
+        ):
+            if conn_name not in conn_statuses:
+                print(f'  creating shell connection: {conn_name!r}', file=sys.stderr)
+                _create_shell_connection(api_base, api_token, conn_name, provider_id, folder_id)
+                created.append(conn_name)
+            else:
+                print(f'  {conn_name!r}: already exists', file=sys.stderr)
+
+        if created:
+            # Re-fetch so conn_statuses reflects the newly created connections.
+            conn_statuses = _fetch_connection_statuses(api_base, api_token)
+        print('  done', file=sys.stderr)
+
+    # ------------------------------------------------------------------
+    # Step 2b — verify connections are authenticated
+    # ------------------------------------------------------------------
+    if api_token:
         customer_status  = conn_statuses.get(CUSTOMER_CONN_TITLE)
         support_status   = conn_statuses.get(SUPPORT_CONN_TITLE)
         both_ok          = (customer_status == 'success' and support_status == 'success')
@@ -350,24 +480,9 @@ def main():
             print('  connections: authenticated ✓', file=sys.stderr)
 
     # ------------------------------------------------------------------
-    # Step 3 — discover new provider IDs
+    # Step 3 — report discovered provider IDs (fetched after step 2 above)
     # ------------------------------------------------------------------
     print('\nStep 3: discovering new connector provider IDs...', file=sys.stderr)
-    connectors = {c['title']: c['name'] for c in wk(profile, 'connectors', 'list')}
-    new_gen         = connectors.get(CUSTOMER_CONN_TITLE)
-    new_support_gen = connectors.get(SUPPORT_CONN_TITLE)
-
-    if not new_gen:
-        sys.exit(
-            f'connector "{CUSTOMER_CONN_TITLE}" not found after push. '
-            'Check that workspace-connections pushed cleanly.'
-        )
-    if not new_support_gen:
-        sys.exit(
-            f'connector "{SUPPORT_CONN_TITLE}" not found after push. '
-            'Check that workspace-connections pushed cleanly and that '
-            'the Support API connector is present in workspace-connections/.'
-        )
     print(f'  customer API new ID : {new_gen}', file=sys.stderr)
     print(f'  support  API new ID : {new_support_gen}', file=sys.stderr)
 
