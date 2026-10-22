@@ -517,304 +517,13 @@
       /* ---------- Cols layout ---------- */
       .cols {
         display: grid;
-        grid-template-columns: 1.6fr 1fr;
+        grid-template-columns: 1fr;
         gap: 18px;
         flex: 1;
       }
-      /* Right column holds the chat card and stretches to grid row height */
-      .chat-col {
-        display: flex;
-        flex-direction: column;
-      }
-
-      /* ---------- Chat panel ---------- */
-      .chat {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        margin-bottom: 0;
-      }
-      .chat h2 {
-        flex-wrap: wrap;
-      }
-      .chat-station {
-        width: auto;
-        font-size: 13px;
-        padding: 6px 10px;
-      }
-      .chat-setup {
-        background: var(--surface-2);
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 14px;
-        margin-bottom: 14px;
-      }
-      .chat-setup textarea {
-        width: 100%;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 10px;
-        resize: vertical;
-        margin-bottom: 10px;
-      }
-      #chatSubtitle {
-        font-size: 13px;
-        color: var(--muted);
-        margin: 2px 0 8px;
-      }
-      .chat-log {
-        flex: 1;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        padding: 4px 2px 12px;
-      }
-      /* Thin scrollbar */
-      .chat-log::-webkit-scrollbar {
-        width: 4px;
-      }
-      .chat-log::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .chat-log::-webkit-scrollbar-thumb {
-        background: var(--line);
-        border-radius: 4px;
-      }
-      .chat-empty {
-        color: var(--faint);
-        font-size: 13px;
-      }
-
-      /* ---------- Bubble styles ---------- */
-      .bubble-wrap {
-        display: flex;
-        flex-direction: column;
-      }
-      .bubble-wrap.me-wrap {
-        align-items: flex-end;
-      }
-      .bubble-wrap.dewy-wrap {
-        align-items: flex-start;
-      }
-      .bubble-label {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--muted);
-        margin-bottom: 2px;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-      }
-      .bubble {
-        max-width: 75%;
-        border-radius: 18px;
-        font-size: 15px;
-        line-height: 1.5;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-      }
-      .bubble.me {
-        align-self: flex-end;
-        background: var(--brand);
-        color: #fff;
-        padding: 12px 16px;
-        border-radius: 18px;
-        border-bottom-right-radius: 4px;
-      }
-      .bubble.dewy {
-        align-self: flex-start;
-        background: #f1f5f9;
-        padding: 12px 16px;
-        border-radius: 18px;
-        border-bottom-left-radius: 4px;
-        white-space: normal;
-      }
-      .bubble.status {
-        align-self: center;
-        background: var(--surface-2);
-        border: 1px solid var(--line);
-        color: var(--muted);
-        font-size: 13px;
-        font-style: italic;
-        padding: 6px 14px;
-        border-radius: 999px;
-      }
-      .bubble.confirm {
-        align-self: flex-start;
-        background: var(--brand-050);
-        border: 1px solid var(--line);
-        padding: 12px 16px;
-      }
-      .bubble.confirm .acts {
-        display: flex;
-        gap: 8px;
-        margin-top: 10px;
-      }
-
-      /* Animated "thinking" indicator — 3 bouncing dots, in-flow at the end of the list */
-      .bubble.thinking {
-        align-self: flex-start;
-        background: var(--surface-2);
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        border-bottom-left-radius: 4px;
-        padding: 12px 16px;
-        display: flex;
-        gap: 5px;
-        align-items: center;
-      }
-      .bubble.thinking span {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--faint);
-        display: inline-block;
-        animation: thinking-bounce 1.1s ease-in-out infinite;
-      }
-      .bubble.thinking span:nth-child(2) {
-        animation-delay: 0.18s;
-      }
-      .bubble.thinking span:nth-child(3) {
-        animation-delay: 0.36s;
-      }
-      @keyframes thinking-bounce {
-        0%,
-        60%,
-        100% {
-          transform: translateY(0);
-          opacity: 0.6;
-        }
-        30% {
-          transform: translateY(-5px);
-          opacity: 1;
-        }
-      }
-
-      /* Code blocks inside chat */
-      .chat-log code {
-        background: #f8fafc;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 2px 6px;
-        font-family: ui-monospace, "SF Mono", Menlo, monospace;
-        font-size: 13px;
-      }
-      .chat-log pre {
-        background: #f8fafc;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 12px;
-        overflow-x: auto;
-        font-family: ui-monospace, "SF Mono", Menlo, monospace;
-        font-size: 13px;
-        line-height: 1.5;
-        margin: 6px 0;
-      }
-      .chat-log pre code {
-        background: none;
-        border: none;
-        padding: 0;
-        font-size: inherit;
-      }
-
-      /* --- Markdown content inside Dewy chat bubbles --- */
-
-      /* Tables */
-      .chat-log .bubble.dewy table {
-        border-collapse: collapse;
-        width: 100%;
-        margin: 8px 0;
-      }
-      .chat-log .bubble.dewy th,
-      .chat-log .bubble.dewy td {
-        border: 1px solid var(--line);
-        padding: 6px 10px;
-        font-size: 13px;
-      }
-      .chat-log .bubble.dewy tr:nth-child(even) {
-        background: var(--surface-2);
-      }
-
-      /* Inline text */
-      .chat-log .bubble.dewy strong {
-        font-weight: 700;
-      }
-      .chat-log .bubble.dewy em {
-        font-style: italic;
-      }
-
-      /* Inline code */
-      .chat-log .bubble.dewy code {
-        font-family: ui-monospace, "SF Mono", Menlo, monospace;
-        background: var(--surface-2);
-        border: 1px solid var(--line);
-        border-radius: 4px;
-        padding: 1px 4px;
-        font-size: 13px;
-      }
-
-      /* Code blocks */
-      .chat-log .bubble.dewy pre {
-        background: var(--surface-2);
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 10px 12px;
-        overflow-x: auto;
-        font-size: 13px;
-      }
-      .chat-log .bubble.dewy pre code {
-        background: none;
-        border: none;
-        padding: 0;
-      }
-
-      /* Lists */
-      .chat-log .bubble.dewy ul,
-      .chat-log .bubble.dewy ol {
-        margin: 6px 0;
-        padding-left: 20px;
-      }
-      .chat-log .bubble.dewy li {
-        margin: 2px 0;
-      }
-
-      /* Paragraph spacing from marked's <p> wrappers */
-      .chat-log .bubble.dewy p {
-        margin: 4px 0;
-      }
-
-      /* Chat input bar */
-      .chat-input {
-        display: flex;
-        gap: 10px;
-        flex-shrink: 0;
-        align-items: center;
-        padding: 12px 0 4px;
-      }
-      .chat-input input {
-        flex: 1;
-        width: auto;
-        padding: 12px 16px;
-        border-radius: 24px;
-        font-size: 15px;
-      }
-      #chatSend {
-        border-radius: 24px;
-        padding: 11px 20px;
-        font-size: 15px;
-        flex-shrink: 0;
-      }
-      .chat button.sm {
+      .button.sm {
         padding: 6px 10px;
         font-size: 12px;
-      }
-      .chat .note {
-        font-size: 12px;
-        color: var(--muted);
-        margin: 0 0 10px;
-      }
-      .chat-setup .wide {
-        width: 100%;
       }
       .row > .field {
         flex: 1;
@@ -1008,9 +717,6 @@
         .cols {
           grid-template-columns: 1fr;
         }
-        .chat-col {
-          min-height: 420px;
-        }
       }
     </style>
   </head>
@@ -1201,67 +907,50 @@
               <h2>📊 Spending this month</h2>
               <div class="spend" id="spend">—</div>
             </div>
-          </div>
 
-          <!-- Right column: chat panel (fills remaining height) -->
-          <div class="chat-col">
-            <div class="card chat" id="chatCard">
+            <div class="card">
               <h2>
-                <img
-                  class="dewy"
-                  src="dewy-genie.png"
-                  alt=""
-                  style="width: 22px; height: 22px"
-                />
+                <img class="dewy" src="dewy-base.svg" alt="" />
                 Ask Dewy
-                <select
-                  id="chatStation"
-                  class="chat-station"
-                  aria-label="Station"
-                ></select>
-                <button id="chatClearBtn" class="ghost sm">Clear chat</button>
                 <button
                   id="chatSetupToggle"
                   class="ghost sm"
                   style="margin-left: auto"
                 >
-                  Set up chat
+                  Set up
                 </button>
               </h2>
-              <div id="chatSubtitle"></div>
-              <div id="chatSetup" class="chat-setup hide">
-                <p class="note" style="margin-top: 0">
+              <div id="chatSetup" class="hide">
+                <p>
                   Paste the setup text your facilitator's script printed for you
                   (it starts with <span class="mono">{"version": 1</span>). You
                   only need to do this once.
                 </p>
                 <textarea
                   id="chatBlob"
-                  rows="4"
                   class="mono"
+                  rows="4"
+                  style="
+                    width: 100%;
+                    border: 1px solid var(--line);
+                    border-radius: 10px;
+                    padding: 10px;
+                    resize: vertical;
+                    margin-bottom: 10px;
+                  "
                   placeholder='{"version": 1, "genie_api_host": "…", "idp_user_id": "…", "stations": {…}}'
                 ></textarea>
                 <button id="chatSaveBlob" class="wide">Save</button>
                 <div id="chatSetupMsg"></div>
               </div>
-              <div id="chatLog" class="chat-log" aria-live="polite">
-                <div class="chat-empty">Pick a station and say hello.</div>
-              </div>
-              <div class="chat-input">
-                <input
-                  id="chatText"
-                  placeholder="Ask about your accounts…"
-                  maxlength="4000"
-                />
-                <button id="chatSend">Send</button>
-              </div>
-              <div id="chatMsg"></div>
             </div>
           </div>
         </div>
       </main>
     </div>
 
+    <link id="wk-chat-widget-css" rel="stylesheet" href="chat-widget.css" />
+    <script src="chat-widget.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
     <script src="config.js"></script>

@@ -246,13 +246,15 @@
     logout();
   };
   function logout() {
+    window.WkChatWidget &&
+      window.WkChatWidget.reset &&
+      window.WkChatWidget.reset();
     idToken = null;
     accessToken = null;
     refreshToken = null;
     sessionStorage.removeItem("dewy_id_token");
     sessionStorage.removeItem("dewy_access_token");
     sessionStorage.removeItem("dewy_refresh_token");
-    if (typeof chatReset === "function") chatReset();
     hide($("appShell"));
     show($("authScreen"));
   }
@@ -260,6 +262,16 @@
   // ---- App -------------------------------------------------------------
   var accountsCache = [];
   var selectedAcct = null;
+
+  var STATION_LABELS = {
+    A1: "A1 · Station A, flaw",
+    A2: "A2 · Station A, fix",
+    B1: "B1 · Station B, flaw",
+    B2: "B2 · Station B, fix",
+    C1: "C1 · Station C, flaw",
+    C2: "C2 · Station C, fix",
+  };
+  var _chatWidgetInited = false;
 
   function enterApp() {
     hide($("authScreen"));
@@ -538,461 +550,43 @@
     );
   }
 
-  // ---- Chat panel (P8) -------------------------------------------------
-  // Talks to the participant's own Genies through the bank's /chat proxy; the
-  // browser never holds a Workato key. Sending is asynchronous, so after each
-  // send the panel polls /chat/events until the turn finishes. Every Genie
-  // reply is set with textContent, never as HTML.
-  var STATIONS = [
-    ["A1", "A1 · Station A, flaw"],
-    ["A2", "A2 · Station A, fix"],
-    ["B1", "B1 · Station B, flaw"],
-    ["B2", "B2 · Station B, fix"],
-    ["C1", "C1 · Station C, flaw"],
-    ["C2", "C2 · Station C, fix"],
-  ];
-  var chat = {
-    configured: {},
-    conversations: {},
-    since: {},
-    seen: {},
-    polling: null,
-    busy: false,
-    thinkingBubble: null,
-  };
+  // ---- Chat widget -------------------------------------------------------
+  // Calls the bank's /me/genie-clients endpoint to retrieve which stations are
+  // configured for this user, then hands the result to initChatWidget(). The
+  // floating widget (chat-widget.js) handles all conversation UI.
 
   function chatLoad() {
-    console.log("[chat] init");
-    try {
-      var saved = sessionStorage.getItem("dewy_chat_transcripts");
-      if (saved) {
-        transcripts = JSON.parse(saved);
-        var n = Object.keys(transcripts).reduce(function (s, k) {
-          return s + transcripts[k].length;
-        }, 0);
-        console.log("[chat] restored " + n + " messages from session storage");
-      }
-    } catch (e) {}
     api("GET", "/me/genie-clients")
       .then(function (r) {
-        chat.configured = r.stations || {};
-        renderStations();
+        initChatWidget(r.stations || {});
       })
       .catch(function (e) {
-        msg($("chatMsg"), e.message, false);
+        console.warn("[chat] load failed:", e.message);
       });
   }
 
-  function updateChatSubtitle() {
-    var stationKey = $("chatStation").value;
-    var entry = STATIONS.filter(function (s) {
-      return s[0] === stationKey;
-    })[0];
-    $("chatSubtitle").textContent = entry ? entry[1] : "";
-  }
-
-  function renderStations() {
-    var sel = $("chatStation"),
-      current = sel.value;
-    var ready = STATIONS.filter(function (s) {
-      return chat.configured[s[0]];
-    });
-    sel.innerHTML = DOMPurify.sanitize(
-      ready
-        .map(function (s) {
-          return '<option value="' + esc(s[0]) + '">' + esc(s[1]) + "</option>";
-        })
-        .join(""),
-    );
-    if (
-      ready.some(function (s) {
-        return s[0] === current;
-      })
-    )
-      sel.value = current;
-    var any = ready.length > 0;
-    sel.classList.toggle("hide", !any);
-    $("chatText").disabled = $("chatSend").disabled = !any;
-    if (!any) {
-      show($("chatSetup"));
-      chatStatusOnly("Set up chat to talk to your stations.");
-    } else {
-      updateChatSubtitle();
-      chatRedraw();
-    }
-  }
-
-  // bubble() appends a message to the chat log and returns the bubble element.
-  // For 'me' and 'dewy' kinds it adds a small sender label above the bubble.
-  function bubble(kind, text) {
-    var log = $("chatLog");
-    var empty = log.querySelector(".chat-empty");
-    if (empty) empty.remove();
-    var el = document.createElement("div");
-    el.className = "bubble " + kind;
-    if (kind === "dewy") {
-      el.innerHTML = DOMPurify.sanitize(marked.parse(text));
-    } else {
-      el.textContent = text;
-    }
-
-    if (kind === "me" || kind === "dewy") {
-      var wrap = document.createElement("div");
-      wrap.className =
-        "bubble-wrap " + (kind === "me" ? "me-wrap" : "dewy-wrap");
-      var label = document.createElement("div");
-      label.className = "bubble-label";
-      if (kind === "me") {
-        label.textContent = "You";
-      } else {
-        label.textContent = $("chatStation").value || "Dewy";
-      }
-      wrap.appendChild(label);
-      wrap.appendChild(el);
-      var anchor =
-        chat.thinkingBubble && log.contains(chat.thinkingBubble)
-          ? chat.thinkingBubble
-          : null;
-      if (anchor) {
-        log.insertBefore(wrap, anchor);
-      } else {
-        log.appendChild(wrap);
-      }
-    } else {
-      var anchor2 =
-        chat.thinkingBubble && log.contains(chat.thinkingBubble)
-          ? chat.thinkingBubble
-          : null;
-      if (anchor2) {
-        log.insertBefore(el, anchor2);
-      } else {
-        log.appendChild(el);
-      }
-    }
-
-    log.scrollTop = log.scrollHeight;
-    return el;
-  }
-
-  function chatStatusOnly(text) {
-    $("chatLog").textContent = "";
-    chat.thinkingBubble = null; // DOM was cleared
-    var el = document.createElement("div");
-    el.className = "chat-empty";
-    el.textContent = text;
-    $("chatLog").appendChild(el);
-  }
-
-  // Animated "thinking" indicator: 3 bouncing dots appended at the end of the
-  // message list (in-flow, not positioned). The inner HTML is a static literal —
-  // no user input reaches it, so no sanitisation is needed here.
-  function bubbleThinking() {
-    var empty = $("chatLog").querySelector(".chat-empty");
-    if (empty) empty.remove();
-    var el = document.createElement("div");
-    el.className = "bubble thinking";
-    el.setAttribute("aria-label", "Dewy is thinking");
-    el.innerHTML = "<span></span><span></span><span></span>"; // static literal — safe
-    $("chatLog").appendChild(el);
-    $("chatLog").scrollTop = $("chatLog").scrollHeight;
-    return el;
-  }
-
-  // Each station keeps its own transcript for this session.
-  var transcripts = {};
-  function record(station, kind, text, extra) {
-    console.log("[chat] record station=%s kind=%s", station, kind);
-    (transcripts[station] = transcripts[station] || []).push({
-      kind: kind,
-      text: text,
-      extra: extra,
-    });
-    if ($("chatStation").value === station)
-      drawEntry(station, transcripts[station][transcripts[station].length - 1]);
-    try {
-      sessionStorage.setItem(
-        "dewy_chat_transcripts",
-        JSON.stringify(transcripts),
-      );
-    } catch (e) {}
-  }
-
-  function chatRedraw() {
-    var station = $("chatStation").value;
-    var list = transcripts[station] || [];
-    if (!list.length) {
-      chatStatusOnly("Say hello to " + station + ".");
-      return;
-    }
-    $("chatLog").textContent = "";
-    chat.thinkingBubble = null; // DOM was cleared
-    list.forEach(function (e) {
-      drawEntry(station, e);
-    });
-    // Re-attach the animated thinking bubble if a request is still in flight
-    if (chat.busy) {
-      chat.thinkingBubble = bubbleThinking();
-    }
-  }
-
-  function drawEntry(station, e) {
-    if (e.kind !== "confirm") {
-      bubble(e.kind, e.text);
-      return;
-    }
-    var el = bubble("confirm", e.text);
-    if (e.extra.answered) return;
-    var acts = document.createElement("div");
-    acts.className = "acts";
-    [
-      ["approved", "Approve", ""],
-      ["rejected", "Decline", "ghost"],
-    ].forEach(function (b) {
-      var btn = document.createElement("button");
-      btn.textContent = b[1];
-      if (b[2]) btn.className = b[2];
-      btn.onclick = function () {
-        answerConfirmation(station, e, b[0]);
+  function initChatWidget(stationsFromApi) {
+    var stations = {};
+    Object.keys(stationsFromApi).forEach(function (handle) {
+      var s = stationsFromApi[handle];
+      stations[handle] = {
+        name: STATION_LABELS[handle] || handle,
+        genie_id: s.genie_id,
+        api_key: s.api_key,
       };
-      acts.appendChild(btn);
     });
-    el.appendChild(acts);
-  }
-
-  function chatSend() {
-    var station = $("chatStation").value,
-      text = $("chatText").value.trim();
-    if (!station || !text || chat.busy) return;
-    console.log("[chat] send station=%s text=%s", station, text);
-    chat.busy = true;
-    $("chatSend").disabled = true;
-    msg($("chatMsg"), "");
-    record(station, "me", text);
-    // Show animated thinking indicator immediately after the user message
-    chat.thinkingBubble = bubbleThinking();
-    $("chatText").value = "";
-    api("POST", "/chat", {
-      station: station,
-      message: text,
-      conversation: chat.conversations[station],
-    })
-      .then(function (r) {
-        chat.conversations[station] = r.conversation;
-        pollEvents(station, r.run);
-      })
-      .catch(function (e) {
-        console.error("[chat] error: " + e.message);
-        msg($("chatMsg"), e.message, false);
-        chatDone();
-      });
-  }
-
-  function answerConfirmation(station, entry, resolution) {
-    entry.extra.answered = true;
-    chatRedraw();
-    record(
-      station,
-      "status",
-      resolution === "approved" ? "You approved it." : "You declined it.",
-    );
-    api("POST", "/chat", {
-      station: station,
-      conversation: chat.conversations[station],
-      approval: { call_id: entry.extra.callId, resolution: resolution },
-    })
-      .then(function () {
-        pollEvents(station);
-      })
-      .catch(function (e) {
-        msg($("chatMsg"), e.message, false);
-      });
-  }
-
-  // Workato's event payloads are relayed as is; read them defensively.
-  function eventsOf(r) {
-    var x = r.events;
-    if (Array.isArray(x)) return x;
-    return (x && (x.events || x.data || x.items)) || [];
-  }
-  function field(e, names) {
-    for (var i = 0; i < names.length; i++) {
-      var path = names[i].split("."),
-        v = e;
-      for (var j = 0; j < path.length && v != null; j++) v = v[path[j]];
-      if (v != null && v !== "") return v;
-    }
-    return null;
-  }
-
-  // The events feed has no end-of-turn event: a turn ends with its run's agent.message
-  // (observed 2026-10-22; processing.finished never arrives). Without the run's ID, the
-  // next agent.message ends the turn.
-  function pollEvents(station, run) {
-    clearTimeout(chat.polling);
-    var started = Date.now();
-    var messageCount = 0;
-
-    (function tick() {
-      var conv = chat.conversations[station];
-      var q =
-        "?station=" +
-        encodeURIComponent(station) +
-        "&conversation=" +
-        encodeURIComponent(conv) +
-        (chat.since[conv]
-          ? "&since=" + encodeURIComponent(chat.since[conv])
-          : "");
-      api("GET", "/chat/events" + q)
-        .then(function (r) {
-          var finished = false,
-            seen = (chat.seen[conv] = chat.seen[conv] || {});
-          eventsOf(r).forEach(function (e) {
-            var type = field(e, ["type", "event", "event_type", "name"]);
-            var id = field(e, ["seq_num", "id"]);
-            var key =
-              id != null ? String(id) : type + "|" + field(e, ["created_at"]);
-            if (seen[key]) return;
-            seen[key] = true;
-            var at = field(e, ["created_at", "createdAt"]);
-            if (at) chat.since[conv] = at;
-
-            console.log("[chat] event type=%s id=%s", type, id);
-
-            if (type === "agent.message") {
-              // Keep thinkingBubble visible until chatDone() — do NOT remove it here.
-              var text = field(e, [
-                "data.message",
-                "data.content",
-                "data.text",
-                "message",
-                "content",
-                "text",
-                "payload.message",
-              ]);
-              if (text) {
-                record(
-                  station,
-                  "dewy",
-                  typeof text === "string" ? text : JSON.stringify(text),
-                );
-                messageCount++;
-              }
-              // No finished = true. Turn ends on status check below, processing.finished,
-              // or skill.confirmation_required.
-            } else if (type === "skill.confirmation_required") {
-              if (chat.thinkingBubble) {
-                chat.thinkingBubble.remove();
-                chat.thinkingBubble = null;
-              }
-              var callId = field(e, [
-                "data.call_id",
-                "call_id",
-                "data.id",
-                "payload.call_id",
-              ]);
-              var skill = field(e, [
-                "data.skill_name",
-                "data.skill",
-                "skill_name",
-                "data.name",
-              ]);
-              record(
-                station,
-                "confirm",
-                "Dewy wants to run " + (skill || "a tool") + ". Approve?",
-                { callId: callId, answered: false },
-              );
-              finished = true; // the turn pauses until the person answers
-            } else if (type === "processing.finished") {
-              if (chat.thinkingBubble) {
-                chat.thinkingBubble.remove();
-                chat.thinkingBubble = null;
-              }
-              finished = true;
-            }
-          });
-          if (finished) {
-            chatDone();
-            return;
-          }
-          // Check top-level status from the Lambda response
-          var status = r.status || null;
-          console.log(
-            "[chat] poll: status=" + status + ", messages=" + messageCount,
-          );
-          if (status === "completed" || status === "waiting_for_customer") {
-            console.log("[chat] poll: turn complete");
-            chatDone();
-            return;
-          }
-          if (Date.now() - started > 120000) {
-            if (chat.thinkingBubble) {
-              chat.thinkingBubble.remove();
-              chat.thinkingBubble = null;
-            }
-            record(station, "status", "No reply yet. Try again in a moment.");
-            chatDone();
-            return;
-          }
-          chat.polling = setTimeout(tick, 1200);
-        })
-        .catch(function (e) {
-          console.error("[chat] error: " + e.message);
-          if (chat.thinkingBubble) {
-            chat.thinkingBubble.remove();
-            chat.thinkingBubble = null;
-          }
-          msg($("chatMsg"), e.message, false);
-          chatDone();
-        });
-    })();
-  }
-
-  function chatDone() {
-    console.log("[chat] done");
-    if (chat.thinkingBubble) {
-      chat.thinkingBubble.remove();
-      chat.thinkingBubble = null;
-    }
-    chat.busy = false;
-    $("chatSend").disabled = false;
-    var log = $("chatLog");
-    log.scrollTop = log.scrollHeight;
-  }
-
-  function chatReset() {
-    sessionStorage.removeItem("dewy_chat_transcripts");
-    clearTimeout(chat.polling);
-    chat = {
-      configured: {},
-      conversations: {},
-      since: {},
-      seen: {},
-      polling: null,
-      busy: false,
-      thinkingBubble: null,
+    var config = {
+      apiUrl: API,
+      idToken: idToken,
+      stations: stations,
     };
-    transcripts = {};
-    chatStatusOnly("Pick a station and say hello.");
+    if (!_chatWidgetInited && window.WkChatWidget) {
+      _chatWidgetInited = true;
+      window.WkChatWidget.init(config);
+    } else if (window.WkChatWidget) {
+      window.WkChatWidget.setConfig(config);
+    }
   }
-
-  $("chatSend").onclick = chatSend;
-  $("chatText").onkeydown = function (e) {
-    if (e.key === "Enter") chatSend();
-  };
-  $("chatStation").onchange = function () {
-    var station = $("chatStation").value;
-    var msgs = (transcripts[station] || []).length;
-    console.log(
-      "[chat] switched to " + station + ", restored " + msgs + " messages",
-    );
-    updateChatSubtitle();
-    chatRedraw();
-  };
-  $("chatClearBtn").onclick = function () {
-    chatReset();
-    chatLoad();
-  };
   $("chatSetupToggle").onclick = function () {
     $("chatSetup").classList.toggle("hide");
   };
@@ -1012,10 +606,9 @@
     api("PUT", "/me/genie-clients", blob)
       .then(function (r) {
         $("chatBlob").value = "";
-        chat.configured = r.stations || {};
         msg($("chatSetupMsg"), "Saved \u2713", true);
         hide($("chatSetup"));
-        renderStations();
+        initChatWidget(r.stations || {});
       })
       .catch(function (e) {
         msg($("chatSetupMsg"), e.message, false);
