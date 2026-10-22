@@ -621,9 +621,25 @@
       }
       wrap.appendChild(label);
       wrap.appendChild(el);
-      log.appendChild(wrap);
+      var anchor =
+        chat.thinkingBubble && log.contains(chat.thinkingBubble)
+          ? chat.thinkingBubble
+          : null;
+      if (anchor) {
+        log.insertBefore(wrap, anchor);
+      } else {
+        log.appendChild(wrap);
+      }
     } else {
-      log.appendChild(el);
+      var anchor2 =
+        chat.thinkingBubble && log.contains(chat.thinkingBubble)
+          ? chat.thinkingBubble
+          : null;
+      if (anchor2) {
+        log.insertBefore(el, anchor2);
+      } else {
+        log.appendChild(el);
+      }
     }
 
     log.scrollTop = log.scrollHeight;
@@ -767,6 +783,7 @@
   function pollEvents(station, run) {
     clearTimeout(chat.polling);
     var started = Date.now();
+    var messageCount = 0;
 
     (function tick() {
       var conv = chat.conversations[station];
@@ -795,11 +812,7 @@
             console.log("[chat] event type=%s id=%s", type, id);
 
             if (type === "agent.message") {
-              // Remove the thinking placeholder on the first agent message
-              if (chat.thinkingBubble) {
-                chat.thinkingBubble.remove();
-                chat.thinkingBubble = null;
-              }
+              // Keep thinkingBubble visible until chatDone() — do NOT remove it here.
               var text = field(e, [
                 "data.message",
                 "data.content",
@@ -815,12 +828,10 @@
                   "dewy",
                   typeof text === "string" ? text : JSON.stringify(text),
                 );
+                messageCount++;
               }
-              if (
-                !run ||
-                field(e, ["genie_run_id", "data.genie_run_id"]) === run
-              )
-                finished = true;
+              // No finished = true. Turn ends on status check below, processing.finished,
+              // or skill.confirmation_required.
             } else if (type === "skill.confirmation_required") {
               if (chat.thinkingBubble) {
                 chat.thinkingBubble.remove();
@@ -854,6 +865,16 @@
             }
           });
           if (finished) {
+            chatDone();
+            return;
+          }
+          // Check top-level status from the Lambda response
+          var status = r.status || null;
+          console.log(
+            "[chat] poll: status=" + status + ", messages=" + messageCount,
+          );
+          if (status === "completed" || status === "waiting_for_customer") {
+            console.log("[chat] poll: turn complete");
             chatDone();
             return;
           }
