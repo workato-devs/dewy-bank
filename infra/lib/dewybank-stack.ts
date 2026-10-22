@@ -1,22 +1,22 @@
-import * as path from 'path';
-import * as cdk from 'aws-cdk-lib/core';
-import { Construct } from 'constructs';
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import * as cognito from 'aws-cdk-lib/aws-cognito';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import * as iam from 'aws-cdk-lib/aws-iam';
-import * as events from 'aws-cdk-lib/aws-events';
-import * as targets from 'aws-cdk-lib/aws-events-targets';
-import * as ses from 'aws-cdk-lib/aws-ses';
-import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
-import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
-import { HttpJwtAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
-import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
-import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
-import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
-import * as cr from 'aws-cdk-lib/custom-resources';
+import * as path from "path";
+import * as cdk from "aws-cdk-lib/core";
+import { Construct } from "constructs";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as lambda from "aws-cdk-lib/aws-lambda";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import * as iam from "aws-cdk-lib/aws-iam";
+import * as events from "aws-cdk-lib/aws-events";
+import * as targets from "aws-cdk-lib/aws-events-targets";
+import * as ses from "aws-cdk-lib/aws-ses";
+import * as apigwv2 from "aws-cdk-lib/aws-apigatewayv2";
+import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
+import { HttpJwtAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
+import * as s3 from "aws-cdk-lib/aws-s3";
+import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
+import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
+import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
+import * as cr from "aws-cdk-lib/custom-resources";
 
 export interface DewyBankStackProps extends cdk.StackProps {
   /**
@@ -34,6 +34,14 @@ export interface DewyBankStackProps extends cdk.StackProps {
    * are verified separately as facilitators join the admin group.
    */
   readonly approvedSenderEmails?: string[];
+
+  /** MCP server URLs for each station (set at deploy time via CDK context). */
+  readonly mcpUrls?: Partial<
+    Record<"A1" | "A2" | "B1" | "B2" | "C1" | "C2", string>
+  >;
+
+  /** Optional global MCP bearer token (applies to all stations unless overridden per-station). */
+  readonly mcpBearerToken?: string;
 }
 
 /**
@@ -57,8 +65,8 @@ export class DewyBankStack extends cdk.Stack {
     const { workshopId } = props;
     const prefix = `dewybank-${workshopId}`;
 
-    cdk.Tags.of(this).add('project', 'dewy-bank');
-    cdk.Tags.of(this).add('workshopId', workshopId);
+    cdk.Tags.of(this).add("project", "dewy-bank");
+    cdk.Tags.of(this).add("workshopId", workshopId);
 
     // ---------------------------------------------------------------------
     // DynamoDB — per-workshop-prefixed tables (decision 6.2).
@@ -72,55 +80,55 @@ export class DewyBankStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     } as const;
 
-    const customersTable = new dynamodb.Table(this, 'CustomersTable', {
+    const customersTable = new dynamodb.Table(this, "CustomersTable", {
       tableName: `${prefix}-Customers`,
       // customerId (Cognito sub)
-      partitionKey: { name: 'customerId', type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: "customerId", type: dynamodb.AttributeType.STRING },
       ...tableDefaults,
     });
     // C-P1: look up a customer by email (/payments, the Support API, reseed).
     customersTable.addGlobalSecondaryIndex({
-      indexName: 'email-index',
-      partitionKey: { name: 'email', type: dynamodb.AttributeType.STRING },
+      indexName: "email-index",
+      partitionKey: { name: "email", type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
-    const accountsTable = new dynamodb.Table(this, 'AccountsTable', {
+    const accountsTable = new dynamodb.Table(this, "AccountsTable", {
       tableName: `${prefix}-Accounts`,
       // accountId; owner-index GSI (added below) maps owner (customerId) -> accounts.
-      partitionKey: { name: 'accountId', type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: "accountId", type: dynamodb.AttributeType.STRING },
       ...tableDefaults,
     });
     // Phase 1 access pattern: "list the caller's accounts" (Customer API
     // GET /accounts, Admin API secure/my-accounts) queries by owner (customerId).
     accountsTable.addGlobalSecondaryIndex({
-      indexName: 'owner-index',
-      partitionKey: { name: 'customerId', type: dynamodb.AttributeType.STRING },
+      indexName: "owner-index",
+      partitionKey: { name: "customerId", type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
-    const transactionsTable = new dynamodb.Table(this, 'TransactionsTable', {
+    const transactionsTable = new dynamodb.Table(this, "TransactionsTable", {
       tableName: `${prefix}-Transactions`,
       // accountId (PK) + txnId (SK) so an account's transactions are a query.
-      partitionKey: { name: 'accountId', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'txnId', type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: "accountId", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "txnId", type: dynamodb.AttributeType.STRING },
       ...tableDefaults,
     });
 
-    const statementsTable = new dynamodb.Table(this, 'StatementsTable', {
+    const statementsTable = new dynamodb.Table(this, "StatementsTable", {
       tableName: `${prefix}-Statements`,
       // accountId (PK) + statementId (SK)
-      partitionKey: { name: 'accountId', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'statementId', type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: "accountId", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "statementId", type: dynamodb.AttributeType.STRING },
       ...tableDefaults,
     });
 
-    // P8: each participant's Genie chat clients (the blob from
-    // scripts/setup_chat_clients.py), keyed by Cognito sub. Encrypted at rest
-    // (DynamoDB default); readable only by the chat Lambda.
-    const genieClientsTable = new dynamodb.Table(this, 'GenieClientsTable', {
-      tableName: `${prefix}-GenieClients`,
-      partitionKey: { name: 'customerId', type: dynamodb.AttributeType.STRING },
+    // P11: each participant's saved payees. PK customerId, SK email so a
+    // customer's full payee list is a single Query. Starts empty for everyone.
+    const payeesTable = new dynamodb.Table(this, "PayeesTable", {
+      tableName: `${prefix}-Payees`,
+      partitionKey: { name: "customerId", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "email", type: dynamodb.AttributeType.STRING },
       ...tableDefaults,
     });
 
@@ -147,36 +155,50 @@ export class DewyBankStack extends cdk.Stack {
     const supportApiKeyParamName = `/dewybank/${workshopId}/support-api-key`;
     const supportApiKeyParamArn = `arn:aws:ssm:${this.region}:${this.account}:parameter/dewybank/${workshopId}/support-api-key`;
 
-    const apiKeyProviderFn = new NodejsFunction(this, 'SupportApiKeyGenFn', {
+    const apiKeyProviderFn = new NodejsFunction(this, "SupportApiKeyGenFn", {
       runtime: lambda.Runtime.NODEJS_22_X,
       architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.minutes(2),
       functionName: `${prefix}-support-api-key-gen`,
-      entry: path.join(__dirname, '..', 'lambda', 'support-api-key-gen', 'index.ts'),
+      entry: path.join(
+        __dirname,
+        "..",
+        "lambda",
+        "support-api-key-gen",
+        "index.ts",
+      ),
       bundling: { minify: false, sourceMap: true },
       environment: { PARAM_NAME: supportApiKeyParamName },
     });
     apiKeyProviderFn.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ['ssm:GetParameter', 'ssm:PutParameter', 'ssm:DeleteParameter'],
+        actions: [
+          "ssm:GetParameter",
+          "ssm:PutParameter",
+          "ssm:DeleteParameter",
+        ],
         resources: [supportApiKeyParamArn],
       }),
     );
-    const apiKeyProvider = new cr.Provider(this, 'SupportApiKeyProvider', {
+    const apiKeyProvider = new cr.Provider(this, "SupportApiKeyProvider", {
       onEventHandler: apiKeyProviderFn,
     });
-    const apiKeyResource = new cdk.CustomResource(this, 'SupportApiKeyResource', {
-      serviceToken: apiKeyProvider.serviceToken,
-      // Changing this forces a re-mint; keep stable so the key is durable.
-      properties: { paramName: supportApiKeyParamName },
-    });
+    const apiKeyResource = new cdk.CustomResource(
+      this,
+      "SupportApiKeyResource",
+      {
+        serviceToken: apiKeyProvider.serviceToken,
+        // Changing this forces a re-mint; keep stable so the key is durable.
+        properties: { paramName: supportApiKeyParamName },
+      },
+    );
 
     // ---------------------------------------------------------------------
     // Lambda stubs. NodejsFunction bundles the TS handlers with esbuild at
     // synth time (no Docker). Each gets ONLY the env/permissions it needs
     // (least privilege — plan §3.1 / scope item 5).
     // ---------------------------------------------------------------------
-    const lambdaRoot = path.join(__dirname, '..', 'lambda');
+    const lambdaRoot = path.join(__dirname, "..", "lambda");
     const commonFnProps = {
       runtime: lambda.Runtime.NODEJS_22_X,
       architecture: lambda.Architecture.ARM_64,
@@ -185,10 +207,10 @@ export class DewyBankStack extends cdk.Stack {
     } as const;
 
     // Cognito post-confirmation trigger (seed/provision — Phase 1).
-    const postConfirmationFn = new NodejsFunction(this, 'PostConfirmationFn', {
+    const postConfirmationFn = new NodejsFunction(this, "PostConfirmationFn", {
       ...commonFnProps,
       functionName: `${prefix}-cognito-post-confirmation`,
-      entry: path.join(lambdaRoot, 'cognito-post-confirmation', 'index.ts'),
+      entry: path.join(lambdaRoot, "cognito-post-confirmation", "index.ts"),
       environment: tableEnv,
     });
     // Needs to write seeded customer, account and transaction records.
@@ -197,10 +219,10 @@ export class DewyBankStack extends cdk.Stack {
     transactionsTable.grantWriteData(postConfirmationFn);
 
     // Customer API handler (Phase 1) — reads/writes scoped to the caller's sub.
-    const customerApiFn = new NodejsFunction(this, 'CustomerApiFn', {
+    const customerApiFn = new NodejsFunction(this, "CustomerApiFn", {
       ...commonFnProps,
       functionName: `${prefix}-customer-api-handler`,
-      entry: path.join(lambdaRoot, 'customer-api-handler', 'index.ts'),
+      entry: path.join(lambdaRoot, "customer-api-handler", "index.ts"),
       environment: tableEnv,
     });
     customersTable.grantReadData(customerApiFn);
@@ -210,10 +232,10 @@ export class DewyBankStack extends cdk.Stack {
 
     // Support API handler (C-P3) — the support-agent routes, reaching only the
     // fictional customers. Reads customers, adjusts balances, writes history.
-    const supportApiFn = new NodejsFunction(this, 'SupportApiFn', {
+    const supportApiFn = new NodejsFunction(this, "SupportApiFn", {
       ...commonFnProps,
       functionName: `${prefix}-support-api-handler`,
-      entry: path.join(lambdaRoot, 'support-api-handler', 'index.ts'),
+      entry: path.join(lambdaRoot, "support-api-handler", "index.ts"),
       environment: { ...tableEnv, API_KEY_PARAM: supportApiKeyParamName },
     });
     customersTable.grantReadData(supportApiFn);
@@ -223,27 +245,17 @@ export class DewyBankStack extends cdk.Stack {
     // the template). Depends on the key existing first.
     supportApiFn.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ['ssm:GetParameter'],
+        actions: ["ssm:GetParameter"],
         resources: [supportApiKeyParamArn],
       }),
     );
     supportApiFn.node.addDependency(apiKeyResource);
 
-    // Chat proxy (P8) — relays the bank app's chat panel to the participant's
-    // own Genies through Workato's Headless API. Only it can read the keys.
-    const chatFn = new NodejsFunction(this, 'ChatFn', {
-      ...commonFnProps,
-      functionName: `${prefix}-chat-handler`,
-      entry: path.join(lambdaRoot, 'chat-handler', 'index.ts'),
-      environment: { GENIE_CLIENTS_TABLE: genieClientsTable.tableName },
-    });
-    genieClientsTable.grantReadWriteData(chatFn);
-
     // Provisioning Lambda (facilitator-invoked setup/teardown/reseed).
-    const provisioningFn = new NodejsFunction(this, 'ProvisioningFn', {
+    const provisioningFn = new NodejsFunction(this, "ProvisioningFn", {
       ...commonFnProps,
       functionName: `${prefix}-provisioning`,
-      entry: path.join(lambdaRoot, 'provisioning', 'index.ts'),
+      entry: path.join(lambdaRoot, "provisioning", "index.ts"),
       timeout: cdk.Duration.minutes(5),
       environment: tableEnv,
     });
@@ -254,28 +266,53 @@ export class DewyBankStack extends cdk.Stack {
     // P10: facilitators start a reset from the console (POST /admin/reseed),
     // which invokes provisioning asynchronously.
     provisioningFn.grantInvoke(customerApiFn);
-    customerApiFn.addEnvironment('PROVISIONING_FN', provisioningFn.functionName);
+    customerApiFn.addEnvironment(
+      "PROVISIONING_FN",
+      provisioningFn.functionName,
+    );
+
+    // P11: wire the payees table into both Lambdas that need it.
+    customerApiFn.addEnvironment("PAYEES_TABLE", payeesTable.tableName);
+    provisioningFn.addEnvironment("PAYEES_TABLE", payeesTable.tableName);
+    payeesTable.grantReadWriteData(customerApiFn);
+    payeesTable.grantReadWriteData(provisioningFn);
 
     // C-P4: create the fictional customers at deploy, so Station C's support
     // tools have someone to reach before any reset runs.
-    const fictionalSetup = new cr.AwsCustomResource(this, 'FictionalCustomersSetup', {
-      onCreate: {
-        service: 'Lambda',
-        action: 'invoke',
-        parameters: { FunctionName: provisioningFn.functionName, Payload: JSON.stringify({ action: 'setup' }) },
-        physicalResourceId: cr.PhysicalResourceId.of(`${prefix}-fictional-customers`),
+    const fictionalSetup = new cr.AwsCustomResource(
+      this,
+      "FictionalCustomersSetup",
+      {
+        onCreate: {
+          service: "Lambda",
+          action: "invoke",
+          parameters: {
+            FunctionName: provisioningFn.functionName,
+            Payload: JSON.stringify({ action: "setup" }),
+          },
+          physicalResourceId: cr.PhysicalResourceId.of(
+            `${prefix}-fictional-customers`,
+          ),
+        },
+        policy: cr.AwsCustomResourcePolicy.fromStatements([
+          new iam.PolicyStatement({
+            actions: ["lambda:InvokeFunction"],
+            resources: [provisioningFn.functionArn],
+          }),
+        ]),
       },
-      policy: cr.AwsCustomResourcePolicy.fromStatements([
-        new iam.PolicyStatement({ actions: ['lambda:InvokeFunction'], resources: [provisioningFn.functionArn] }),
-      ]),
-    });
-    fictionalSetup.node.addDependency(customersTable, accountsTable, transactionsTable);
+    );
+    fictionalSetup.node.addDependency(
+      customersTable,
+      accountsTable,
+      transactionsTable,
+    );
 
     // Lifecycle / expiry Lambda (EventBridge-scheduled auto-teardown + SES warnings).
-    const lifecycleFn = new NodejsFunction(this, 'LifecycleFn', {
+    const lifecycleFn = new NodejsFunction(this, "LifecycleFn", {
       ...commonFnProps,
       functionName: `${prefix}-lifecycle`,
-      entry: path.join(lambdaRoot, 'lifecycle', 'index.ts'),
+      entry: path.join(lambdaRoot, "lifecycle", "index.ts"),
       timeout: cdk.Duration.minutes(5),
       environment: tableEnv,
     });
@@ -287,7 +324,7 @@ export class DewyBankStack extends cdk.Stack {
     // SES SANDBOX send permission, scoped to this account/region's identities.
     lifecycleFn.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+        actions: ["ses:SendEmail", "ses:SendRawEmail"],
         resources: [`arn:aws:ses:${this.region}:${this.account}:identity/*`],
       }),
     );
@@ -296,46 +333,111 @@ export class DewyBankStack extends cdk.Stack {
     // Cognito — user pool + SPA app client (no secret) + `facilitators` group.
     // Post-confirmation trigger wired to the stub above.
     // ---------------------------------------------------------------------
-    const userPool = new cognito.UserPool(this, 'UserPool', {
+    const userPool = new cognito.UserPool(this, "UserPool", {
       userPoolName: `${prefix}-users`,
       selfSignUpEnabled: true,
       signInAliases: { email: true },
       autoVerify: { email: true },
       standardAttributes: { email: { required: true, mutable: false } },
-      passwordPolicy: { minLength: 8, requireLowercase: true, requireDigits: true },
+      passwordPolicy: {
+        minLength: 8,
+        requireLowercase: true,
+        requireDigits: true,
+      },
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
       removalPolicy: cdk.RemovalPolicy.DESTROY, // demo
       lambdaTriggers: { postConfirmation: postConfirmationFn },
     });
 
     // SPA public client — no secret, SRP + user-password auth for the browser.
-    const userPoolClient = userPool.addClient('SpaClient', {
+    const userPoolClient = userPool.addClient("SpaClient", {
       userPoolClientName: `${prefix}-spa`,
       generateSecret: false,
       authFlows: { userSrp: true, userPassword: true },
       // OAuth flows/callback URLs are filled in Phase 1 with the SPA origin.
     });
 
-    // Admin group (decision 6.2 / 6.5). Facilitators are members of this group.
-    const facilitatorsGroup = new cognito.CfnUserPoolGroup(this, 'FacilitatorsGroup', {
-      userPoolId: userPool.userPoolId,
-      groupName: 'facilitators',
-      description: 'Admin group — may invoke provisioning Lambdas and receive SES lifecycle mail.',
+    // Bedrock + MCP chat handler (Bedrock migration). Streams SSE via Lambda
+    // Function URL; JWT validation is in-Lambda (Function URL has AuthType.NONE).
+    // Placed here (after userPool + userPoolClient) because the environment needs
+    // both Cognito ids.
+    const chatBedrockFn = new NodejsFunction(this, "ChatBedrockFn", {
+      ...commonFnProps,
+      functionName: `${prefix}-chat-bedrock`,
+      entry: path.join(lambdaRoot, "chat-handler", "index.ts"),
+      timeout: cdk.Duration.minutes(3),
+      memorySize: 512,
+      environment: {
+        COGNITO_USER_POOL_ID: userPool.userPoolId,
+        COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
+        BEDROCK_REGION: "us-west-2",
+        BEDROCK_MODEL_ID: "us.moonshotai.kimi-k3",
+        MCP_URL_A1: props.mcpUrls?.A1 ?? "",
+        MCP_URL_A2: props.mcpUrls?.A2 ?? "",
+        MCP_URL_B1: props.mcpUrls?.B1 ?? "",
+        MCP_URL_B2: props.mcpUrls?.B2 ?? "",
+        MCP_URL_C1: props.mcpUrls?.C1 ?? "",
+        MCP_URL_C2: props.mcpUrls?.C2 ?? "",
+        ...(props.mcpBearerToken
+          ? { MCP_BEARER_TOKEN: props.mcpBearerToken }
+          : {}),
+      },
     });
+
+    // bedrock:InvokeModel on the system-defined cross-region inference profile
+    // (double colon — no account ID) and the underlying foundation model family.
+    chatBedrockFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["bedrock:InvokeModel"],
+        resources: [
+          `arn:aws:bedrock:${this.region}::inference-profile/us.moonshotai.kimi-k3`,
+          `arn:aws:bedrock:*::foundation-model/moonshotai.kimi-k3*`,
+        ],
+      }),
+    );
+
+    // Lambda Function URL — bypasses API GW 29s timeout, essential for
+    // multi-tool-call Bedrock loops. RESPONSE_STREAM pushes SSE immediately.
+    const chatFnUrl = chatBedrockFn.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+      invokeMode: lambda.InvokeMode.RESPONSE_STREAM,
+      cors: {
+        allowedOrigins: ["*"],
+        allowedHeaders: ["authorization", "content-type"],
+        allowedMethods: [lambda.HttpMethod.POST],
+      },
+    });
+
+    // Admin group (decision 6.2 / 6.5). Facilitators are members of this group.
+    const facilitatorsGroup = new cognito.CfnUserPoolGroup(
+      this,
+      "FacilitatorsGroup",
+      {
+        userPoolId: userPool.userPoolId,
+        groupName: "facilitators",
+        description:
+          "Admin group — may invoke provisioning Lambdas and receive SES lifecycle mail.",
+      },
+    );
 
     // IAM: `facilitators` group members may invoke the provisioning Lambda
     // (scope item 5). The group's IAM role carries exactly this permission.
-    const facilitatorsRole = new iam.Role(this, 'FacilitatorsRole', {
+    const facilitatorsRole = new iam.Role(this, "FacilitatorsRole", {
       roleName: `${prefix}-facilitators`,
       assumedBy: new iam.FederatedPrincipal(
-        'cognito-identity.amazonaws.com',
+        "cognito-identity.amazonaws.com",
         {
-          StringEquals: { 'cognito-identity.amazonaws.com:aud': userPool.userPoolId },
-          'ForAnyValue:StringLike': { 'cognito-identity.amazonaws.com:amr': 'authenticated' },
+          StringEquals: {
+            "cognito-identity.amazonaws.com:aud": userPool.userPoolId,
+          },
+          "ForAnyValue:StringLike": {
+            "cognito-identity.amazonaws.com:amr": "authenticated",
+          },
         },
-        'sts:AssumeRoleWithWebIdentity',
+        "sts:AssumeRoleWithWebIdentity",
       ),
-      description: 'Role assumed by Cognito `facilitators` group members; may invoke provisioning Lambda.',
+      description:
+        "Role assumed by Cognito `facilitators` group members; may invoke provisioning Lambda.",
     });
     provisioningFn.grantInvoke(facilitatorsRole);
     facilitatorsGroup.roleArn = facilitatorsRole.roleArn;
@@ -368,9 +470,10 @@ export class DewyBankStack extends cdk.Stack {
     // Runs the lifecycle Lambda hourly to auto-teardown TTL'd workshops and send
     // SES warnings for long-lived resources.
     // ---------------------------------------------------------------------
-    new events.Rule(this, 'LifecycleSchedule', {
+    new events.Rule(this, "LifecycleSchedule", {
       ruleName: `${prefix}-lifecycle-schedule`,
-      description: 'Hourly workshop expiry check: auto-teardown TTL\'d workshops + SES warnings.',
+      description:
+        "Hourly workshop expiry check: auto-teardown TTL'd workshops + SES warnings.",
       schedule: events.Schedule.rate(cdk.Duration.hours(1)),
       targets: [new targets.LambdaFunction(lifecycleFn)],
     });
@@ -385,49 +488,55 @@ export class DewyBankStack extends cdk.Stack {
     // the Lambda (C-P3). Called server-side by the connector, so no CORS.
     // ---------------------------------------------------------------------
     const corsPreflight = {
-      allowHeaders: ['authorization', 'content-type'],
+      allowHeaders: ["authorization", "content-type"],
       allowMethods: [
         apigwv2.CorsHttpMethod.GET,
         apigwv2.CorsHttpMethod.POST,
         // PUT /me/genie-clients (P8)
         apigwv2.CorsHttpMethod.PUT,
+        // DELETE /payees/{email} (P11)
+        apigwv2.CorsHttpMethod.DELETE,
         apigwv2.CorsHttpMethod.OPTIONS,
       ],
-      allowOrigins: ['*'],
+      allowOrigins: ["*"],
     };
 
     // --- Customer API -----------------------------------------------------
     const customerIntegration = new HttpLambdaIntegration(
-      'CustomerIntegration',
+      "CustomerIntegration",
       customerApiFn,
     );
     const jwtAuthorizer = new HttpJwtAuthorizer(
-      'CustomerJwtAuthorizer',
+      "CustomerJwtAuthorizer",
       `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`,
       { jwtAudience: [userPoolClient.userPoolClientId] },
     );
-    const customerApi = new apigwv2.HttpApi(this, 'CustomerApi', {
+    const customerApi = new apigwv2.HttpApi(this, "CustomerApi", {
       apiName: `${prefix}-customer-api`,
       corsPreflight,
       defaultAuthorizer: jwtAuthorizer,
     });
     const customerRoutes: Array<[apigwv2.HttpMethod, string]> = [
-      [apigwv2.HttpMethod.GET, '/me'],
-      [apigwv2.HttpMethod.GET, '/accounts'],
-      [apigwv2.HttpMethod.GET, '/accounts/{id}'],
-      [apigwv2.HttpMethod.GET, '/accounts/{id}/transactions'],
-      [apigwv2.HttpMethod.POST, '/transfers'],
-      [apigwv2.HttpMethod.POST, '/payments'],
-      [apigwv2.HttpMethod.GET, '/statements/{id}'],
+      [apigwv2.HttpMethod.GET, "/me"],
+      [apigwv2.HttpMethod.GET, "/accounts"],
+      [apigwv2.HttpMethod.GET, "/accounts/{id}"],
+      [apigwv2.HttpMethod.GET, "/accounts/{id}/transactions"],
+      [apigwv2.HttpMethod.POST, "/transfers"],
+      [apigwv2.HttpMethod.POST, "/payments"],
+      [apigwv2.HttpMethod.GET, "/statements/{id}"],
       // Facilitator-gated admin console routes (same JWT auth; the handler
       // enforces `facilitators` group membership). No static key in the browser.
-      [apigwv2.HttpMethod.GET, '/admin/overview'],
-      [apigwv2.HttpMethod.GET, '/admin/accounts'],
-      [apigwv2.HttpMethod.GET, '/admin/accounts/{id}/transactions'],
-      [apigwv2.HttpMethod.POST, '/admin/adjust-balance'],
-      [apigwv2.HttpMethod.POST, '/admin/set-balance'],
-      [apigwv2.HttpMethod.POST, '/admin/transfer'],
-      [apigwv2.HttpMethod.POST, '/admin/reseed'],
+      [apigwv2.HttpMethod.GET, "/admin/overview"],
+      [apigwv2.HttpMethod.GET, "/admin/accounts"],
+      [apigwv2.HttpMethod.GET, "/admin/accounts/{id}/transactions"],
+      [apigwv2.HttpMethod.POST, "/admin/adjust-balance"],
+      [apigwv2.HttpMethod.POST, "/admin/set-balance"],
+      [apigwv2.HttpMethod.POST, "/admin/transfer"],
+      [apigwv2.HttpMethod.POST, "/admin/reseed"],
+      // P11: saved payees
+      [apigwv2.HttpMethod.GET, "/payees"],
+      [apigwv2.HttpMethod.POST, "/payees"],
+      [apigwv2.HttpMethod.DELETE, "/payees/{email}"],
     ];
     for (const [method, routePath] of customerRoutes) {
       customerApi.addRoutes({
@@ -436,32 +545,19 @@ export class DewyBankStack extends cdk.Stack {
         integration: customerIntegration,
       });
     }
-    // Chat proxy routes (P8): same API and JWT authorizer, their own Lambda.
-    const chatIntegration = new HttpLambdaIntegration('ChatIntegration', chatFn);
-    const chatRoutes: Array<[apigwv2.HttpMethod, string]> = [
-      [apigwv2.HttpMethod.PUT, '/me/genie-clients'],
-      [apigwv2.HttpMethod.GET, '/me/genie-clients'],
-      [apigwv2.HttpMethod.POST, '/chat'],
-      [apigwv2.HttpMethod.GET, '/chat/events'],
-    ];
-    for (const [method, routePath] of chatRoutes) {
-      customerApi.addRoutes({
-        path: routePath,
-        methods: [method],
-        integration: chatIntegration,
-      });
-    }
-
     // --- Support API (static x-api-key; NO Cognito authorizer) ------------
-    const supportIntegration = new HttpLambdaIntegration('SupportIntegration', supportApiFn);
-    const supportApi = new apigwv2.HttpApi(this, 'SupportApi', {
+    const supportIntegration = new HttpLambdaIntegration(
+      "SupportIntegration",
+      supportApiFn,
+    );
+    const supportApi = new apigwv2.HttpApi(this, "SupportApi", {
       apiName: `${prefix}-support-api`,
       // No defaultAuthorizer: the Lambda enforces the x-api-key itself.
     });
     const supportRoutes: Array<[apigwv2.HttpMethod, string]> = [
-      [apigwv2.HttpMethod.GET, '/support/whoami'],
-      [apigwv2.HttpMethod.GET, '/support/customers/accounts'],
-      [apigwv2.HttpMethod.POST, '/support/adjustments'],
+      [apigwv2.HttpMethod.GET, "/support/whoami"],
+      [apigwv2.HttpMethod.GET, "/support/customers/accounts"],
+      [apigwv2.HttpMethod.POST, "/support/adjustments"],
     ];
     for (const [method, routePath] of supportRoutes) {
       supportApi.addRoutes({
@@ -483,7 +579,7 @@ export class DewyBankStack extends cdk.Stack {
     // for the Workato connectors, which fetch it server-side (P9). Nothing in
     // it is secret.
     // ---------------------------------------------------------------------
-    const siteBucket = new s3.Bucket(this, 'SpaBucket', {
+    const siteBucket = new s3.Bucket(this, "SpaBucket", {
       bucketName: `${prefix}-spa-${this.account}`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,
@@ -491,18 +587,26 @@ export class DewyBankStack extends cdk.Stack {
       autoDeleteObjects: true, // demo
     });
 
-    const distribution = new cloudfront.Distribution(this, 'SpaDistribution', {
+    const distribution = new cloudfront.Distribution(this, "SpaDistribution", {
       comment: `${prefix} SPA`,
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
       },
-      defaultRootObject: 'index.html',
+      defaultRootObject: "index.html",
       // SPA fallback: deep links / unknown paths serve index.html.
       errorResponses: [
-        { httpStatus: 403, responseHttpStatus: 200, responsePagePath: '/index.html' },
-        { httpStatus: 404, responseHttpStatus: 200, responsePagePath: '/index.html' },
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: "/index.html",
+        },
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: "/index.html",
+        },
       ],
     });
 
@@ -513,21 +617,22 @@ export class DewyBankStack extends cdk.Stack {
       customerApiUrl,
       supportApiUrl,
       workshopId,
+      chatFunctionUrl: chatFnUrl.url,
     };
 
-    new s3deploy.BucketDeployment(this, 'SpaDeployment', {
+    new s3deploy.BucketDeployment(this, "SpaDeployment", {
       destinationBucket: siteBucket,
       distribution,
-      distributionPaths: ['/*'],
+      distributionPaths: ["/*"],
       sources: [
-        s3deploy.Source.asset(path.join(__dirname, '..', 'web')),
+        s3deploy.Source.asset(path.join(__dirname, "..", "web")),
         // Runtime config consumed by the SPA (window.DEWY_CONFIG).
         s3deploy.Source.data(
-          'config.js',
+          "config.js",
           `window.DEWY_CONFIG = ${JSON.stringify(spaConfig)};`,
         ),
         // Runtime config consumed by the Workato connectors (P9).
-        s3deploy.Source.jsonData('config.json', spaConfig),
+        s3deploy.Source.jsonData("config.json", spaConfig),
       ],
     });
 
@@ -536,25 +641,32 @@ export class DewyBankStack extends cdk.Stack {
     // ---------------------------------------------------------------------
     // Outputs
     // ---------------------------------------------------------------------
-    new cdk.CfnOutput(this, 'WorkshopId', { value: workshopId });
-    new cdk.CfnOutput(this, 'TablePrefix', { value: prefix });
-    new cdk.CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
-    new cdk.CfnOutput(this, 'UserPoolClientId', { value: userPoolClient.userPoolClientId });
-    new cdk.CfnOutput(this, 'FacilitatorsGroupName', { value: 'facilitators' });
-    new cdk.CfnOutput(this, 'FacilitatorsRoleArn', { value: facilitatorsRole.roleArn });
+    new cdk.CfnOutput(this, "WorkshopId", { value: workshopId });
+    new cdk.CfnOutput(this, "TablePrefix", { value: prefix });
+    new cdk.CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
+    new cdk.CfnOutput(this, "UserPoolClientId", {
+      value: userPoolClient.userPoolClientId,
+    });
+    new cdk.CfnOutput(this, "FacilitatorsGroupName", { value: "facilitators" });
+    new cdk.CfnOutput(this, "FacilitatorsRoleArn", {
+      value: facilitatorsRole.roleArn,
+    });
     // These unblock the Workato connectors + the SPA.
-    new cdk.CfnOutput(this, 'CustomerApiUrl', { value: customerApiUrl });
-    new cdk.CfnOutput(this, 'SupportApiUrl', { value: supportApiUrl });
-    new cdk.CfnOutput(this, 'SupportApiKeyParamName', { value: supportApiKeyParamName });
-    new cdk.CfnOutput(this, 'SpaUrl', { value: spaUrl });
-    new cdk.CfnOutput(this, 'SpaBucketName', { value: siteBucket.bucketName });
-    new cdk.CfnOutput(this, 'CloudFrontDistributionId', {
+    new cdk.CfnOutput(this, "CustomerApiUrl", { value: customerApiUrl });
+    new cdk.CfnOutput(this, "SupportApiUrl", { value: supportApiUrl });
+    new cdk.CfnOutput(this, "SupportApiKeyParamName", {
+      value: supportApiKeyParamName,
+    });
+    new cdk.CfnOutput(this, "SpaUrl", { value: spaUrl });
+    new cdk.CfnOutput(this, "SpaBucketName", { value: siteBucket.bucketName });
+    new cdk.CfnOutput(this, "CloudFrontDistributionId", {
       value: distribution.distributionId,
     });
+    new cdk.CfnOutput(this, "ChatFunctionUrl", { value: chatFnUrl.url });
   }
 }
 
 /** Make an email safe to use as a CDK construct id. */
 function sanitizeId(email: string): string {
-  return email.replace(/[^a-zA-Z0-9]/g, '-');
+  return email.replace(/[^a-zA-Z0-9]/g, "-");
 }
