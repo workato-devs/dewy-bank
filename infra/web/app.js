@@ -510,6 +510,7 @@
     seen: {},
     polling: null,
     busy: false,
+    thinkingBubble: null,
   };
 
   function chatLoad() {
@@ -532,6 +533,14 @@
       .catch(function (e) {
         msg($("chatMsg"), e.message, false);
       });
+  }
+
+  function updateChatSubtitle() {
+    var stationKey = $("chatStation").value;
+    var entry = STATIONS.filter(function (s) {
+      return s[0] === stationKey;
+    })[0];
+    $("chatSubtitle").textContent = entry ? entry[1] : "";
   }
 
   function renderStations() {
@@ -558,29 +567,46 @@
       show($("chatSetup"));
       chatStatusOnly("Set up chat to talk to your stations.");
     } else {
+      updateChatSubtitle();
       chatRedraw();
     }
   }
 
+  // bubble() appends a message to the chat log and returns the bubble element.
+  // For 'me' and 'dewy' kinds it adds a small sender label above the bubble.
   function bubble(kind, text) {
     var log = $("chatLog");
-    var nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 100;
     var empty = log.querySelector(".chat-empty");
     if (empty) empty.remove();
     var el = document.createElement("div");
     el.className = "bubble " + kind;
     el.textContent = text;
-    log.appendChild(el);
-    if (nearBottom) {
-      log.scrollTop = log.scrollHeight;
-      console.log("[chat] scroll: auto");
+
+    if (kind === "me" || kind === "dewy") {
+      var wrap = document.createElement("div");
+      wrap.className =
+        "bubble-wrap " + (kind === "me" ? "me-wrap" : "dewy-wrap");
+      var label = document.createElement("div");
+      label.className = "bubble-label";
+      if (kind === "me") {
+        label.textContent = "You";
+      } else {
+        label.textContent = $("chatStation").value || "Dewy";
+      }
+      wrap.appendChild(label);
+      wrap.appendChild(el);
+      log.appendChild(wrap);
     } else {
-      console.log("[chat] scroll: user-scrolled");
+      log.appendChild(el);
     }
+
+    log.scrollTop = log.scrollHeight;
     return el;
   }
+
   function chatStatusOnly(text) {
     $("chatLog").innerHTML = "";
+    chat.thinkingBubble = null; // DOM was cleared
     var el = document.createElement("div");
     el.className = "chat-empty";
     el.textContent = text;
@@ -590,6 +616,7 @@
   // Each station keeps its own transcript for this session.
   var transcripts = {};
   function record(station, kind, text, extra) {
+    console.log("[chat] record station=%s kind=%s", station, kind);
     (transcripts[station] = transcripts[station] || []).push({
       kind: kind,
       text: text,
@@ -602,19 +629,9 @@
         "dewy_chat_transcripts",
         JSON.stringify(transcripts),
       );
-      var n = Object.keys(transcripts).reduce(function (s, k) {
-        return s + transcripts[k].length;
-      }, 0);
-      console.log("[chat] saved history (" + n + " messages)");
-      console.log(
-        "[chat] saved history for " +
-          station +
-          " (" +
-          (transcripts[station] || []).length +
-          " messages)",
-      );
     } catch (e) {}
   }
+
   function chatRedraw() {
     var station = $("chatStation").value;
     var list = transcripts[station] || [];
@@ -623,10 +640,12 @@
       return;
     }
     $("chatLog").innerHTML = "";
+    chat.thinkingBubble = null; // DOM was cleared
     list.forEach(function (e) {
       drawEntry(station, e);
     });
   }
+
   function drawEntry(station, e) {
     if (e.kind !== "confirm") {
       bubble(e.kind, e.text);
@@ -655,11 +674,13 @@
     var station = $("chatStation").value,
       text = $("chatText").value.trim();
     if (!station || !text || chat.busy) return;
+    console.log("[chat] send station=%s text=%s", station, text);
     chat.busy = true;
     $("chatSend").disabled = true;
     msg($("chatMsg"), "");
-    console.log('[chat] send: "' + text.slice(0, 50) + '"');
     record(station, "me", text);
+    // Show thinking placeholder immediately after recording the user message
+    chat.thinkingBubble = bubble("status", "Thinking\u2026");
     $("chatText").value = "";
     api("POST", "/chat", {
       station: station,
@@ -720,22 +741,6 @@
   function pollEvents(station, run) {
     clearTimeout(chat.polling);
     var started = Date.now();
-    var partialBubble = null;
-    var thinkingEl = null;
-    var chunkN = 0;
-    var totalBytes = 0;
-
-    // Thinking indicator — inserted before first tick result arrives
-    thinkingEl = document.createElement("div");
-    thinkingEl.className = "bubble dewy thinking";
-    thinkingEl.innerHTML = "<span></span><span></span><span></span>";
-    var log = $("chatLog");
-    var empty = log.querySelector(".chat-empty");
-    if (empty) empty.remove();
-    log.appendChild(thinkingEl);
-    log.scrollTop = log.scrollHeight;
-    console.log("[chat] poll: open");
-    console.log("[chat] streaming started");
 
     (function tick() {
       var conv = chat.conversations[station];
@@ -761,19 +766,13 @@
             var at = field(e, ["created_at", "createdAt"]);
             if (at) chat.since[conv] = at;
 
-            // Per-event chunk accounting
-            chunkN++;
-            var byteLen = JSON.stringify(e).length;
-            totalBytes += byteLen;
-            console.log(
-              "[chat] chunk #" + chunkN + " (+" + byteLen + " bytes)",
-            );
+            console.log("[chat] event type=%s id=%s", type, id);
 
             if (type === "agent.message") {
-              if (thinkingEl) {
-                thinkingEl.remove();
-                thinkingEl = null;
-                console.log("[chat] first chunk received");
+              // Remove the thinking placeholder on the first agent message
+              if (chat.thinkingBubble) {
+                chat.thinkingBubble.remove();
+                chat.thinkingBubble = null;
               }
               var text = field(e, [
                 "data.message",
@@ -790,7 +789,6 @@
                   "dewy",
                   typeof text === "string" ? text : JSON.stringify(text),
                 );
-                partialBubble = $("chatLog").lastElementChild;
               }
               if (
                 !run ||
@@ -798,9 +796,9 @@
               )
                 finished = true;
             } else if (type === "skill.confirmation_required") {
-              if (thinkingEl) {
-                thinkingEl.remove();
-                thinkingEl = null;
+              if (chat.thinkingBubble) {
+                chat.thinkingBubble.remove();
+                chat.thinkingBubble = null;
               }
               var callId = field(e, [
                 "data.call_id",
@@ -822,39 +820,23 @@
               );
               finished = true; // the turn pauses until the person answers
             } else if (type === "processing.finished") {
-              if (thinkingEl) {
-                thinkingEl.remove();
-                thinkingEl = null;
+              if (chat.thinkingBubble) {
+                chat.thinkingBubble.remove();
+                chat.thinkingBubble = null;
               }
               finished = true;
             }
           });
           if (finished) {
-            console.log("[chat] poll: close");
-            console.log("[chat] stream complete");
-            console.log(
-              "[chat] complete (" +
-                (Date.now() - started) +
-                "ms, " +
-                totalBytes +
-                " total bytes)",
-            );
             chatDone();
             return;
           }
           if (Date.now() - started > 120000) {
-            if (thinkingEl) {
-              thinkingEl.remove();
-              thinkingEl = null;
+            if (chat.thinkingBubble) {
+              chat.thinkingBubble.remove();
+              chat.thinkingBubble = null;
             }
             record(station, "status", "No reply yet. Try again in a moment.");
-            console.log(
-              "[chat] complete (" +
-                (Date.now() - started) +
-                "ms, " +
-                totalBytes +
-                " total bytes)",
-            );
             chatDone();
             return;
           }
@@ -862,12 +844,9 @@
         })
         .catch(function (e) {
           console.error("[chat] error: " + e.message);
-          if (thinkingEl) {
-            thinkingEl.remove();
-            thinkingEl = null;
-          }
-          if (partialBubble) {
-            partialBubble.textContent += " ⚠ Response cut short";
+          if (chat.thinkingBubble) {
+            chat.thinkingBubble.remove();
+            chat.thinkingBubble = null;
           }
           msg($("chatMsg"), e.message, false);
           chatDone();
@@ -876,10 +855,15 @@
   }
 
   function chatDone() {
+    console.log("[chat] done");
+    if (chat.thinkingBubble) {
+      chat.thinkingBubble.remove();
+      chat.thinkingBubble = null;
+    }
     chat.busy = false;
     $("chatSend").disabled = false;
-    var last = $("chatLog").lastElementChild;
-    if (last) last.scrollIntoView({ behavior: "smooth", block: "end" });
+    var log = $("chatLog");
+    log.scrollTop = log.scrollHeight;
   }
 
   function chatReset() {
@@ -892,6 +876,7 @@
       seen: {},
       polling: null,
       busy: false,
+      thinkingBubble: null,
     };
     transcripts = {};
     chatStatusOnly("Pick a station and say hello.");
@@ -907,6 +892,7 @@
     console.log(
       "[chat] switched to " + station + ", restored " + msgs + " messages",
     );
+    updateChatSubtitle();
     chatRedraw();
   };
   $("chatClearBtn").onclick = function () {
@@ -923,17 +909,17 @@
     } catch (e) {
       msg(
         $("chatSetupMsg"),
-        "That isn’t valid setup text: paste the whole block, including the braces.",
+        "That isn\u2019t valid setup text: paste the whole block, including the braces.",
         false,
       );
       return;
     }
-    msg($("chatSetupMsg"), "Saving…", true);
+    msg($("chatSetupMsg"), "Saving\u2026", true);
     api("PUT", "/me/genie-clients", blob)
       .then(function (r) {
         $("chatBlob").value = "";
         chat.configured = r.stations || {};
-        msg($("chatSetupMsg"), "Saved ✓", true);
+        msg($("chatSetupMsg"), "Saved \u2713", true);
         hide($("chatSetup"));
         renderStations();
       })
