@@ -148,7 +148,10 @@ def main():
     folders = {}
     for station in sorted({s['station'] for s in servers}):
         top = find_folder(args.profile, f'Dewy Bank Station {station.upper()}')
-        folders[station] = (top, {f['name']: f['id'] for f in wk_items(args.profile, 'folders', 'list', '--parent', str(top))})
+        sub_list = wk_items(args.profile, 'folders', 'list', '--parent', str(top))
+        sub_map = {f['name']: f['id'] for f in sub_list}
+        print(f"  [debug] Station {station.upper()} folder {top}, subfolders: {list(sub_map.keys())}", file=sys.stderr)
+        folders[station] = (top, sub_map)
     skills = {(s['folder_id'], s['name']): s['id'] for s in wk_items(args.profile, 'agentic', 'skills', 'list')}
     skills_by_name = {}  # name -> list of handles, fallback when folder-id doesn't match
     for (fid, sname), handle in skills.items():
@@ -163,15 +166,10 @@ def main():
         for sub, name in server['tools']:
             handle = skills.get((subfolders.get(sub), name))
             if not handle:
-                # Fallback: match by name only, warn if ambiguous
-                candidates = skills_by_name.get(name, [])
-                if len(candidates) == 1:
-                    handle = candidates[0]
-                    print(f"  [{server['name']}] {sub}/{name}: folder-id lookup missed, matched by name", file=sys.stderr)
-                elif len(candidates) > 1:
-                    sys.exit(f"{server['name']}: ambiguous skill '{name}' found in {len(candidates)} folders; push the project first")
-            if not handle:
-                sys.exit(f"{server['name']}: no skill {sub}/{name} in Dewy Bank Station {server['station'].upper()}; push the project first")
+                print(f"  [debug] {server['name']}: looking for skill '{name}' in subfolder '{sub}' (id={subfolders.get(sub)})", file=sys.stderr)
+                print(f"  [debug] available subfolders: {list(subfolders.keys())}", file=sys.stderr)
+                print(f"  [debug] skills in station subfolders: {[(sname, fid) for (fid, sname) in skills if fid in set(subfolders.values())][:10]}", file=sys.stderr)
+                sys.exit(f"{server['name']}: no skill {sub}/{name} — see debug output above")
             if handle not in recipe_of:
                 recipe_of[handle] = wk(args.profile, 'agentic', 'skills', 'get', handle)['provider_id']
             wanted[recipe_of[handle]] = (handle, sub, name)
