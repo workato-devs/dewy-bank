@@ -246,8 +246,8 @@ def main():
     if args.dry_run:
         return
 
-    # ── Prompt user to populate mcp_servers.env ──────────────────────────────
-    env_path = os.path.join(ROOT, 'mcp_servers.env')
+    # ── Prompt user to populate .env with MCP server URLs ───────────────────
+    env_path = os.path.join(ROOT, '.env')
     stations_needed = [s['key'] for s in servers if s.get('key')]
 
     # Write placeholders for any missing entries
@@ -274,7 +274,7 @@ def main():
     for s in servers:
         if s.get('key'):
             print(f'  {s["key"]:4s}  →  Server: {s["name"]}', file=sys.stderr)
-    print(f'\nPaste each URL into {env_path} (one per line, format: A1=https://...).',
+    print(f'\nPaste each URL into {env_path} (format: A1=https://...), one per line.',
           file=sys.stderr)
 
     # Loop until all stations have real URLs (not placeholders)
