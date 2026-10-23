@@ -30,6 +30,7 @@ TRANSACTION = [('txnId', 'Transaction ID', 'string'), ('accountId', 'Account ID'
                ('channel', 'Channel', 'string'), ('category', 'Category', 'string'), ('createdAt', 'Created at', 'string')]
 SUPPORT_ACCOUNT = [('accountId', 'Account ID', 'string'), ('name', 'Name', 'string'), ('type', 'Type', 'string'),
                    ('currency', 'Currency', 'string'), ('balance', 'Balance', 'number')]
+PAYEE = [('email', 'Email', 'string'), ('addedAt', 'Added at', 'string')]
 
 # Which item fields a loop gets, by the (step alias, list) its source reads.
 LOOP_ITEMS = {
@@ -67,6 +68,7 @@ ACTION_OUTPUTS = {
                                     ('to', 'To', 'string'), ('amount', 'Amount', 'number')]),
     'create_payment': item_schema([('message', 'Message', 'string'), ('from', 'From', 'string'),
                                    ('to_email', 'To email', 'string'), ('amount', 'Amount', 'number')]),
+    'list_payees': [_list('payees', 'Payees', PAYEE)],
     'look_up_customer_accounts': [_object('customer', 'Customer', [('email', 'Email', 'string')]),
                                   _list('accounts', 'Accounts', SUPPORT_ACCOUNT)],
     'adjust_balance': item_schema([('message', 'Message', 'string'), ('account_id', 'Account ID', 'string'),
