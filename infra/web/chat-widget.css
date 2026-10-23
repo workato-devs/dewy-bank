@@ -217,6 +217,7 @@
 .wk-cw-header-btn {
   width: 36px;
   height: 36px;
+  padding: 0; /* override browser default button padding */
   border-radius: 50%;
   border: none;
   /* Solid white circle so SVG icons (bot/gear) are visible against the
