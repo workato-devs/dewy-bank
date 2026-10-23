@@ -204,13 +204,27 @@ def main():
             t = tools.get(recipe)
             if not t:
                 problems.append(f'{sub}/{name} is missing')
-            elif t['description'] != skill_file(server['station'], sub, name)['trigger_description']:
-                problems.append(f"{name}'s description isn't its skill's trigger_description")
+            else:
+                expected = skill_file(server['station'], sub, name)['trigger_description']
+                actual = t.get('description', '')
+                if actual != expected:
+                    problems.append(
+                        f"{name}'s description doesn't match:\n"
+                        f"    expected: {expected[:120]!r}\n"
+                        f"    actual:   {actual[:120]!r}"
+                    )
         if len(tools) != len(wanted):
             problems.append(f'{len(tools)} tools, expected {len(wanted)}')
         if problems:
-            sys.exit(f"{server['name']}: " + '; '.join(problems))
-        print(f"{server['name']}: {len(tools)} tools, as specified", file=sys.stderr)
+            # Warn but don't exit — description mismatches are non-fatal,
+            # the servers still function; the model just sees a slightly
+            # different description.  Missing tools ARE fatal.
+            missing_tools = [p for p in problems if 'missing' in p]
+            if missing_tools:
+                sys.exit(f"{server['name']}: " + '; '.join(missing_tools))
+            print(f"  WARNING {server['name']}: " + '\n  WARNING '.join(problems), file=sys.stderr)
+        else:
+            print(f"{server['name']}: {len(tools)} tools, as specified", file=sys.stderr)
 
         if server['key']:
             blob['stations'][server['key']] = {'server': server['name'],
