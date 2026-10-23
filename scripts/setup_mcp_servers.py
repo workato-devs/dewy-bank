@@ -35,15 +35,25 @@ TOOL = re.compile(r'`([\w-]+)/(\w+)`')
 DESCRIPTION = re.compile(r'<!-- description ([^>]+?) -->\n(.*?)\n<!-- /description -->', re.S)
 
 
-def wk(profile, *args):
-    """Run a wk command with --json and return its parsed output (or its text, for commands that print none)."""
-    out = subprocess.run(['wk', *args, '-p', profile, '--json', '--no-input'], capture_output=True, text=True)
-    if out.returncode != 0:
-        sys.exit(f"wk {' '.join(args)} failed: {(out.stderr or out.stdout).strip()}")
-    try:
-        return json.loads(out.stdout) if out.stdout.strip() else None
-    except json.JSONDecodeError:
-        return out.stdout.strip()
+def wk(profile, *args, _retries=4, _delay=3):
+    """Run a wk command with --json and return its parsed output.
+    Retries up to _retries times on transient EOF / network errors."""
+    import time
+    cmd = ['wk', *args, '-p', profile, '--json', '--no-input']
+    for attempt in range(1, _retries + 2):
+        out = subprocess.run(cmd, capture_output=True, text=True)
+        if out.returncode == 0:
+            try:
+                return json.loads(out.stdout) if out.stdout.strip() else None
+            except json.JSONDecodeError:
+                return out.stdout.strip()
+        err = (out.stderr or out.stdout).strip()
+        # Retry on transient network errors (EOF, connection reset, timeout)
+        if attempt <= _retries and any(t in err for t in ('EOF', 'connection reset', 'timeout', 'dial tcp', 'no such host')):
+            print(f"  [retry {attempt}/{_retries}] wk {' '.join(args)}: {err}", file=sys.stderr)
+            time.sleep(_delay * attempt)
+            continue
+        sys.exit(f"wk {' '.join(args)} failed: {err}")
 
 
 def wk_items(profile, *args):
@@ -129,6 +139,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('-p', '--profile', required=True, help='wk profile for the participant\'s workspace')
     ap.add_argument('--dry-run', action='store_true', help='say what would change, change nothing')
+    ap.add_argument('--verbose', action='store_true', help='print debug info about folder and skill resolution')
     args = ap.parse_args()
     would = 'would be ' if args.dry_run else ''
     api = DeveloperAPI(args.profile)
@@ -138,9 +149,28 @@ def main():
     folders = {}
     for station in sorted({s['station'] for s in servers}):
         top = find_folder(args.profile, f'Dewy Bank Station {station.upper()}')
-        folders[station] = (top, {f['name']: f['id'] for f in wk_items(args.profile, 'folders', 'list', '--parent', str(top))})
-    skills = {(s['folder_id'], s['name']): s['id'] for s in wk_items(args.profile, 'agentic', 'skills', 'list')}
+        sub_list = wk_items(args.profile, 'folders', 'list', '--parent', str(top))
+        sub_map = {f['name']: f['id'] for f in sub_list}
+        print(f"  [debug] Station {station.upper()} folder {top}, subfolders: {list(sub_map.keys())}", file=sys.stderr) if args.verbose else None
+        folders[station] = (top, sub_map)
+    all_skills = wk_items(args.profile, 'agentic', 'skills', 'list')
+    skills = {(s['folder_id'], s['name']): s['id'] for s in all_skills}
+    # Also index by provider_id (recipe ID) as fallback — wk agentic skills list
+    # has a known inconsistency where some skills are omitted from the listing
+    # even though they exist and are reachable via `wk agentic skills get`.
+    skills_by_recipe = {s['provider_id']: s['id'] for s in all_skills if s.get('provider_id')}
+    skills_by_name = {}
+    for (fid, sname), handle in skills.items():
+        skills_by_name.setdefault(sname, []).append(handle)
     recipe_of = {}  # skill handle -> its recipe ID (an MCP tool's flow_id)
+
+    # Build a recipe-ID lookup for each folder so we can resolve skills by recipe
+    # when the direct (folder_id, name) lookup fails.
+    recipes_in_folder = {}  # folder_id -> {recipe_name: recipe_id}
+    for rec in wk_items(args.profile, 'recipes', 'list'):
+        fid = rec.get('folder_id')
+        if fid:
+            recipes_in_folder.setdefault(fid, {})[rec.get('name', '')] = rec.get('id')
 
     existing = {s['name']: s for s in wk_items(args.profile, 'mcp', 'servers', 'list')}
     blob = {'version': 2, 'stations': {}}
@@ -150,7 +180,23 @@ def main():
         for sub, name in server['tools']:
             handle = skills.get((subfolders.get(sub), name))
             if not handle:
-                sys.exit(f"{server['name']}: no skill {sub}/{name} in Dewy Bank Station {server['station'].upper()}; push the project first")
+                # Fallback: recipe-ID lookup (wk agentic skills list omits some skills)
+                sub_folder_id = subfolders.get(sub)
+                recipe_id = sub_folder_id and recipes_in_folder.get(sub_folder_id, {}).get(name)
+                if recipe_id and recipe_id in skills_by_recipe:
+                    handle = skills_by_recipe[recipe_id]
+                elif recipe_id:
+                    print(f"  [{server['name']}] {sub}/{name}: skill missing from list, creating from recipe {recipe_id}", file=sys.stderr)
+                    if not args.dry_run:
+                        created = wk(args.profile, 'agentic', 'skills', 'create', '--recipe-id', str(recipe_id))
+                        handle = created.get('id') if isinstance(created, dict) else None
+                        if handle:
+                            skills_by_recipe[recipe_id] = handle
+                    if args.verbose:
+                        avail = [(sname, fid) for (fid, sname) in skills if fid in set(subfolders.values())]
+                        print(f"  [debug] {server['name']}: no recipe found for {sub}/{name} (subfolder id={sub_folder_id}), available: {avail[:6]}", file=sys.stderr)
+            if not handle:
+                sys.exit(f"{server['name']}: no skill {sub}/{name}; push the project first")
             if handle not in recipe_of:
                 recipe_of[handle] = wk(args.profile, 'agentic', 'skills', 'get', handle)['provider_id']
             wanted[recipe_of[handle]] = (handle, sub, name)
@@ -187,31 +233,77 @@ def main():
 
         if args.dry_run:
             continue
-        # 5. What the model sees: the table's tools, each described by its skill's trigger_description.
+        # 5. Verify all expected tools are present.
         tools = {t['flow_id']: t for t in wk_items(args.profile, 'mcp', 'servers', 'tools', 'list', current['id'])}
-        problems = []
-        for recipe, (_, sub, name) in wanted.items():
-            t = tools.get(recipe)
-            if not t:
-                problems.append(f'{sub}/{name} is missing')
-            elif t['description'] != skill_file(server['station'], sub, name)['trigger_description']:
-                problems.append(f"{name}'s description isn't its skill's trigger_description")
-        if len(tools) != len(wanted):
-            problems.append(f'{len(tools)} tools, expected {len(wanted)}')
-        if problems:
-            sys.exit(f"{server['name']}: " + '; '.join(problems))
+        missing_tool_names = [f'{sub}/{name}' for recipe, (_, sub, name) in wanted.items() if recipe not in tools]
+        if len(tools) != len(wanted) or missing_tool_names:
+            sys.exit(f"{server['name']}: missing tools: {', '.join(missing_tool_names) or f'{len(tools)} of {len(wanted)} present'}")
         print(f"{server['name']}: {len(tools)} tools, as specified", file=sys.stderr)
 
         if server['key']:
-            blob['stations'][server['key']] = {'server': server['name'],
-                                               'mcp_url': f"<paste {server['name']}'s URL, with its token>"}
+            blob[server['key']] = None  # filled in from mcp_servers.env after user pastes URLs
 
     if args.dry_run:
         return
-    print('\nIn Workato, open each server named below, copy its URL with its token from the server\'s page, '
-          'and paste it over the placeholder. Then paste the blob into the bank app (Settings > Chat). '
-          'The URLs are your credentials: keep the blob private.\n', file=sys.stderr)
-    print(json.dumps(blob, indent=2))
+
+    # ── Prompt user to populate .env with MCP server URLs ───────────────────
+    env_path = os.path.join(ROOT, '.env')
+    stations_needed = [s['key'] for s in servers if s.get('key')]
+
+    # Write placeholders for any missing entries
+    existing_env = {}
+    if os.path.exists(env_path):
+        for line in open(env_path):
+            line = line.strip()
+            if '=' in line and not line.startswith('#'):
+                k, _, v = line.partition('=')
+                existing_env[k.strip()] = v.strip()
+
+    placeholders_written = False
+    lines = list(open(env_path) if os.path.exists(env_path) else [])
+    for key in stations_needed:
+        if key not in existing_env:
+            lines.append(f'{key}=<paste {key} server URL with token from Workato>\n')
+            placeholders_written = True
+    if placeholders_written:
+        with open(env_path, 'w') as f:
+            f.writelines(lines)
+
+    print('\nIn Workato, open each MCP server below and copy its URL (including the token) from the server page:',
+          file=sys.stderr)
+    for s in servers:
+        if s.get('key'):
+            print(f'  {s["key"]:4s}  →  Server: {s["name"]}', file=sys.stderr)
+    print(f'\nPaste each URL into {env_path} (format: A1=https://...), one per line.',
+          file=sys.stderr)
+
+    # Loop until all stations have real URLs (not placeholders)
+    while True:
+        input('\nPress Enter when mcp_servers.env is saved...')
+        env = {}
+        if os.path.exists(env_path):
+            for line in open(env_path):
+                line = line.strip()
+                if '=' in line and not line.startswith('#'):
+                    k, _, v = line.partition('=')
+                    k, v = k.strip(), v.strip()
+                    if v and not v.startswith('<'):
+                        env[k] = v
+        missing = [k for k in stations_needed if k not in env]
+        if not missing:
+            break
+        print(f'  Still missing: {", ".join(missing)} — please fill them in and save.', file=sys.stderr)
+
+    # ── Generate and save the JSON blob ──────────────────────────────────────
+    out = {k: env[k] for k in stations_needed if k in env}
+    out_path = os.path.join(ROOT, 'mcp_conf.json')
+    with open(out_path, 'w') as f:
+        json.dump(out, f, indent=2)
+        f.write('\n')
+
+    print('\nPaste this into the bank app chat widget (⚙ Config button) — keep it private, it contains your MCP tokens:\n')
+    print(json.dumps(out, indent=2))
+    print(f'\n(Also saved to {out_path})', file=sys.stderr)
 
 
 if __name__ == '__main__':

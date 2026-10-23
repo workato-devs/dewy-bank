@@ -9,6 +9,7 @@ cdk.out/
 # Local env / secrets — never commit
 .env
 .env.*
+!.env.example
 *.pem
 *credentials*
 
@@ -44,3 +45,7 @@ __pycache__/
 
 # .wk/ keeps its own .gitignore: only wk.toml is shared, and it must stay
 # workspace-neutral (AGENTS.md rule 7).
+
+# MCP server config (contains auth tokens)
+mcp_servers.env
+mcp_conf.json

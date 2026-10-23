@@ -37,7 +37,7 @@ Steps performed (in order):
   8. Push all three station folders (--skip-hooks to bypass recipe-lint).
   9. Start all skill recipes via the Workato REST API so genies can invoke them.
  10. Restore the working tree (git checkout).
- 11. Run setup_chat_clients.py and save the JSON blob.
+ 11. Run setup_mcp_servers.py and generate MCP chat config.
  12. Print next-steps instructions.
 """
 import argparse, json, os, re, shutil, subprocess, sys, urllib.error, urllib.request
@@ -49,7 +49,7 @@ STATION_B = os.path.join(ROOT, 'dewy-bank-station-b')
 STATION_C = os.path.join(ROOT, 'dewy-bank-station-c')
 CUSTOMER_CONN_TITLE = 'Dewy Bank Customer API'
 SUPPORT_CONN_TITLE  = 'Dewy Bank Support API'
-CHAT_CONFIG_PATH = os.path.join(ROOT, '.agents', 'tasks', 'chat-config.json')
+CHAT_CONFIG_PATH = os.path.join(ROOT, 'mcp_conf.json')
 
 # ---------------------------------------------------------------------------
 # wk CLI helper (same pattern as setup_chat_clients.py)
@@ -490,7 +490,7 @@ def main():
             '8. Push station folders (remapped IDs): wk push --skip-hooks -p ' + profile,
             '9. Start skill recipes: PUT /api/recipes/<id>/start for each skill (WORKATO_API_TOKEN)',
             '10. Restore working tree: git checkout -- dewy-bank-station-a/ dewy-bank-station-b/ dewy-bank-station-c/',
-            '11. Run setup_chat_clients.py -p ' + profile + ' and save JSON to ' + CHAT_CONFIG_PATH,
+            '11. Run setup_mcp_servers.py (generates mcp_conf.json)',
             '12. Print next-steps instructions',
         ]
         for s in steps:
@@ -785,29 +785,15 @@ def main():
             )
 
     # ------------------------------------------------------------------
-    # Step 11 — run setup_chat_clients.py
+    # Step 11 — run setup_mcp_servers.py (Zayne's script: creates/updates Workato MCP servers)
     # ------------------------------------------------------------------
-    print('\nStep 11: running setup_chat_clients.py...', file=sys.stderr)
-    # stdout=subprocess.PIPE captures the JSON blob while stderr streams live to
-    # the terminal so the user sees progress during this multi-API-call step.
+    print('\nStep 11: setting up MCP servers in Workato...', file=sys.stderr)
     result = subprocess.run(
-        [sys.executable, os.path.join(HERE, 'setup_chat_clients.py'), '-p', profile],
-        stdout=subprocess.PIPE, text=True, cwd=ROOT,
+        [sys.executable, os.path.join(HERE, 'setup_mcp_servers.py'), '-p', args.profile],
+        check=False, cwd=ROOT,
     )
     if result.returncode != 0:
-        sys.exit('setup_chat_clients.py failed (see output above)')
-
-    # Save the JSON blob (stdout) to the agents tasks directory
-    chat_json = result.stdout.strip()
-    if chat_json:
-        os.makedirs(os.path.dirname(CHAT_CONFIG_PATH), exist_ok=True)
-        with open(CHAT_CONFIG_PATH, 'w') as f:
-            f.write(chat_json)
-            f.write('\n')
-        print(f'  chat config saved to {CHAT_CONFIG_PATH}', file=sys.stderr)
-        print(chat_json)  # stdout: the deliverable for the caller
-    else:
-        print('  WARNING: setup_chat_clients.py produced no JSON blob', file=sys.stderr)
+        sys.exit('setup_mcp_servers.py failed (see output above)')
 
     # ------------------------------------------------------------------
     # Step 12 — next-steps instructions
@@ -818,8 +804,8 @@ def main():
 Deployment complete.
 
 One manual step remains:
-  In the bank app, open "Ask Dewy → Set up chat" and paste the JSON
-  printed above (also saved to {CHAT_CONFIG_PATH}).
+  Open the bank app chat widget, click the \u2699 Config button, and paste
+  the JSON that was printed above (also saved to {CHAT_CONFIG_PATH}).
 ─────────────────────────────────────────────────────────────────''', file=sys.stderr)
 
     # Strip workspace-specific fields written by wk push/link so the committed
