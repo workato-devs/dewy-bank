@@ -12,10 +12,16 @@ function synth(workshopId = "test01") {
   return Template.fromStack(stack);
 }
 
-test("creates four per-workshop-prefixed DynamoDB tables (PAY_PER_REQUEST)", () => {
+test("creates five per-workshop-prefixed DynamoDB tables (PAY_PER_REQUEST)", () => {
   const t = synth();
-  t.resourceCountIs("AWS::DynamoDB::Table", 4);
-  for (const name of ["Accounts", "Customers", "Transactions", "Statements"]) {
+  t.resourceCountIs("AWS::DynamoDB::Table", 5);
+  for (const name of [
+    "Accounts",
+    "Customers",
+    "Transactions",
+    "Statements",
+    "Payees",
+  ]) {
     t.hasResourceProperties("AWS::DynamoDB::Table", {
       TableName: `dewybank-test01-${name}`,
       BillingMode: "PAY_PER_REQUEST",
@@ -132,12 +138,16 @@ test("every route the stations, connectors and bank app call is wired", () => {
     "GET /support/whoami",
     "GET /support/customers/accounts",
     "POST /support/adjustments",
+    // P11: saved payees
+    "GET /payees",
+    "POST /payees",
+    "DELETE /payees/{email}",
   ]) {
     t.hasResourceProperties("AWS::ApiGatewayV2::Route", { RouteKey: routeKey });
   }
 });
 
-test("customer API CORS no longer includes PUT after Genie removal", () => {
+test("customer API CORS no longer includes PUT after Genie removal, and allows DELETE for payees", () => {
   const t = synth();
   const customerEntry = Object.values(
     t.findResources("AWS::ApiGatewayV2::Api"),
@@ -147,6 +157,7 @@ test("customer API CORS no longer includes PUT after Genie removal", () => {
   const methods: string[] =
     customerEntry?.Properties?.CorsConfiguration?.AllowMethods ?? [];
   expect(methods).not.toContain("PUT");
+  expect(methods).toContain("DELETE");
 });
 
 test("creates a Lambda Function URL with RESPONSE_STREAM invoke mode", () => {

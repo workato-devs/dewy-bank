@@ -42,6 +42,7 @@ const ACCOUNTS_TABLE = process.env.ACCOUNTS_TABLE!;
 const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE!;
 const OWNER_INDEX = "owner-index";
 const EMAIL_INDEX = "email-index";
+const PAYEES_TABLE = process.env.PAYEES_TABLE ?? "";
 
 type ProvisioningEvent = {
   action?: "setup" | "teardown" | "reseed";
@@ -121,6 +122,21 @@ async function reseedParticipant(
   now: number,
 ): Promise<void> {
   await deleteHistory(customerId);
+  // P11: clear this participant's saved payees.
+  if (PAYEES_TABLE) {
+    const payees = await queryAll({
+      TableName: PAYEES_TABLE,
+      KeyConditionExpression: "customerId = :c",
+      ExpressionAttributeValues: { ":c": customerId },
+      ProjectionExpression: "customerId, email",
+    });
+    await batchWrite(
+      PAYEES_TABLE,
+      payees.map((p) => ({
+        DeleteRequest: { Key: { customerId: p.customerId, email: p.email } },
+      })),
+    );
+  }
   const createdAt = new Date(now).toISOString();
   await batchPut(
     ACCOUNTS_TABLE,

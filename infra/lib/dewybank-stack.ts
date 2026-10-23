@@ -123,6 +123,15 @@ export class DewyBankStack extends cdk.Stack {
       ...tableDefaults,
     });
 
+    // P11: each participant's saved payees. PK customerId, SK email so a
+    // customer's full payee list is a single Query. Starts empty for everyone.
+    const payeesTable = new dynamodb.Table(this, "PayeesTable", {
+      tableName: `${prefix}-Payees`,
+      partitionKey: { name: "customerId", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "email", type: dynamodb.AttributeType.STRING },
+      ...tableDefaults,
+    });
+
     const tableEnv = {
       WORKSHOP_ID: workshopId,
       TABLE_PREFIX: prefix,
@@ -220,6 +229,9 @@ export class DewyBankStack extends cdk.Stack {
     accountsTable.grantReadWriteData(customerApiFn);
     transactionsTable.grantReadWriteData(customerApiFn);
     statementsTable.grantReadData(customerApiFn);
+    // P11: wire the payees table into both Lambdas that need it.
+    customerApiFn.addEnvironment("PAYEES_TABLE", payeesTable.tableName);
+    payeesTable.grantReadWriteData(customerApiFn);
 
     // Support API handler (C-P3) — the support-agent routes, reaching only the
     // fictional customers. Reads customers, adjusts balances, writes history.
@@ -254,6 +266,8 @@ export class DewyBankStack extends cdk.Stack {
     accountsTable.grantReadWriteData(provisioningFn);
     transactionsTable.grantReadWriteData(provisioningFn);
     statementsTable.grantReadWriteData(provisioningFn);
+    provisioningFn.addEnvironment("PAYEES_TABLE", payeesTable.tableName);
+    payeesTable.grantReadWriteData(provisioningFn);
     // P10: facilitators start a reset from the console (POST /admin/reseed),
     // which invokes provisioning asynchronously.
     provisioningFn.grantInvoke(customerApiFn);
@@ -475,6 +489,8 @@ export class DewyBankStack extends cdk.Stack {
       allowMethods: [
         apigwv2.CorsHttpMethod.GET,
         apigwv2.CorsHttpMethod.POST,
+        // DELETE /payees/{email} (P11)
+        apigwv2.CorsHttpMethod.DELETE,
         apigwv2.CorsHttpMethod.OPTIONS,
       ],
       allowOrigins: ["*"],
@@ -512,6 +528,10 @@ export class DewyBankStack extends cdk.Stack {
       [apigwv2.HttpMethod.POST, "/admin/set-balance"],
       [apigwv2.HttpMethod.POST, "/admin/transfer"],
       [apigwv2.HttpMethod.POST, "/admin/reseed"],
+      // P11: saved payees
+      [apigwv2.HttpMethod.GET, "/payees"],
+      [apigwv2.HttpMethod.POST, "/payees"],
+      [apigwv2.HttpMethod.DELETE, "/payees/{email}"],
     ];
     for (const [method, routePath] of customerRoutes) {
       customerApi.addRoutes({
