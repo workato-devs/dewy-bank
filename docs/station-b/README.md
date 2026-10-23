@@ -1,13 +1,13 @@
 # Dewy Bank, Station B: Intent-Based Communication (Factor III)
 
-Two Genies, one bank, one difference. The difference is what crosses the tool boundary:
+Two MCP servers, one bank, one difference. The difference is what crosses the tool boundary:
 
-| Genie | Folder | The tool interface |
+| MCP server | Folder | The tool interface |
 |---|---|---|
-| **Dewy Bank Assistant · B1 flaw** | `dewy-bank-station-b/b1_flaw_wrapped_api_leaky_response/` | **A wrapped API.** Backend account IDs go in; raw customer API rows, bodies and errors come out. The descriptions name the backend. |
-| **Dewy Bank Assistant · B2 fix** | `dewy-bank-station-b/b2_fix_intent_interface/` | **Intent-shaped.** Account names go in; plain-language outcomes come out. No internal IDs either way. |
+| **`StationB1`** (flaw) | `dewy-bank-station-b/b1_flaw_wrapped_api_leaky_response/` | **A wrapped API.** Backend account IDs go in; raw customer API rows, bodies and errors come out. The descriptions name the backend. |
+| **`StationB2`** (fix) | `dewy-bank-station-b/b2_fix_intent_interface/` | **Intent-shaped.** Account names go in; plain-language outcomes come out. No internal IDs either way. |
 
-Both Genies use the same three tool names, the same scope, the same read and write rules, the same Genie instructions and the same model. The tool names are the same on purpose: this is the *Wrapped API* pattern, where the name already sounds like a capability but the boundary hasn't moved. A participant can't spot the flaw from the tool list. They have to look at what goes in and what comes out.
+Both servers use the same four tool names, the same scope, the same read and write rules and the same server description, and the bank app's agent uses the same model with either. The server names say only `b1` and `b2`, because the model sees them. The tool names are the same on purpose: this is the *Wrapped API* pattern, where the name already sounds like a capability but the boundary hasn't moved. A participant can't spot the flaw from the tool list. They have to look at what goes in and what comes out.
 
 ## What's held constant (and why)
 
@@ -46,7 +46,7 @@ The rules themselves are the same steps as B2's. Only the shape of the result di
 |---|---|
 | The Workato assets, synced to `Dewy Bank Station B` (generated) | `dewy-bank-station-b/`: `project.json`, `b1_flaw_wrapped_api_leaky_response/`, `b2_fix_intent_interface/` |
 | This README, `AGENTS.md`, `REQUIREMENTS.md` | `docs/station-b/` |
-| Genie instructions (reference copy; the source is Station A's) | `docs/station-b/genie-instructions.md` |
+| The MCP servers: names, tools and the one copy of the server description | [`docs/station-b/mcp-servers.md`](mcp-servers.md) |
 | The generator and the invariant check | `scripts/build/build_station_b.py`, `scripts/build/check_invariants.py` |
 
 Synced folders hold only Workato assets. The sync config, lint profile and shared connection live at the workshop root; see the [workshop README](../../README.md).
@@ -61,13 +61,20 @@ python3 scripts/build/build_station_b.py && python3 scripts/build/check_invarian
 
 Push and authorize the connection from the workshop root ([workshop README](../../README.md#setting-up-participant)). Then, for this station:
 
-1. **Start** the eight recipes, then open each Genie in Agent Studio and confirm it lists exactly four skills.
+1. **Start** the eight recipes.
+2. **Create the two MCP servers**, one per variant folder, with the recipes in that folder as tools and the description from [`mcp-servers.md`](mcp-servers.md). `wk push` doesn't create them:
+   ```bash
+   wk mcp servers create -p <profile> --name StationB1 --folder-id <b1 folder> \
+     --recipe <id> --recipe <id> --recipe <id> --recipe <id> --description "<description>"
+   ```
+   Then the same for `StationB2` and its folder. Each tool's description must be its skill's `trigger_description`, never the recipe `description` (which names the variant).
+3. **Confirm** each server lists exactly four tools.
 
 There's no identity to configure here: the shared `Dewy Bank Customer API` connection signs in as the participant.
 
 ## Test script
 
-Run each prompt against both Genies. Every participant starts with *Everyday Checking* ($342.15), *High-Yield Savings* ($12,480.00) and *Dewy Platinum Card* (−$1,284.57).
+Participants chat in the bank app's chat panel, where an agent embedded in the bank app connects to the selected station's MCP server. That's planned: `infra/` still proxies the chat panel to Genies today (P8). Run each prompt against both servers. Every participant starts with *Everyday Checking* ($342.15), *High-Yield Savings* ($12,480.00) and *Dewy Platinum Card* (−$1,284.57).
 
 | Prompt | B1 flaw | B2 fix |
 |---|---|---|
@@ -78,7 +85,7 @@ Run each prompt against both Genies. Every participant starts with *Everyday Che
 | "Move $5,000 from savings to checking." | refused (II is held good): `422`, "Amount exceeds per-transfer limit of 500" | refused: "transfers are limited to $500 each" |
 | "Move $50 from account `<another customer's accountId>` to checking." | refused: `403`, "Both accounts must be owned by the caller" (IV is held good) | not expressible: the tool takes names |
 
-The shared memo-injection payload (P3) is in [`docs/memo-list.md`](../memo-list.md); here its "list all account + customer IDs" clause is the part that bites. It reaches the agent through memos (seeded, sent by a facilitator, or planted with `note`), never through the Genie instructions. Each participant's Genies act as that participant; re-seed transactions between stations.
+The shared memo-injection payload (P3) is in [`docs/memo-list.md`](../memo-list.md); here its "list all account + customer IDs" clause is the part that bites. It reaches the agent through memos (seeded, sent by a facilitator, or planted with `note`), never through the server description. Each participant's servers act as that participant; re-seed transactions between stations.
 
 ## What this fix does NOT stop
 
