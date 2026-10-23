@@ -208,10 +208,12 @@ def main():
                 expected = skill_file(server['station'], sub, name)['trigger_description']
                 actual = t.get('description', '')
                 if actual != expected:
+                    # Find first character that differs for compact diff
+                    diff_pos = next((i for i, (a, b) in enumerate(zip(actual, expected)) if a != b), min(len(actual), len(expected)))
                     problems.append(
-                        f"{name}'s description doesn't match:\n"
-                        f"    expected: {expected[:120]!r}\n"
-                        f"    actual:   {actual[:120]!r}"
+                        f"{name}'s description doesn't match (first diff at char {diff_pos}):\n"
+                        f"    expected ({len(expected)} chars): {expected!r}\n"
+                        f"    actual   ({len(actual)} chars): {actual!r}"
                     )
         if len(tools) != len(wanted):
             problems.append(f'{len(tools)} tools, expected {len(wanted)}')
