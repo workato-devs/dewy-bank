@@ -139,6 +139,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('-p', '--profile', required=True, help='wk profile for the participant\'s workspace')
     ap.add_argument('--dry-run', action='store_true', help='say what would change, change nothing')
+    ap.add_argument('--verbose', action='store_true', help='print debug info about folder and skill resolution')
     args = ap.parse_args()
     would = 'would be ' if args.dry_run else ''
     api = DeveloperAPI(args.profile)
@@ -150,7 +151,7 @@ def main():
         top = find_folder(args.profile, f'Dewy Bank Station {station.upper()}')
         sub_list = wk_items(args.profile, 'folders', 'list', '--parent', str(top))
         sub_map = {f['name']: f['id'] for f in sub_list}
-        print(f"  [debug] Station {station.upper()} folder {top}, subfolders: {list(sub_map.keys())}", file=sys.stderr)
+        print(f"  [debug] Station {station.upper()} folder {top}, subfolders: {list(sub_map.keys())}", file=sys.stderr) if args.verbose else None
         folders[station] = (top, sub_map)
     all_skills = wk_items(args.profile, 'agentic', 'skills', 'list')
     skills = {(s['folder_id'], s['name']): s['id'] for s in all_skills}
@@ -191,9 +192,9 @@ def main():
                         handle = created.get('id') if isinstance(created, dict) else None
                         if handle:
                             skills_by_recipe[recipe_id] = handle
-                else:
-                    avail = [(sname, fid) for (fid, sname) in skills if fid in set(subfolders.values())]
-                    print(f"  [debug] {server['name']}: no recipe found for {sub}/{name} (subfolder id={sub_folder_id}), available: {avail[:6]}", file=sys.stderr)
+                    if args.verbose:
+                        avail = [(sname, fid) for (fid, sname) in skills if fid in set(subfolders.values())]
+                        print(f"  [debug] {server['name']}: no recipe found for {sub}/{name} (subfolder id={sub_folder_id}), available: {avail[:6]}", file=sys.stderr)
             if not handle:
                 sys.exit(f"{server['name']}: no skill {sub}/{name}; push the project first")
             if handle not in recipe_of:
