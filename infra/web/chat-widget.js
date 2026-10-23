@@ -175,7 +175,10 @@
               ${SVG.send}
             </button>
           </div>
-          <p class="wk-cw-input-hint">Shift + Enter for newline</p>
+          <div class="wk-cw-input-hint-row">
+            <p class="wk-cw-input-hint">Shift + Enter for newline</p>
+            <button class="wk-cw-new-chat-btn" id="wk-cw-new-chat-btn" aria-label="Clear chat">Clear chat</button>
+          </div>
         </div>
       </div>
     `),
@@ -203,6 +206,7 @@
       body: root.querySelector("#wk-cw-body"),
       textarea: root.querySelector("#wk-cw-textarea"),
       sendBtn: root.querySelector("#wk-cw-send-btn"),
+      newChatBtn: root.querySelector("#wk-cw-new-chat-btn"),
     };
   }
 
@@ -238,6 +242,24 @@
     });
 
     dom.sendBtn.addEventListener("click", handleSend);
+    dom.newChatBtn.addEventListener("click", () => {
+      const s = state.activeStation;
+      state.transcripts[s] = [];
+      state.messages[s] = [];
+      try {
+        sessionStorage.setItem(
+          STORAGE.transcripts,
+          JSON.stringify(state.transcripts),
+        );
+      } catch (_) {}
+      try {
+        sessionStorage.setItem(
+          STORAGE.messages,
+          JSON.stringify(state.messages),
+        );
+      } catch (_) {}
+      renderChat();
+    });
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && state.isOpen) {
