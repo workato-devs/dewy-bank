@@ -834,6 +834,11 @@
 
     (function tick() {
       var conv = chat.conversations[station];
+      console.log(
+        "[chat] poll tick: conv=%s since=%s",
+        conv,
+        chat.since[conv] || "(none)",
+      );
       var q =
         "?station=" +
         encodeURIComponent(station) +
@@ -849,14 +854,13 @@
           eventsOf(r).forEach(function (e) {
             var type = field(e, ["type", "event", "event_type", "name"]);
             var id = field(e, ["seq_num", "id"]);
-            var key =
-              id != null ? String(id) : type + "|" + field(e, ["created_at"]);
-            if (seen[key]) return;
-            seen[key] = true;
             var at = field(e, ["created_at", "createdAt"]);
             if (at) chat.since[conv] = at;
+            var key = id != null ? String(id) : at ? type + "|" + at : null;
+            if (key && seen[key]) return;
+            if (key) seen[key] = true;
 
-            console.log("[chat] event type=%s id=%s", type, id);
+            console.log("[chat] event type=%s key=%s", type, key);
 
             if (type === "agent.message") {
               // Keep thinkingBubble visible until chatDone() — do NOT remove it here.
@@ -912,6 +916,7 @@
             }
           });
           if (finished) {
+            console.log("[chat] poll: stopping — processing.finished");
             chatDone();
             return;
           }
@@ -921,11 +926,12 @@
             "[chat] poll: status=" + status + ", messages=" + messageCount,
           );
           if (status === "completed" || status === "waiting_for_customer") {
-            console.log("[chat] poll: turn complete");
+            console.log("[chat] poll: stopping — status=%s", status);
             chatDone();
             return;
           }
           if (Date.now() - started > 120000) {
+            console.log("[chat] poll: stopping — timeout");
             if (chat.thinkingBubble) {
               chat.thinkingBubble.remove();
               chat.thinkingBubble = null;
