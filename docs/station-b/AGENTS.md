@@ -6,18 +6,19 @@ This is a teaching sample. Its whole job is to show that **one factor changes wh
 
 `scripts/build/build_station_b.py` deletes and rewrites `dewy-bank-station-b/` from `dewy-bank-station-a/`. Never hand-edit the generated JSON; the next build overwrites it.
 
-- **A change to the shared logic** (scope checks, the rule block, the B2 interface, the Genie instructions) goes into **Station A**, then you rebuild. Station A and Station B stay in lockstep that way.
+- **A change to the shared logic** (scope checks, the rule block, the B2 interface) goes into **Station A**, then you rebuild. Station A and Station B stay in lockstep that way.
 - **A change to the B1 interface or to Station B's labels** goes into `build_station_b.py`.
 - After every build: `python3 scripts/build/check_invariants.py`, then strict `wk lint`.
+- **A change to the MCP servers** (names, tools, the server description) goes into `mcp-servers.md`, then into the servers by hand. The builder doesn't generate them, and `check_invariants.py` doesn't check them.
 
 ## Invariants (don't break these)
 
 1. **Only Factor III differs between B1 and B2.** That means the tool interface (description, parameters, result schema), the name→ID resolution condition, and the steps that shape output. Nothing else.
 2. **The rules are Station A2's, step for step**, in both variants: the write rule block and the two read rules, with the same conditions, aliases, uuids and comments. Only the steps that shape output differ (the return steps, and the activity list B1 keeps as raw rows).
 3. **Scope comes from the credential in both variants:** every tool calls only the `Dewy Bank Customer API` connector, as the participant. No Admin API, no `customer_id`. B1 looks up the model's `accountId` among the participant's own accounts.
-4. **Identical in B1 and B2:** tool names, `requires_user_confirmation`, the `amount` and `note` parameters, the Genie `instructions`, `ai_provider`, `ai_model` and skill order. The instructions are the same text as Station A's.
-5. **Backend detail appears only in B1's tool descriptions and results**, never in the Genie instructions.
-6. **The variant is visible only to participants:** folder names, Genie names, descriptions and logos (alarmed Dewy for B1, smiley Dewy for B2), recipe `description`, and step comments.
+4. **Identical in B1 and B2:** tool names, `requires_user_confirmation` (`false` everywhere), the `amount` and `note` parameters, `pay_someone` (A2's, saved-payee rule included, P11), the MCP server description ([`mcp-servers.md`](mcp-servers.md)) and the model of the bank app's agent.
+5. **Backend detail appears only in B1's tool descriptions and results**, never in the MCP server description.
+6. **The variant is visible only to participants:** folder names, recipe `description`, and step comments. Never in the MCP server names (`StationB1`, `StationB2`), which the model sees.
 7. **Memos pass through unchanged, in every variant.** `note` goes to the bank as `memo` exactly as written. B1 returns `memo` as stored, and B2 returns it as `description`.
 8. **Request bodies are built as a hash with `.to_json`**, never by joining strings.
 

@@ -50,7 +50,7 @@ Each finding below has three parts: what we saw, why it matters, and what to do 
 
 **Why it matters:** each one is small, but each is a second variable. When a result surprises you in the room, you want to rule out everything except the factor under test.
 
-**What to do next time:** keep shared text in one file and generate both Genies from it (`docs/station-a/genie-instructions.md` now does this). Build both variants from the same steps and change only the factor's block. Diff the two before you ship.
+**What to do next time:** keep shared text in one file and generate both Genies from it (`docs/station-a/genie-instructions.md` did this; since the move to MCP servers, [`mcp-servers.md`](mcp-servers.md) holds the one copy of the server description). Build both variants from the same steps and change only the factor's block. Diff the two before you ship.
 
 ## 3. The fixed check didn't fail closed
 
@@ -124,14 +124,14 @@ You built this without the `wk` CLI, recipe-lint or recipe-skills. Most of findi
 
 ## Checklist for the next station
 
-- [ ] Everything the model sees is byte-identical across variants: tool names, descriptions, parameters, results, instructions, model.
+- [ ] Everything the model sees is byte-identical across variants: tool names, descriptions, parameters, results, MCP server description, model.
 - [ ] Tool names describe the customer's job. No station, variant or implementation words.
 - [ ] Inputs are names the customer knows; outputs are outcomes. No backend IDs either way.
-- [ ] The variant is visible only in folders, Genie names and descriptions, recipe descriptions and comments.
+- [ ] The variant is visible only in folders, recipe descriptions and comments (never in MCP server names).
 - [ ] The rule list is written down, and each rule is its own deterministic step with its own refusal.
 - [ ] Every check fails closed (`present` on both sides before comparing).
 - [ ] Every write is in try/catch, and every path returns the same typed result.
-- [ ] No access rules in the Genie instructions.
+- [ ] No access rules in the MCP server description.
 - [ ] Strict `wk lint` is clean (known noise is listed in AGENTS.md); `wk diff` reviewed before push.
 - [ ] README updated: what's held constant, the test script, what the fix does NOT stop.
 

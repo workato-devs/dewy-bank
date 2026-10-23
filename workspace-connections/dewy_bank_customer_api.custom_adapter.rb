@@ -149,19 +149,18 @@
       end
     },
 
+    # Read only on purpose: payees are added and removed in the bank app, never
+    # through this connector, so no tool can make someone a payee (P11).
     list_payees: {
-      title: 'List my saved payees',
-      description: "GET /payees: the signed-in customer's saved payees",
+      title: 'List my payees',
+      description: "GET /payees: the people the signed-in customer has saved as payees",
 
       execute: lambda do |_connection, _input|
         get('/payees')
       end,
 
-      output_fields: lambda do |_object_definitions|
-        [{ name: 'payees', type: 'array', of: 'object', properties: [
-          { name: 'email' },
-          { name: 'addedAt' }
-        ]}]
+      output_fields: lambda do |object_definitions|
+        [{ name: 'payees', type: 'array', of: 'object', properties: object_definitions['payee'] }]
       end
     }
   },
@@ -183,6 +182,12 @@
           { name: 'amount', type: 'number' }, { name: 'counterparty' }, { name: 'memo' },
           { name: 'channel' }, { name: 'category' }, { name: 'createdAt' }
         ]
+      end
+    },
+
+    payee: {
+      fields: lambda do |_connection, _config_fields|
+        [{ name: 'email' }, { name: 'addedAt' }]
       end
     }
   }

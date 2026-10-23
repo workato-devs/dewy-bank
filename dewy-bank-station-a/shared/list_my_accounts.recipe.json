@@ -1,6 +1,6 @@
 {
   "name": "list_my_accounts",
-  "description": "Station A, shared by both Genies. Lists the signed-in customer's accounts by name, with no internal IDs in the output. The customer API (called as the participant) returns only this customer's accounts.",
+  "description": "Station A, shared by A1 and A2. Lists the signed-in customer's accounts by name, with no internal IDs in the output. The customer API (called as the participant) returns only this customer's accounts.",
   "version": 1,
   "private": true,
   "concurrency": 1,
