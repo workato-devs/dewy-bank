@@ -1,5 +1,5 @@
 {
-  "description": "Dewy Bank workshop, Station B: Factor III (Intent-Based Communication). Two Genies with the same tool names, scope and rules; only the tool interface differs. B1 = wrapped API with raw IDs in and raw rows out, B2 = intent-shaped tools.",
+  "description": "Dewy Bank workshop, Station B: Factor III (Intent-Based Communication). Two sets of tools with the same names, scope and rules; only the tool interface differs. B1 = wrapped API with raw IDs in and raw rows out, B2 = intent-shaped tools.",
   "color": "brown",
   "icon": ""
 }

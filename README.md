@@ -1,16 +1,16 @@
 # Dewy Bank
 
-A hands-on workshop on securing AI agents. Participants chat with Workato Genies that act on a mock retail bank, attack them, and then see which architecture change stops each attack. The fix is never a better prompt.
+A hands-on workshop on securing AI agents. Participants chat with the agent in a mock retail bank's app, whose tools are Workato MCP servers acting on the bank. They attack it, and then see which architecture change stops each attack. The fix is never a better prompt.
 
-The workshop has three stations, one per [Seven Factors](https://github.com/workato-devs/seven-factors) principle. Each station pairs a flawed Genie with a fixed one that differs in exactly one layer, so participants can say which factor stopped the attack:
+The workshop has three stations, one per [Seven Factors](https://github.com/workato-devs/seven-factors) principle. Each station pairs a flawed MCP server with a fixed one that differs in exactly one layer, so participants can say which factor stopped the attack:
 
-| Station | Factor                          | Flawed variant                                                  | Fixed variant                                     | Docs                                          |
-| ------- | ------------------------------- | --------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------- |
-| A       | II: Deterministic Mutations     | the agent decides what a write does                             | the recipe's rules decide                         | [`docs/station-a/`](docs/station-a/README.md) |
-| B       | III: Intent-Based Communication | tools wrap the raw API and leak internal IDs                    | intent-shaped tools return names and amounts only | [`docs/station-b/`](docs/station-b/README.md) |
-| C       | IV: Bounded Access              | one Genie holds customer and staff tools, guarded by its prompt | each role gets its own Genie and credential       | [`docs/station-c/`](docs/station-c/README.md) |
+| Station | Factor                          | Flawed variant                                                        | Fixed variant                                     | Docs                                          |
+| ------- | ------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------- |
+| A       | II: Deterministic Mutations     | the agent decides what a write does                                   | the recipe's rules decide                         | [`docs/station-a/`](docs/station-a/README.md) |
+| B       | III: Intent-Based Communication | tools wrap the raw API and leak internal IDs                          | intent-shaped tools return names and amounts only | [`docs/station-b/`](docs/station-b/README.md) |
+| C       | IV: Bounded Access              | one server holds customer and staff tools, guarded by its description | each role gets its own server and credential      | [`docs/station-c/`](docs/station-c/README.md) |
 
-Every station uses the same attack: one shared memo on an incoming payment ([`docs/memo-list.md`](docs/memo-list.md)), read by the Genie when the participant asks about their activity. The design behind the stations is in [`docs/factor-matrix.md`](docs/factor-matrix.md).
+Every station uses the same attack: one shared memo on an incoming payment ([`docs/memo-list.md`](docs/memo-list.md)), read by the agent when the participant asks about their activity. The design behind the stations is in [`docs/factor-matrix.md`](docs/factor-matrix.md).
 
 > **The bank is deliberately flawed.** Its APIs make no business decisions by design (the recipes do), so a caller that skips the Workato layer gets no rules at all.
 
@@ -20,7 +20,7 @@ Every station uses the same attack: one shared memo on an incoming payment ([`do
 dewy-bank/
 ├── infra/                     # the bank: AWS CDK stack, Lambdas, the bank app and facilitator console
 ├── workspace-connections/     # Workato: the two custom connectors and their connections (pushed first)
-├── dewy-bank-station-a/       # Workato: Station A's recipes, skills and Genies
+├── dewy-bank-station-a/       # Workato: Station A's recipes and skills
 ├── dewy-bank-station-b/       # Workato: Station B (generated from A by scripts/build/build_station_b.py)
 ├── dewy-bank-station-c/       # Workato: Station C (generated from A by scripts/build/build_station_c.py)
 ├── docs/                      # station guides, the design, the shared memo, the backend spec
@@ -30,8 +30,9 @@ dewy-bank/
 └── .github/workflows/         # CI for infra/ and the stations, and the infra deploy
 ```
 
-- **The bank** ([`infra/`](infra/README.md)): a Customer API (Cognito sign-in), a Support API (one shared support code, reaching only three fictional customers), a chat proxy to each participant's Genies, the bank app with its chat panel, and a facilitator console.
+- **The bank** ([`infra/`](infra/README.md)): a Customer API (Cognito sign-in), a Support API (one shared support code, reaching only three fictional customers), the bank app with its chat panel, and a facilitator console. The panel's agent connects to the selected station's MCP server. **That agent is planned:** today the panel still talks to Workato Genies through a chat proxy (P8).
 - **The Workato project**: one `wk` CLI project for the whole workshop. Each synced folder is a top-level server folder of the same name in kebab-case (`Dewy Bank Station A` is `dewy-bank-station-a/`). Rules for changing anything here are in [`AGENTS.md`](AGENTS.md).
+- **The MCP servers**: one per variant, each exposing that variant's recipes as tools: `StationA1`, `StationA2`, `StationB1`, `StationB2`, `StationC1` and `StationC2 Customer`. They aren't files in the synced folders, so `wk push` doesn't create them. Each station's `docs/station-<x>/mcp-servers.md` holds its servers' names, tools and descriptions.
 
 ## Prerequisites
 
@@ -47,6 +48,8 @@ dewy-bank/
 ## Deploy your Workato workspace
 
 `scripts/deploy_workato.py` handles the full end-to-end deployment: it stamps the bank URL into the connectors, pushes all Workato assets in the right order, waits while you authenticate the connections, starts the skill recipes, configures the chat clients, and prints the JSON blob you paste into the bank app.
+
+> **Not yet updated for MCP servers.** Its last step (`setup_chat_clients.py`) still sets up chat with Genies, which the stations no longer have, so it fails. Until the script creates the MCP servers, create them yourself after the recipes are running: see each station's `mcp-servers.md`.
 
 **Before running**, make sure:
 
@@ -97,7 +100,7 @@ Work through the stations in order. Each station guide walks you through the att
 - [Station B](docs/station-b/README.md) — Factor III: Intent-Based Communication
 - [Station C](docs/station-c/README.md) — Factor IV: Bounded Access (also connects the Support API)
 
-In the bank app chat panel, use the station selector to switch between the flawed and fixed Genies for each station.
+In the bank app chat panel, use the station selector to switch between each station's flawed and fixed MCP servers.
 
 ## Developing
 
