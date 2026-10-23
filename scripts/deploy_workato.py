@@ -792,6 +792,11 @@ def main():
         [sys.executable, os.path.join(HERE, 'setup_mcp_servers.py'), '-p', args.profile],
         check=False, cwd=ROOT,
     )
+    if result.returncode == 3:  # setup_mcp_servers.WAITING_FOR_URLS: no terminal to wait at
+        sys.exit(
+            'Deployment paused: the MCP servers are set up, but .env still needs their URLs (see above).\n'
+            f'Fill them in, then run: python3 scripts/setup_mcp_servers.py -p {args.profile}'
+        )
     if result.returncode != 0:
         sys.exit('setup_mcp_servers.py failed (see output above)')
 

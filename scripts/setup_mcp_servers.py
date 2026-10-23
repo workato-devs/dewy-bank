@@ -23,11 +23,18 @@ What it does:
      names the variant, must never reach the model).
 
 Servers use hashed_token auth, the only token type the API accepts besides
-workato_idp (2026-10-22), and Workato never returns a hashed token. So the blob
-holds a placeholder per station: the participant copies each server's URL, with
-its token, from the server's page in Workato.
+workato_idp (2026-10-22), and Workato never returns a hashed token. So the
+participant copies each server's URL, with its token, from the server's page in
+Workato into .env (A1=..., C2=...), and the script turns those lines into
+mcp_conf.json, the blob the bank app takes.
+
+Without a terminal (a coding agent, CI), the script can't wait for the URLs: if
+any is missing it says which and exits with status 3 (WAITING_FOR_URLS). Rerun
+it once .env is filled in; with every URL present it never prompts.
 """
 import argparse, glob, json, os, re, subprocess, sys, urllib.error, urllib.request
+
+WAITING_FOR_URLS = 3  # exit status: servers are set up, .env still lacks some URLs
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..')
@@ -127,6 +134,25 @@ def find_folder(profile, name, parent=None):
     if len(found) != 1:
         sys.exit(f'expected one folder named "{name}", found {len(found)}; push the project first')
     return found[0]
+
+
+def filled_urls(env_path):
+    """Every .env value that's filled in, not a <placeholder>, by key."""
+    env = {}
+    if os.path.exists(env_path):
+        for line in open(env_path):
+            k, sep, v = line.strip().partition('=')
+            k, v = k.strip(), v.strip()
+            if sep and not k.startswith('#') and v and not v.startswith('<'):
+                env[k] = v
+    return env
+
+
+def stop_waiting(env_path, missing, profile):
+    """Exit when nobody can press Enter: say which URLs .env lacks and how to resume."""
+    print(f'Waiting for MCP server URLs in {env_path}: {", ".join(missing)}.\n'
+          f'Fill them in, then rerun: python3 scripts/setup_mcp_servers.py -p {profile}', file=sys.stderr)
+    sys.exit(WAITING_FOR_URLS)
 
 
 def skill_file(station, subfolder, name):
@@ -241,7 +267,7 @@ def main():
         print(f"{server['name']}: {len(tools)} tools, as specified", file=sys.stderr)
 
         if server['key']:
-            blob[server['key']] = None  # filled in from mcp_servers.env after user pastes URLs
+            blob[server['key']] = None  # filled in from .env after the participant pastes URLs
 
     if args.dry_run:
         return
@@ -269,30 +295,29 @@ def main():
         with open(env_path, 'w') as f:
             f.writelines(lines)
 
-    print('\nIn Workato, open each MCP server below and copy its URL (including the token) from the server page:',
-          file=sys.stderr)
-    for s in servers:
-        if s.get('key'):
-            print(f'  {s["key"]:4s}  →  Server: {s["name"]}', file=sys.stderr)
-    print(f'\nPaste each URL into {env_path} (format: A1=https://...), one per line.',
-          file=sys.stderr)
+    env = filled_urls(env_path)
+    missing = [k for k in stations_needed if k not in env]
+    if missing:
+        print('\nIn Workato, open each MCP server below and copy its URL (including the token) from the server page:',
+              file=sys.stderr)
+        for s in servers:
+            if s.get('key') in missing:
+                print(f'  {s["key"]:4s}  →  Server: {s["name"]}', file=sys.stderr)
+        print(f'\nPaste each URL into {env_path} (format: A1=https://...), one per line.',
+              file=sys.stderr)
+        if not sys.stdin.isatty():
+            stop_waiting(env_path, missing, args.profile)
 
     # Loop until all stations have real URLs (not placeholders)
-    while True:
-        input('\nPress Enter when mcp_servers.env is saved...')
-        env = {}
-        if os.path.exists(env_path):
-            for line in open(env_path):
-                line = line.strip()
-                if '=' in line and not line.startswith('#'):
-                    k, _, v = line.partition('=')
-                    k, v = k.strip(), v.strip()
-                    if v and not v.startswith('<'):
-                        env[k] = v
+    while missing:
+        try:
+            input('\nPress Enter when .env is saved...')
+        except EOFError:
+            stop_waiting(env_path, missing, args.profile)
+        env = filled_urls(env_path)
         missing = [k for k in stations_needed if k not in env]
-        if not missing:
-            break
-        print(f'  Still missing: {", ".join(missing)} — please fill them in and save.', file=sys.stderr)
+        if missing:
+            print(f'  Still missing: {", ".join(missing)} — please fill them in and save.', file=sys.stderr)
 
     # ── Generate and save the JSON blob ──────────────────────────────────────
     out = {k: env[k] for k in stations_needed if k in env}
