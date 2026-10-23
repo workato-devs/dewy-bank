@@ -1022,3 +1022,114 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ── Tool call details (expandable skill card) ──────────────────── */
+.wk-cw-tool-details {
+  /* summary provides the skill-card visual */
+}
+.wk-cw-tool-details > summary {
+  display: flex;
+  list-style: none;
+  cursor: pointer;
+}
+.wk-cw-tool-details > summary::-webkit-details-marker {
+  display: none;
+}
+.wk-cw-tool-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--wk-border);
+  background: var(--wk-bg);
+}
+.wk-cw-tool-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wk-cw-tool-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--wk-text-light);
+}
+.wk-cw-tool-result--error .wk-cw-tool-label {
+  color: #dc2626;
+}
+.wk-cw-tool-json {
+  margin: 0;
+  background: var(--wk-bg-surface);
+  border: 1px solid var(--wk-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+  overflow-x: auto;
+  white-space: pre;
+  max-height: 140px;
+  overflow-y: auto;
+  color: var(--wk-text-muted);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* ── Config panel ─────────────────────────────────────────────────── */
+.wk-cw-config-hint {
+  font-size: 12px;
+  color: var(--wk-text-muted);
+  line-height: 1.5;
+  padding: 2px 0 8px;
+}
+.wk-cw-config-ta {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  border: 1.5px solid var(--wk-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  color: var(--wk-text);
+  background: var(--wk-bg-surface);
+  line-height: 1.5;
+  outline: none;
+  transition: border-color 0.15s;
+  display: block;
+  box-sizing: border-box;
+}
+.wk-cw-config-ta:focus {
+  border-color: var(--wk-accent);
+}
+.wk-cw-config-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.wk-cw-config-btns button {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--wk-accent);
+  color: #fff;
+  transition: background 0.15s;
+  outline: none;
+}
+.wk-cw-config-btns button:hover {
+  background: var(--wk-accent-dark);
+}
+.wk-cw-config-btns button:focus-visible {
+  outline: 2px solid var(--wk-accent);
+  outline-offset: 2px;
+}
+.wk-cw-config-clear-btn {
+  background: transparent !important;
+  color: var(--wk-text-muted) !important;
+  border: 1px solid var(--wk-border) !important;
+}
+.wk-cw-config-clear-btn:hover {
+  background: var(--wk-bg-surface) !important;
+}
