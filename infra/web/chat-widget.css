@@ -218,8 +218,11 @@
   height: 32px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  /* Solid white circle so SVG icons (bot/gear) are visible against the
+     accent-coloured header. Icon colour is set to var(--wk-accent) so the
+     dark-on-white contrast is crisp. */
+  background: #ffffff;
+  color: var(--wk-accent);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -229,7 +232,7 @@
   outline: none;
 }
 .wk-cw-header-btn:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.85);
 }
 .wk-cw-header-btn:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.7);
