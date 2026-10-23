@@ -241,15 +241,69 @@ def main():
         print(f"{server['name']}: {len(tools)} tools, as specified", file=sys.stderr)
 
         if server['key']:
-            blob['stations'][server['key']] = {'server': server['name'],
-                                               'mcp_url': f"<paste {server['name']}'s URL, with its token>"}
+            blob[server['key']] = None  # filled in from mcp_servers.env after user pastes URLs
 
     if args.dry_run:
         return
-    print('\nIn Workato, open each server named below, copy its URL with its token from the server\'s page, '
-          'and paste it over the placeholder. Then paste the blob into the bank app (Settings > Chat). '
-          'The URLs are your credentials: keep the blob private.\n', file=sys.stderr)
-    print(json.dumps(blob, indent=2))
+
+    # ── Prompt user to populate mcp_servers.env ──────────────────────────────
+    env_path = os.path.join(ROOT, 'mcp_servers.env')
+    stations_needed = [s['key'] for s in servers if s.get('key')]
+
+    # Write placeholders for any missing entries
+    existing_env = {}
+    if os.path.exists(env_path):
+        for line in open(env_path):
+            line = line.strip()
+            if '=' in line and not line.startswith('#'):
+                k, _, v = line.partition('=')
+                existing_env[k.strip()] = v.strip()
+
+    placeholders_written = False
+    lines = list(open(env_path) if os.path.exists(env_path) else [])
+    for key in stations_needed:
+        if key not in existing_env:
+            lines.append(f'{key}=<paste {key} server URL with token from Workato>\n')
+            placeholders_written = True
+    if placeholders_written:
+        with open(env_path, 'w') as f:
+            f.writelines(lines)
+
+    print('\nIn Workato, open each MCP server below and copy its URL (including the token) from the server page:',
+          file=sys.stderr)
+    for s in servers:
+        if s.get('key'):
+            print(f'  {s["key"]:4s}  →  Server: {s["name"]}', file=sys.stderr)
+    print(f'\nPaste each URL into {env_path} (one per line, format: A1=https://...).',
+          file=sys.stderr)
+
+    # Loop until all stations have real URLs (not placeholders)
+    while True:
+        input('\nPress Enter when mcp_servers.env is saved...')
+        env = {}
+        if os.path.exists(env_path):
+            for line in open(env_path):
+                line = line.strip()
+                if '=' in line and not line.startswith('#'):
+                    k, _, v = line.partition('=')
+                    k, v = k.strip(), v.strip()
+                    if v and not v.startswith('<'):
+                        env[k] = v
+        missing = [k for k in stations_needed if k not in env]
+        if not missing:
+            break
+        print(f'  Still missing: {", ".join(missing)} — please fill them in and save.', file=sys.stderr)
+
+    # ── Generate and save the JSON blob ──────────────────────────────────────
+    out = {k: env[k] for k in stations_needed if k in env}
+    out_path = os.path.join(ROOT, 'mcp_conf.json')
+    with open(out_path, 'w') as f:
+        json.dump(out, f, indent=2)
+        f.write('\n')
+
+    print('\nPaste this into the bank app chat widget (⚙ Config button) — keep it private, it contains your MCP tokens:\n')
+    print(json.dumps(out, indent=2))
+    print(f'\n(Also saved to {out_path})', file=sys.stderr)
 
 
 if __name__ == '__main__':
