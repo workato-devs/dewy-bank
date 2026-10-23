@@ -279,7 +279,7 @@ def main():
 
     # Loop until all stations have real URLs (not placeholders)
     while True:
-        input('\nPress Enter when mcp_servers.env is saved...')
+        input('\nPress Enter when .env is saved...')
         env = {}
         if os.path.exists(env_path):
             for line in open(env_path):
