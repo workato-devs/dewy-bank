@@ -389,13 +389,16 @@ export class DewyBankStack extends cdk.Stack {
       },
     });
 
-    // bedrock:InvokeModel on the system-defined cross-region inference profile
-    // (double colon — no account ID) and the underlying foundation model family.
+    // bedrock:InvokeModel on the cross-region inference profile.
+    // AWS resolves system-defined profiles to an account-specific ARN at
+    // call time (e.g. arn:aws:bedrock:us-west-2:887078547254:inference-profile/...)
+    // so we allow both the canonical double-colon form and any account-scoped form.
     chatBedrockFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["bedrock:InvokeModel"],
         resources: [
           `arn:aws:bedrock:${this.region}::inference-profile/us.moonshotai.kimi-k3`,
+          `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/us.moonshotai.kimi-k3`,
           `arn:aws:bedrock:*::foundation-model/moonshotai.kimi-k3*`,
         ],
       }),

@@ -218,7 +218,7 @@
   height: 32px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.22);
   color: #fff;
   cursor: pointer;
   display: flex;
@@ -229,15 +229,15 @@
   outline: none;
 }
 .wk-cw-header-btn:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.35);
 }
 .wk-cw-header-btn:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 2px;
 }
 .wk-cw-header-btn svg {
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
 }
 
 /* ── Slide panels (history + genie) ────────────────────── */
@@ -1000,6 +1000,17 @@
   background: #fee2e2;
   border-color: #fca5a5;
   color: #991b1b;
+}
+
+/* Inline status notes (MCP unavailable, Bedrock errors) — subtler than
+   system-msg: no background/border, just small muted text */
+.wk-cw-status-msg {
+  font-size: 12px;
+  color: var(--wk-text-light);
+  text-align: center;
+  padding: 4px 8px;
+  align-self: center;
+  max-width: 90%;
 }
 
 /* ── Spinner / loading ──────────────────────────────────── */
