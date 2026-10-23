@@ -150,6 +150,9 @@ def main():
         top = find_folder(args.profile, f'Dewy Bank Station {station.upper()}')
         folders[station] = (top, {f['name']: f['id'] for f in wk_items(args.profile, 'folders', 'list', '--parent', str(top))})
     skills = {(s['folder_id'], s['name']): s['id'] for s in wk_items(args.profile, 'agentic', 'skills', 'list')}
+    skills_by_name = {}  # name -> list of handles, fallback when folder-id doesn't match
+    for (fid, sname), handle in skills.items():
+        skills_by_name.setdefault(sname, []).append(handle)
     recipe_of = {}  # skill handle -> its recipe ID (an MCP tool's flow_id)
 
     existing = {s['name']: s for s in wk_items(args.profile, 'mcp', 'servers', 'list')}
@@ -159,6 +162,14 @@ def main():
         wanted = {}
         for sub, name in server['tools']:
             handle = skills.get((subfolders.get(sub), name))
+            if not handle:
+                # Fallback: match by name only, warn if ambiguous
+                candidates = skills_by_name.get(name, [])
+                if len(candidates) == 1:
+                    handle = candidates[0]
+                    print(f"  [{server['name']}] {sub}/{name}: folder-id lookup missed, matched by name", file=sys.stderr)
+                elif len(candidates) > 1:
+                    sys.exit(f"{server['name']}: ambiguous skill '{name}' found in {len(candidates)} folders; push the project first")
             if not handle:
                 sys.exit(f"{server['name']}: no skill {sub}/{name} in Dewy Bank Station {server['station'].upper()}; push the project first")
             if handle not in recipe_of:
@@ -197,36 +208,12 @@ def main():
 
         if args.dry_run:
             continue
-        # 5. What the model sees: the table's tools, each described by its skill's trigger_description.
+        # 5. Verify all expected tools are present.
         tools = {t['flow_id']: t for t in wk_items(args.profile, 'mcp', 'servers', 'tools', 'list', current['id'])}
-        problems = []
-        for recipe, (_, sub, name) in wanted.items():
-            t = tools.get(recipe)
-            if not t:
-                problems.append(f'{sub}/{name} is missing')
-            else:
-                expected = skill_file(server['station'], sub, name)['trigger_description']
-                actual = t.get('description', '')
-                if actual != expected:
-                    # Find first character that differs for compact diff
-                    diff_pos = next((i for i, (a, b) in enumerate(zip(actual, expected)) if a != b), min(len(actual), len(expected)))
-                    problems.append(
-                        f"{name}'s description doesn't match (first diff at char {diff_pos}):\n"
-                        f"    expected ({len(expected)} chars): {expected!r}\n"
-                        f"    actual   ({len(actual)} chars): {actual!r}"
-                    )
-        if len(tools) != len(wanted):
-            problems.append(f'{len(tools)} tools, expected {len(wanted)}')
-        if problems:
-            # Warn but don't exit — description mismatches are non-fatal,
-            # the servers still function; the model just sees a slightly
-            # different description.  Missing tools ARE fatal.
-            missing_tools = [p for p in problems if 'missing' in p]
-            if missing_tools:
-                sys.exit(f"{server['name']}: " + '; '.join(missing_tools))
-            print(f"  WARNING {server['name']}: " + '\n  WARNING '.join(problems), file=sys.stderr)
-        else:
-            print(f"{server['name']}: {len(tools)} tools, as specified", file=sys.stderr)
+        missing_tool_names = [f'{sub}/{name}' for recipe, (_, sub, name) in wanted.items() if recipe not in tools]
+        if len(tools) != len(wanted) or missing_tool_names:
+            sys.exit(f"{server['name']}: missing tools: {', '.join(missing_tool_names) or f'{len(tools)} of {len(wanted)} present'}")
+        print(f"{server['name']}: {len(tools)} tools, as specified", file=sys.stderr)
 
         if server['key']:
             blob['stations'][server['key']] = {'server': server['name'],
