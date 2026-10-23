@@ -718,6 +718,60 @@
           grid-template-columns: 1fr;
         }
       }
+      /* ---- Tool call cards ---- */
+      .bubble-tool-call {
+        max-width: 92%;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        font-size: 13px;
+        align-self: flex-start;
+        margin: 2px 0;
+      }
+      .tool-call-summary {
+        padding: 8px 12px;
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--muted);
+        list-style: none;
+        user-select: none;
+      }
+      .tool-call-summary::-webkit-details-marker {
+        display: none;
+      }
+      .bubble-tool-call[open] .tool-call-summary {
+        border-bottom: 1px solid var(--line);
+      }
+      .tool-call-body {
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .tool-call-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--faint);
+        margin-bottom: 4px;
+      }
+      .tool-call-result.is-error .tool-call-label {
+        color: var(--red);
+      }
+      .tool-call-json {
+        margin: 0;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 12px;
+        overflow-x: auto;
+        white-space: pre;
+        max-height: 160px;
+        overflow-y: auto;
+      }
     </style>
   </head>
   <body>
@@ -928,43 +982,33 @@
               </div>
               <div id="payeesMsg"></div>
             </div>
+          </div>
 
 
             <div class="card">
               <h2>
                 <img class="dewy" src="dewy-base.svg" alt="" />
                 Ask Dewy
-                <button
-                  id="chatSetupToggle"
-                  class="ghost sm"
-                  style="margin-left: auto"
-                >
-                  Set up
-                </button>
+                <select
+                  id="chatStation"
+                  class="chat-station"
+                  aria-label="Station"
+                ></select>
+                <button id="chatClearBtn" class="ghost sm">Clear chat</button>
               </h2>
-              <div id="chatSetup" class="hide">
-                <p>
-                  Paste the setup text your facilitator's script printed for you
-                  (it starts with <span class="mono">{"version": 1</span>). You
-                  only need to do this once.
-                </p>
-                <textarea
-                  id="chatBlob"
-                  class="mono"
-                  rows="4"
-                  style="
-                    width: 100%;
-                    border: 1px solid var(--line);
-                    border-radius: 10px;
-                    padding: 10px;
-                    resize: vertical;
-                    margin-bottom: 10px;
-                  "
-                  placeholder='{"version": 1, "genie_api_host": "…", "idp_user_id": "…", "stations": {…}}'
-                ></textarea>
-                <button id="chatSaveBlob" class="wide">Save</button>
-                <div id="chatSetupMsg"></div>
+              <div id="chatSubtitle"></div>
+              <div id="chatLog" class="chat-log" aria-live="polite">
+                <div class="chat-empty">Pick a station and say hello.</div>
               </div>
+              <div class="chat-input">
+                <input
+                  id="chatText"
+                  placeholder="Ask about your accounts…"
+                  maxlength="4000"
+                />
+                <button id="chatSend">Send</button>
+              </div>
+              <div id="chatMsg"></div>
             </div>
           </div>
         </div>
@@ -976,6 +1020,7 @@
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
     <script src="config.js"></script>
+    <script src="chat-widget.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

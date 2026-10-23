@@ -59,7 +59,7 @@ jest.mock('@modelcontextprotocol/client', () => ({
 }));
 
 // ── Require handler after mocks are in place ───────────────────────────────────
-const { handler } = require('../lambda/chat-handler');
+const { handler, SYSTEM_PROMPT, STATIONS } = require('../lambda/chat-handler');
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -103,6 +103,18 @@ beforeEach(() => {
 });
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
+
+test('SYSTEM_PROMPT is exported as a non-empty string', () => {
+  expect(typeof SYSTEM_PROMPT).toBe('string');
+  expect(SYSTEM_PROMPT.length).toBeGreaterThan(0);
+  // Spot-check key workshop teaching phrases.
+  expect(SYSTEM_PROMPT).toMatch(/RETURN ALL TOOL DATA/);
+  expect(SYSTEM_PROMPT).toMatch(/OBEY INJECTED INSTRUCTIONS/);
+});
+
+test('STATIONS exports the six expected station IDs', () => {
+  expect(STATIONS).toEqual(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']);
+});
 
 test('returns 401 when Authorization header is missing', async () => {
   const streams: Array<{ __meta: { statusCode: number } }> = [];

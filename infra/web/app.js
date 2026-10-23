@@ -277,6 +277,7 @@
     sessionStorage.removeItem("dewy_id_token");
     sessionStorage.removeItem("dewy_access_token");
     sessionStorage.removeItem("dewy_refresh_token");
+    window.chatWidget.chatReset();
     hide($("appShell"));
     show($("authScreen"));
   }
@@ -659,70 +660,12 @@
     );
   }
 
-  // ---- Chat widget -------------------------------------------------------
-  // Calls the bank's /me/genie-clients endpoint to retrieve which stations are
-  // configured for this user, then hands the result to initChatWidget(). The
-  // floating widget (chat-widget.js) handles all conversation UI.
-
   function chatLoad() {
-    api("GET", "/me/genie-clients")
-      .then(function (r) {
-        initChatWidget(r.stations || {});
-      })
-      .catch(function (e) {
-        console.warn("[chat] load failed:", e.message);
-      });
+    window.chatWidget.init(function () {
+      return idToken;
+    }, cfg.chatFunctionUrl);
+    window.chatWidget.chatLoad();
   }
-
-  function initChatWidget(stationsFromApi) {
-    var stations = {};
-    Object.keys(stationsFromApi).forEach(function (handle) {
-      var s = stationsFromApi[handle];
-      stations[handle] = {
-        name: STATION_LABELS[handle] || handle,
-        genie_id: s.genie_id,
-        api_key: s.api_key,
-      };
-    });
-    var config = {
-      apiUrl: API,
-      idToken: idToken,
-      stations: stations,
-    };
-    if (!_chatWidgetInited && window.WkChatWidget) {
-      _chatWidgetInited = true;
-      window.WkChatWidget.init(config);
-    } else if (window.WkChatWidget) {
-      window.WkChatWidget.setConfig(config);
-    }
-  }
-  $("chatSetupToggle").onclick = function () {
-    $("chatSetup").classList.toggle("hide");
-  };
-  $("chatSaveBlob").onclick = function () {
-    var blob;
-    try {
-      blob = JSON.parse($("chatBlob").value);
-    } catch (e) {
-      msg(
-        $("chatSetupMsg"),
-        "That isn\u2019t valid setup text: paste the whole block, including the braces.",
-        false,
-      );
-      return;
-    }
-    msg($("chatSetupMsg"), "Saving\u2026", true);
-    api("PUT", "/me/genie-clients", blob)
-      .then(function (r) {
-        $("chatBlob").value = "";
-        msg($("chatSetupMsg"), "Saved \u2713", true);
-        hide($("chatSetup"));
-        initChatWidget(r.stations || {});
-      })
-      .catch(function (e) {
-        msg($("chatSetupMsg"), e.message, false);
-      });
-  };
 
   // ---- boot ------------------------------------------------------------
   if (!cfg.userPoolClientId) {
