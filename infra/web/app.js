@@ -184,6 +184,28 @@
     });
   }
 
+  // ---- No-body variant (for DELETE /payees which returns 204) ----------
+  function apiNoBody(method, path) {
+    return fetch(API + path, {
+      method: method,
+      headers: {
+        authorization: "Bearer " + idToken,
+        "content-type": "application/json",
+      },
+      signal: AbortSignal.timeout(30000),
+    }).then(function (r) {
+      if (r.status === 204) return undefined;
+      if (r.status === 401) {
+        logout();
+        throw new Error("Session expired, log in again");
+      }
+      return r.json().then(function (j) {
+        if (!r.ok) throw new Error(j.message || "Request failed");
+        return j;
+      });
+    });
+  }
+
   // ---- Auth UI ---------------------------------------------------------
   function activate(tab) {
     $("tabLogin").classList.toggle("active", tab === "login");
@@ -292,6 +314,7 @@
       })
       .catch(function () {});
     loadAccounts();
+    loadPayees();
     chatLoad();
   }
 
@@ -442,6 +465,23 @@
       });
   };
 
+  $("payeeAddBtn").onclick = function () {
+    var email = $("payeeEmail").value.trim();
+    if (!email) {
+      msg($("payeesMsg"), "Enter an email address", false);
+      return;
+    }
+    api("POST", "/payees", { email: email })
+      .then(function () {
+        $("payeeEmail").value = "";
+        msg($("payeesMsg"), "Added " + email, true);
+        loadPayees();
+      })
+      .catch(function (e) {
+        msg($("payeesMsg"), e.message, false);
+      });
+  };
+
   function openDetail(id) {
     selectedAcct = id;
     var acct = find(id);
@@ -464,6 +504,17 @@
     var d = new Date((iso || "").split("#")[0]);
     if (isNaN(d)) return iso;
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+
+  function fmtPayeeDate(iso) {
+    if (!iso) return "";
+    var d = new Date((iso || "").split("#")[0]);
+    if (isNaN(d)) return iso;
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   }
 
   function renderTxns(txns) {
@@ -547,6 +598,64 @@
           );
         })
         .join(""),
+    );
+  }
+
+  // ---- Payees panel (P11) ----------------------------------------------
+  function loadPayees() {
+    api("GET", "/payees")
+      .then(function (res) {
+        renderPayees(res.payees || []);
+      })
+      .catch(function (e) {
+        $("payeesList").innerHTML = DOMPurify.sanitize(
+          '<div class="msg err">' + esc(e.message) + "</div>",
+        );
+      });
+  }
+
+  function renderPayees(payees) {
+    var list = $("payeesList");
+    if (!payees.length) {
+      list.innerHTML = DOMPurify.sanitize(
+        '<p style="color:var(--muted);font-size:14px;margin:0">No saved payees yet.</p>',
+      );
+      return;
+    }
+    var html =
+      "<table><thead><tr>" +
+      "<th>Email</th><th>Added</th><th></th>" +
+      "</tr></thead><tbody>";
+    payees.forEach(function (p) {
+      html +=
+        "<tr>" +
+        "<td>" +
+        esc(p.email) +
+        "</td>" +
+        "<td>" +
+        esc(fmtPayeeDate(p.addedAt)) +
+        "</td>" +
+        '<td style="width:80px"><button class="ghost" style="padding:5px 10px;font-size:12px" data-email="' +
+        esc(p.email) +
+        '">Remove</button></td>' +
+        "</tr>";
+    });
+    html += "</tbody></table>";
+    list.innerHTML = DOMPurify.sanitize(html);
+    Array.prototype.forEach.call(
+      list.querySelectorAll("button[data-email]"),
+      function (btn) {
+        btn.onclick = function () {
+          var email = btn.dataset.email;
+          apiNoBody("DELETE", "/payees/" + encodeURIComponent(email))
+            .then(function () {
+              loadPayees();
+            })
+            .catch(function (e) {
+              msg($("payeesMsg"), e.message, false);
+            });
+        };
+      },
     );
   }
 

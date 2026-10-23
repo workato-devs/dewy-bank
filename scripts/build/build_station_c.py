@@ -9,17 +9,17 @@ Every tool lives in shared/ and is identical in C1 and C2:
 - the two support-agent tools, built here on the Dewy Bank Support API connector
   (workspace-connections/), which calls the Support API contract
   (docs/backend-requirements.md, C-P3).
-Only the Genies differ (Factor IV): which skills each holds, and its instructions.
+Factor IV (which tools each role's MCP server holds) lives in the MCP servers, not here.
 """
 import copy, json, os, re, shutil
 
-from recipe_shapes import SUPPORT_ACCOUNT, add_output_schemas, complete_foreach, repoint_items, to_source_current_item
+from recipe_shapes import SUPPORT_ACCOUNT, add_output_schemas, complete_foreach, to_loop_item
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..', '..')
 A = os.path.join(ROOT, 'dewy-bank-station-a')
 C = os.path.join(ROOT, 'dewy-bank-station-c')
-SHARED, C1, C2 = 'shared', 'c1_flaw_shared_namespace_prompt_acl', 'c2_fix_namespace_per_role'
+SHARED = 'shared'
 SUPPORT_CONN = {'custom': True, 'zip_name': 'Workspace Connections/dewy_bank_support_api.connection.json',
                 'name': 'Dewy Bank Support API', 'folder': 'Workspace Connections'}
 # The Support API custom connector (workspace-connections/dewy_bank_support_api.custom_adapter.*), as recipes reference it.
@@ -36,7 +36,7 @@ def save(rel, obj):
     p = os.path.join(C, rel)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     if rel.endswith('.recipe.json'):
-        obj = to_source_current_item(obj)  # Workato's exported form for loop items (recipe_shapes.py)
+        obj = to_loop_item(obj)  # loop bodies read the loop's own item (recipe_shapes.py)
         obj = add_output_schemas(obj)  # connector steps carry their output fields (recipe_shapes.py)
     with open(p, 'w') as f:
         json.dump(obj, f, indent=2, ensure_ascii=False)
@@ -234,7 +234,7 @@ for r in customer.values():
 customer['list_my_accounts']['description'] = "Station C, shared by C1 and C2. Customer tool, identical to Station A's: the signed-in customer's accounts by name. Calls the customer API as the participant (the Dewy Bank Customer API connector)."
 customer['review_my_recent_activity']['description'] = "Station C, shared by C1 and C2. Customer tool, identical to Station A2's: one named account's recent activity, at most 20 entries, in customer terms (II and III held good). Memos pass through unchanged: they are the shared injection channel."
 customer['move_between_my_accounts']['description'] = "Station C, shared by C1 and C2. Customer tool, identical to Station A2's: a move between two of the customer's accounts, behind the four write rules (II held good). Account names in, a plain-language outcome out (III held good)."
-customer['pay_someone']['description'] = "Station C, shared by C1 and C2. Customer tool, identical to Station A2's: a payment to another customer by email, behind the three write rules and the customer's confirmation (II held good). Account name and email in, a plain-language outcome out (III held good)."
+customer['pay_someone']['description'] = "Station C, shared by C1 and C2. Customer tool, identical to Station A2's: a payment to another customer by email, behind the four write rules, saved payee included (II held good). Account name and email in, a plain-language outcome out (III held good)."
 
 # --- support-agent tools: built against the Support API contract (C-P3) -------------
 
@@ -324,8 +324,8 @@ def refusal(alias, message, comment):
                                            'account': param('account'), 'amount': param('amount')}, CREDIT_VIS, comment)
 
 
-# Copied from A2's review, whose loop iterates the customer's own accounts: point it at this recipe's list.
-set_sel = repoint_items(copy.deepcopy(T_SET_SEL), 'get_my_accounts', SUPPORT_GEN, 'get_customer_accounts')
+# Copied from A2's review: it reads the for_each_account loop's item, and this recipe's loop has the same alias.
+set_sel = copy.deepcopy(T_SET_SEL)
 set_sel['comment'] = "Remember the customer's account."
 declare_sel = copy.deepcopy(T_DECLARE_SEL)
 declare_sel['comment'] = 'The account the support agent named, resolved among the customer\'s accounts. The model never supplies an account ID; the recipe looks it up.'
@@ -393,41 +393,6 @@ for name, recipe in {**customer, **support}.items():
     save(f'{SHARED}/{name}.agentic_skill.json', skill_file(recipe, SHARED, name))
 
 
-def block(path, tag):
-    text = open(os.path.join(ROOT, 'docs', path)).read()
-    return text.split(f'<!-- {tag} -->')[1].strip('\n')
-
-
-CUSTOMER_TEXT = block('station-a/genie-instructions.md', 'instructions')
-C1_TEXT = ' '.join([CUSTOMER_TEXT, block('station-c/genie-instructions.md', 'c1-support-duties'),
-                    block('station-c/genie-instructions.md', 'c1-access-rule')])
-SUPPORT_TEXT = block('station-c/genie-instructions.md', 'support')
-# The support Genie gets its own Dewy (in a cap), so the two C2 roles are easy to tell apart in Agent Studio.
-LOGOS = {'dewy_bank_support_assistant_c2_fix': os.path.join(HERE, 'templates', 'logos', 'dewy-support-agent.png')}
-CUSTOMER_TOOLS = ['list_my_accounts', 'review_my_recent_activity', 'move_between_my_accounts', 'pay_someone']
-SUPPORT_TOOLS = ['look_up_customer_accounts', 'issue_goodwill_credit']
-for folder, src, fname, title, desc, text, tools in (
-    (C1, 'a1_flaw_agent_owns_the_write/dewy_bank_assistant_a1_flaw', 'dewy_bank_assistant_c1_flaw', 'Dewy Bank Assistant · C1 flaw',
-     "Station C, C1 (flaw): one Genie for the customer and the support agent. It holds the customer tools and the support-agent tools, and with them both credentials (the participant's token and the support-agent key). Only a passphrase in its instructions is meant to keep customers away from the support tools (prompt-as-ACL).",
-     C1_TEXT, CUSTOMER_TOOLS + SUPPORT_TOOLS),
-    (C2, 'a2_fix_recipe_owns_the_write/dewy_bank_assistant_a2_fix', 'dewy_bank_assistant_c2_fix', 'Dewy Bank Assistant · C2 fix',
-     "Station C, C2 (fix): the customer's Genie. Only the customer tools, and with them only the participant's own credential. No access rules in its instructions: the support tools don't exist in this Genie.",
-     CUSTOMER_TEXT, CUSTOMER_TOOLS),
-    (C2, 'a2_fix_recipe_owns_the_write/dewy_bank_assistant_a2_fix', 'dewy_bank_support_assistant_c2_fix', 'Dewy Bank Support · C2 fix',
-     "Station C, C2 (fix): the support agent's Genie. Only the support-agent tools, and with them only the support-agent key. No access rules in its instructions.",
-     SUPPORT_TEXT, SUPPORT_TOOLS),
-):
-    g = load(src + '.agentic_genie.json')
-    g['name'], g['description'] = title, desc
-    g['instructions'] = g['raw_instructions'] = text + '\n'
-    g['references'] = {f'ref_{i}': {'type': 'agentic_skill', 'id': {
-        'zip_name': f'{SHARED}/{n}.agentic_skill.json', 'name': n, 'folder': SHARED}} for i, n in enumerate(tools)}
-    logo = LOGOS.get(fname)
-    if logo:
-        g['logo_file_name'] = os.path.basename(logo)
-    save(f'{folder}/{fname}.agentic_genie.json', g)
-    shutil.copy(logo or os.path.join(A, src + '.agentic_genie.png'), os.path.join(C, folder, fname + '.agentic_genie.png'))
-
-save('project.json', {'description': 'Dewy Bank workshop, Station C: Factor IV (Bounded Access). The same six tools in both variants; only the Genies differ. C1 = one Genie with customer and support-agent tools, guarded by a passphrase in its instructions; C2 = a customer Genie and a support Genie, each holding only its own tools and credential.',
+save('project.json', {'description': 'Dewy Bank workshop, Station C: Factor IV (Bounded Access). The same six tools in both variants, all in shared/; only the MCP servers differ. C1 = one server with the customer and support-agent tools, guarded by a passphrase in its description; C2 = a customer server and a support server, each holding only its own tools and credential.',
                       'color': 'brown', 'icon': ''})
 print('ok')
