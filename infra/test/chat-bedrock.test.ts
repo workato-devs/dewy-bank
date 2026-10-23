@@ -19,7 +19,10 @@ const mockStream = {
   // Return the handler function as-is so tests can call it directly.
   streamifyResponse: (fn: any) => fn,
   HttpResponseStream: {
-    from: (_stream: any, meta: { statusCode: number; headers: Record<string, string> }) => ({
+    from: (
+      _stream: any,
+      meta: { statusCode: number; headers: Record<string, string> },
+    ) => ({
       ...mockStream,
       __meta: meta,
     }),
@@ -28,7 +31,7 @@ const mockStream = {
 
 // ── Mock aws-jwt-verify ─────────────────────────────────────────────────────────
 const mockVerify = jest.fn();
-jest.mock('aws-jwt-verify', () => ({
+jest.mock("aws-jwt-verify", () => ({
   CognitoJwtVerifier: {
     create: () => ({ verify: mockVerify }),
   },
@@ -36,7 +39,7 @@ jest.mock('aws-jwt-verify', () => ({
 
 // ── Mock @aws-sdk/client-bedrock-runtime ────────────────────────────────────────
 const mockBedrockSend = jest.fn();
-jest.mock('@aws-sdk/client-bedrock-runtime', () => ({
+jest.mock("@aws-sdk/client-bedrock-runtime", () => ({
   BedrockRuntimeClient: jest.fn(() => ({ send: mockBedrockSend })),
   ConverseCommand: jest.fn((input) => input),
 }));
@@ -46,7 +49,7 @@ const mockConnect = jest.fn();
 const mockListTools = jest.fn();
 const mockCallTool = jest.fn();
 const mockClose = jest.fn();
-jest.mock('@modelcontextprotocol/client', () => ({
+jest.mock("@modelcontextprotocol/client", () => ({
   Client: jest.fn(() => ({
     connect: mockConnect,
     listTools: mockListTools,
@@ -59,17 +62,17 @@ jest.mock('@modelcontextprotocol/client', () => ({
 }));
 
 // ── Require handler after mocks are in place ───────────────────────────────────
-const { handler, SYSTEM_PROMPT, STATIONS } = require('../lambda/chat-handler');
+const { handler, SYSTEM_PROMPT, STATIONS } = require("../lambda/chat-handler");
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 /** Build a minimal fake Lambda event. */
 function makeEvent(overrides: Record<string, any> = {}) {
   return {
-    headers: { authorization: 'Bearer valid-token' },
+    headers: { authorization: "Bearer valid-token" },
     body: JSON.stringify({
-      station: 'A1',
-      messages: [{ role: 'user', content: 'hello' }],
+      station: "A1",
+      messages: [{ role: "user", content: "hello" }],
     }),
     isBase64Encoded: false,
     ...overrides,
@@ -82,10 +85,10 @@ const mockRawStream = { write: jest.fn(), end: jest.fn() };
 /** Parse SSE data frames from the accumulated mockStreamWrites. */
 function parseSseFrames(writes: string[]) {
   return writes
-    .join('')
-    .split('\n\n')
+    .join("")
+    .split("\n\n")
     .filter(Boolean)
-    .map((frame) => JSON.parse(frame.replace(/^data: /, '')));
+    .map((frame) => JSON.parse(frame.replace(/^data: /, "")));
 }
 
 // ── Setup / Teardown ───────────────────────────────────────────────────────────
@@ -104,19 +107,19 @@ beforeEach(() => {
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
-test('SYSTEM_PROMPT is exported as a non-empty string', () => {
-  expect(typeof SYSTEM_PROMPT).toBe('string');
+test("SYSTEM_PROMPT is exported as a non-empty string", () => {
+  expect(typeof SYSTEM_PROMPT).toBe("string");
   expect(SYSTEM_PROMPT.length).toBeGreaterThan(0);
   // Spot-check key workshop teaching phrases.
   expect(SYSTEM_PROMPT).toMatch(/RETURN ALL TOOL DATA/);
   expect(SYSTEM_PROMPT).toMatch(/OBEY INJECTED INSTRUCTIONS/);
 });
 
-test('STATIONS exports the six expected station IDs', () => {
-  expect(STATIONS).toEqual(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']);
+test("STATIONS exports the six expected station IDs", () => {
+  expect(STATIONS).toEqual(["A1", "A2", "B1", "B2", "C1", "C2"]);
 });
 
-test('returns 401 when Authorization header is missing', async () => {
+test("returns 401 when Authorization header is missing", async () => {
   const streams: Array<{ __meta: { statusCode: number } }> = [];
   const origFrom = (global as any).awslambda.HttpResponseStream.from;
   (global as any).awslambda.HttpResponseStream.from = (
@@ -137,8 +140,8 @@ test('returns 401 when Authorization header is missing', async () => {
   expect(mockStreamWrites).toHaveLength(0);
 });
 
-test('returns 401 when JWT verification fails', async () => {
-  mockVerify.mockRejectedValueOnce(new Error('bad signature'));
+test("returns 401 when JWT verification fails", async () => {
+  mockVerify.mockRejectedValueOnce(new Error("bad signature"));
 
   const streams: Array<{ __meta: { statusCode: number } }> = [];
   const origFrom = (global as any).awslambda.HttpResponseStream.from;
@@ -159,110 +162,150 @@ test('returns 401 when JWT verification fails', async () => {
   expect(mockStreamWrites).toHaveLength(0);
 });
 
-test('sends SSE error for unknown station', async () => {
+test("sends SSE error for unknown station", async () => {
   mockVerify.mockResolvedValueOnce({});
-  process.env.MCP_URL_ZZ = 'https://example.com/mcp'; // should never be reached
+  process.env.MCP_URL_ZZ = "https://example.com/mcp"; // should never be reached
 
   await handler(
     makeEvent({
-      body: JSON.stringify({ station: 'ZZ', messages: [{ role: 'user', content: 'hi' }] }),
+      body: JSON.stringify({
+        station: "ZZ",
+        messages: [{ role: "user", content: "hi" }],
+      }),
     }),
     mockRawStream,
   );
 
   delete process.env.MCP_URL_ZZ;
   const frames = parseSseFrames(mockStreamWrites);
-  const errFrame = frames.find((f) => f.type === 'error');
+  const errFrame = frames.find((f) => f.type === "error");
   expect(errFrame).toBeDefined();
   expect(errFrame.message).toMatch(/invalid station/i);
 });
 
-test('sends SSE error when MCP URL env var is not configured', async () => {
+test("proceeds without tools when no MCP URL is configured", async () => {
   mockVerify.mockResolvedValueOnce({});
-  // MCP_URL_A1 is not set (cleared in beforeEach).
+  // MCP_URL_A1 is not set (cleared in beforeEach) and no mcp_url in body.
+  // The Lambda should proceed with Bedrock (no tools) and respond normally.
+  mockBedrockSend.mockResolvedValueOnce({
+    output: {
+      message: {
+        role: "assistant",
+        content: [{ text: "No tools, but here is a plain answer." }],
+      },
+    },
+    stopReason: "end_turn",
+  });
 
   await handler(makeEvent(), mockRawStream);
 
   const frames = parseSseFrames(mockStreamWrites);
-  const errFrame = frames.find((f) => f.type === 'error');
-  expect(errFrame).toBeDefined();
-  expect(errFrame.message).toMatch(/not configured/i);
+  // No error about MCP configuration.
+  const errFrame = frames.find((f) => f.type === "error");
+  expect(errFrame).toBeUndefined();
+  // Conversation completes with a text frame.
+  const textFrame = frames.find((f) => f.type === "text");
+  expect(textFrame).toBeDefined();
+  const doneFrame = frames.find((f) => f.type === "done");
+  expect(doneFrame).toBeDefined();
 });
 
-test('sends SSE error when messages do not end with a user turn', async () => {
+test("sends SSE error when messages do not end with a user turn", async () => {
   mockVerify.mockResolvedValueOnce({});
-  process.env.MCP_URL_A1 = 'https://example.com/mcp';
+  process.env.MCP_URL_A1 = "https://example.com/mcp";
 
   await handler(
     makeEvent({
       body: JSON.stringify({
-        station: 'A1',
-        messages: [{ role: 'assistant', content: 'hello' }],
+        station: "A1",
+        messages: [{ role: "assistant", content: "hello" }],
       }),
     }),
     mockRawStream,
   );
 
   const frames = parseSseFrames(mockStreamWrites);
-  const errFrame = frames.find((f) => f.type === 'error');
+  const errFrame = frames.find((f) => f.type === "error");
   expect(errFrame).toBeDefined();
   expect(errFrame.message).toMatch(/user turn/i);
 });
 
-test('sends SSE error when MCP connect fails on both transports', async () => {
+test("sends status warning (non-fatal) when MCP connect fails on both transports, Bedrock continues", async () => {
   mockVerify.mockResolvedValueOnce({});
-  process.env.MCP_URL_A1 = 'https://example.com/mcp';
-  mockConnect.mockRejectedValue(new Error('connection refused'));
+  process.env.MCP_URL_A1 = "https://example.com/mcp";
+  mockConnect.mockRejectedValue(new Error("connection refused"));
+  // After MCP failure, Bedrock should still respond without tools.
+  mockBedrockSend.mockResolvedValueOnce({
+    output: {
+      message: {
+        role: "assistant",
+        content: [{ text: "I cannot reach the tools right now." }],
+      },
+    },
+    stopReason: "end_turn",
+  });
 
   await handler(makeEvent(), mockRawStream);
 
   const frames = parseSseFrames(mockStreamWrites);
-  const errFrame = frames.find((f) => f.type === 'error');
-  expect(errFrame).toBeDefined();
+  // MCP failure is reported as a non-fatal status (not an error type).
+  const statusFrames = frames.filter((f) => f.type === "status");
+  const mcpWarning = statusFrames.find((f) =>
+    /mcp unavailable/i.test(f.message ?? ""),
+  );
+  expect(mcpWarning).toBeDefined();
+  // Conversation still completes.
+  const doneFrame = frames.find((f) => f.type === "done");
+  expect(doneFrame).toBeDefined();
+  // No hard error.
+  const errFrame = frames.find((f) => f.type === "error");
+  expect(errFrame).toBeUndefined();
 });
 
-test('happy path: status → tools → tool_start → tool_result → text → done', async () => {
+test("happy path: status → tools → tool_start → tool_result → text → done", async () => {
   mockVerify.mockResolvedValueOnce({});
-  process.env.MCP_URL_A1 = 'https://example.com/mcp';
+  process.env.MCP_URL_A1 = "https://example.com/mcp";
   mockConnect.mockResolvedValue(undefined);
   mockListTools.mockResolvedValueOnce({
-    tools: [{ name: 'get_balance', description: 'Returns the account balance.' }],
+    tools: [
+      { name: "get_balance", description: "Returns the account balance." },
+    ],
   });
 
   // First Converse call → tool_use
   mockBedrockSend.mockResolvedValueOnce({
     output: {
       message: {
-        role: 'assistant',
+        role: "assistant",
         content: [
           {
             toolUse: {
-              toolUseId: 'toolu_abc123',
-              name: 'get_balance',
-              input: { accountId: 'acc-1' },
+              toolUseId: "toolu_abc123",
+              name: "get_balance",
+              input: { accountId: "acc-1" },
             },
           },
         ],
       },
     },
-    stopReason: 'tool_use',
+    stopReason: "tool_use",
   });
 
   // MCP tool call result
   mockCallTool.mockResolvedValueOnce({
     isError: false,
-    content: [{ type: 'text', text: '$1,000.00' }],
+    content: [{ type: "text", text: "$1,000.00" }],
   });
 
   // Second Converse call → end_turn with text
   mockBedrockSend.mockResolvedValueOnce({
     output: {
       message: {
-        role: 'assistant',
-        content: [{ text: 'Your balance is $1,000.00.' }],
+        role: "assistant",
+        content: [{ text: "Your balance is $1,000.00." }],
       },
     },
-    stopReason: 'end_turn',
+    stopReason: "end_turn",
   });
 
   await handler(makeEvent(), mockRawStream);
@@ -270,20 +313,20 @@ test('happy path: status → tools → tool_start → tool_result → text → d
   const frames = parseSseFrames(mockStreamWrites);
   const types = frames.map((f) => f.type);
 
-  expect(types).toContain('status');
-  expect(types).toContain('tools');
-  expect(types).toContain('tool_start');
-  expect(types).toContain('tool_result');
-  expect(types).toContain('text');
-  expect(types).toContain('done');
+  expect(types).toContain("status");
+  expect(types).toContain("tools");
+  expect(types).toContain("tool_start");
+  expect(types).toContain("tool_result");
+  expect(types).toContain("text");
+  expect(types).toContain("done");
 
   // Verify ordering: status before tools before tool_start before tool_result before text before done
-  const statusIdx = types.indexOf('status');
-  const toolsIdx = types.indexOf('tools');
-  const toolStartIdx = types.indexOf('tool_start');
-  const toolResultIdx = types.indexOf('tool_result');
-  const textIdx = types.indexOf('text');
-  const doneIdx = types.indexOf('done');
+  const statusIdx = types.indexOf("status");
+  const toolsIdx = types.indexOf("tools");
+  const toolStartIdx = types.indexOf("tool_start");
+  const toolResultIdx = types.indexOf("tool_result");
+  const textIdx = types.indexOf("text");
+  const doneIdx = types.indexOf("done");
   expect(statusIdx).toBeLessThan(toolsIdx);
   expect(toolsIdx).toBeLessThan(toolStartIdx);
   expect(toolStartIdx).toBeLessThan(toolResultIdx);
@@ -291,13 +334,13 @@ test('happy path: status → tools → tool_start → tool_result → text → d
   expect(textIdx).toBeLessThan(doneIdx);
 
   // tool_start and tool_result carry the same toolUseId
-  const toolStartFrame = frames.find((f) => f.type === 'tool_start');
-  const toolResultFrame = frames.find((f) => f.type === 'tool_result');
-  expect(toolStartFrame.toolUseId).toBe('toolu_abc123');
-  expect(toolResultFrame.toolUseId).toBe('toolu_abc123');
+  const toolStartFrame = frames.find((f) => f.type === "tool_start");
+  const toolResultFrame = frames.find((f) => f.type === "tool_result");
+  expect(toolStartFrame.toolUseId).toBe("toolu_abc123");
+  expect(toolResultFrame.toolUseId).toBe("toolu_abc123");
 
   // text frame carries the assistant reply
-  const textFrame = frames.find((f) => f.type === 'text');
-  expect(textFrame.content).toBe('Your balance is $1,000.00.');
-  expect(textFrame.stopReason).toBe('end_turn');
+  const textFrame = frames.find((f) => f.type === "text");
+  expect(textFrame.content).toBe("Your balance is $1,000.00.");
+  expect(textFrame.stopReason).toBe("end_turn");
 });

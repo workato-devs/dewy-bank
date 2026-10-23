@@ -239,8 +239,8 @@
   outline-offset: 2px;
 }
 .wk-cw-header-btn svg {
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
 }
 
 /* ── Slide panels (history + genie) ────────────────────── */
@@ -1003,6 +1003,17 @@
   background: #fee2e2;
   border-color: #fca5a5;
   color: #991b1b;
+}
+
+/* Inline status notes (MCP unavailable, Bedrock errors) — subtler than
+   system-msg: no background/border, just small muted text */
+.wk-cw-status-msg {
+  font-size: 12px;
+  color: var(--wk-text-light);
+  text-align: center;
+  padding: 4px 8px;
+  align-self: center;
+  max-width: 90%;
 }
 
 /* ── Spinner / loading ──────────────────────────────────── */

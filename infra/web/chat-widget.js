@@ -118,7 +118,7 @@
           </div>
           <button class="wk-cw-header-btn" id="wk-cw-station-btn"
                   aria-label="Select station" aria-haspopup="true">
-            ${SVG.sparkle}
+            ${SVG.bot}
           </button>
           <button class="wk-cw-header-btn" id="wk-cw-config-btn"
                   aria-label="Config" aria-haspopup="true">
@@ -466,6 +466,9 @@
         }
         break;
       }
+      case "status":
+        appendStatusMessage(entry.text);
+        break;
     }
   }
 
@@ -551,6 +554,14 @@
   function appendSystemMessage(text, isError) {
     const el = document.createElement("div");
     el.className = "wk-cw-system-msg" + (isError ? " is-error" : "");
+    el.textContent = text; // safe — textContent
+    dom.body.appendChild(el);
+    dom.body.scrollTop = dom.body.scrollHeight;
+  }
+
+  function appendStatusMessage(text) {
+    const el = document.createElement("div");
+    el.className = "wk-cw-status-msg";
     el.textContent = text; // safe — textContent
     dom.body.appendChild(el);
     dom.body.scrollTop = dom.body.scrollHeight;
@@ -745,13 +756,21 @@
     state.abortCtrl = new AbortController();
 
     try {
-      const res = await fetch(getEffectiveUrl(station), {
+      // Always POST to the Bedrock Lambda Function URL.
+      // Pass the station's MCP URL (if configured) in the body so the Lambda
+      // can connect to the correct Workato server.  The widget never calls
+      // Workato directly — the Cognito Bearer token is only valid for the Lambda.
+      const res = await fetch(state.chatFunctionUrl, {
         method: "POST",
         headers: {
           Authorization: "Bearer " + state.getToken(),
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ station, messages: state.messages[station] }),
+        body: JSON.stringify({
+          station,
+          messages: state.messages[station],
+          mcp_url: state.stationUrls[station] || null,
+        }),
         signal: state.abortCtrl.signal,
       });
       if (!res.ok) {
@@ -794,7 +813,13 @@
   function handleSseEvent(station, evt) {
     switch (evt.type) {
       case "status":
-        break; // no-op
+        appendStatusMessage(evt.message);
+        (state.transcripts[station] = state.transcripts[station] || []).push({
+          kind: "status",
+          text: evt.message,
+        });
+        saveState();
+        break;
       case "tools":
         break; // no-op
       case "tool_start":
@@ -859,12 +884,6 @@
   }
 
   // ─── 6. State management ─────────────────────────────────────────────────
-  function getEffectiveUrl(station) {
-    return (
-      (state.stationUrls && state.stationUrls[station]) || state.chatFunctionUrl
-    );
-  }
-
   function loadState() {
     try {
       const t = sessionStorage.getItem(STORAGE.transcripts);
