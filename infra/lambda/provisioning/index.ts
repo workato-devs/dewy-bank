@@ -40,9 +40,9 @@ const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
 const CUSTOMERS_TABLE = process.env.CUSTOMERS_TABLE!;
 const ACCOUNTS_TABLE = process.env.ACCOUNTS_TABLE!;
 const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE!;
+const PAYEES_TABLE = process.env.PAYEES_TABLE ?? "";
 const OWNER_INDEX = "owner-index";
 const EMAIL_INDEX = "email-index";
-const PAYEES_TABLE = process.env.PAYEES_TABLE ?? "";
 
 type ProvisioningEvent = {
   action?: "setup" | "teardown" | "reseed";
@@ -111,7 +111,7 @@ export const handler = async (event: ProvisioningEvent): Promise<Result> => {
     default:
       return {
         status: "error",
-        message: `Unknown action ${String(event.action)}`,
+        message: `Unknown action ${String(event.action)}`, // noboost
       };
   }
 };

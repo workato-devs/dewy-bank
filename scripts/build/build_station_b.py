@@ -11,7 +11,7 @@ B1 = the same recipes with only the Factor III layer swapped: raw IDs in,
 """
 import copy, json, os, re, shutil, sys
 
-from recipe_shapes import add_output_schemas, to_source_current_item
+from recipe_shapes import add_output_schemas, to_loop_item
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..', '..')
@@ -29,7 +29,7 @@ def save(rel, obj):
     p = os.path.join(B, rel)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     if rel.endswith('.recipe.json'):
-        obj = to_source_current_item(obj)  # Workato's exported form for loop items (recipe_shapes.py)
+        obj = to_loop_item(obj)  # loop bodies read the loop's own item (recipe_shapes.py)
         obj = add_output_schemas(obj)  # connector steps carry their output fields (recipe_shapes.py)
     with open(p, 'w') as f:
         json.dump(obj, f, indent=2, ensure_ascii=False)
@@ -189,8 +189,8 @@ for r in b2.values():
 b2['list_my_accounts']['description'] = "Station B, B2 (fix). Same scope as B1 (the customer API returns only the signed-in customer's accounts). Intent-shaped: account names, currency and balance out; accountId and customerId stay inside the recipe. Identical to Station A's shared list_my_accounts."
 b2['review_my_recent_activity']['description'] = "Station B, B2 (fix). Same scope and read rules as B1 (the Station A2 read rules). Intent-shaped: the account is named as the customer sees it, and activity comes back in customer terms (no transaction or account IDs; other accounts shown by name or as \"another account\"). Memos pass through unchanged: they are the shared injection channel. Identical to Station A2's review_my_recent_activity."
 b2['move_between_my_accounts']['description'] = "Station B, B2 (fix). Same scope and write rules as B1 (the Station A2 rule block). Intent-shaped: account names in, a plain-language outcome out; account IDs are resolved inside the recipe and never cross the tool boundary."
-PAY_DESC = ("Station B, {v}. Identical in B1 and B2, and to Station A2's pay_someone: the same write rules and the "
-            "customer's confirmation (Factor II held good), account name and recipient email in, a plain-language "
+PAY_DESC = ("Station B, {v}. Identical in B1 and B2, and to Station A2's pay_someone: the same write rules, "
+            "saved payee included (Factor II held good), account name and recipient email in, a plain-language "
             "outcome out. It isn't part of Station B's contrast; it's the shared way money leaves the account.")
 b2['pay_someone']['description'] = PAY_DESC.format(v='B2 (fix)')
 
@@ -357,24 +357,8 @@ for folder, recipes in ((B1, b1), (B2, b2)):
         save(f'{folder}/{name}.recipe.json', recipe)
         save(f'{folder}/{name}.agentic_skill.json', skill_file(recipe, folder, name))
 
-instr = open(os.path.join(ROOT, 'docs', 'station-a', 'genie-instructions.md')).read().split('<!-- instructions -->')[1].strip('\n') + '\n'
-for folder, src, fname, title, desc in (
-    (B1, 'a1_flaw_agent_owns_the_write/dewy_bank_assistant_a1_flaw', 'dewy_bank_assistant_b1_flaw', 'Dewy Bank Assistant · B1 flaw',
-     "Station B, B1 (flaw): wrapped API as tool. Same tool names, scope, read and write rules, and instructions as B2; the tools take backend account IDs, return the customer API's raw rows and errors, and their descriptions name the backend."),
-    (B2, 'a2_fix_recipe_owns_the_write/dewy_bank_assistant_a2_fix', 'dewy_bank_assistant_b2_fix', 'Dewy Bank Assistant · B2 fix',
-     "Station B, B2 (fix): intent-shaped interface. Same tool names, scope, read and write rules, and instructions as B1; the tools take account names and return plain-language outcomes with no internal IDs."),
-):
-    g = load(src + '.agentic_genie.json')
-    g['name'], g['description'] = title, desc
-    g['instructions'] = g['raw_instructions'] = instr
-    for ref in g['references'].values():
-        n = ref['id']['name']
-        ref['id'] = {'zip_name': f'{folder}/{n}.agentic_skill.json', 'name': n, 'folder': folder}
-    save(f'{folder}/{fname}.agentic_genie.json', g)
-    shutil.copy(os.path.join(A, src + '.agentic_genie.png'), os.path.join(B, folder, fname + '.agentic_genie.png'))
-
 # No connections/ folder and no project properties: recipes inherit Station A's reference to the shared
 # "Workspace Connections/dewy_bank_customer_api.connection.json", and identity comes from that connection.
-save('project.json', {'description': 'Dewy Bank workshop, Station B: Factor III (Intent-Based Communication). Two Genies with the same tool names, scope and rules; only the tool interface differs. B1 = wrapped API with raw IDs in and raw rows out, B2 = intent-shaped tools.',
+save('project.json', {'description': 'Dewy Bank workshop, Station B: Factor III (Intent-Based Communication). Two sets of tools with the same names, scope and rules; only the tool interface differs. B1 = wrapped API with raw IDs in and raw rows out, B2 = intent-shaped tools.',
                       'color': 'brown', 'icon': ''})
 print('ok')

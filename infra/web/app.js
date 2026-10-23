@@ -268,6 +268,9 @@
     logout();
   };
   function logout() {
+    window.WkChatWidget &&
+      window.WkChatWidget.reset &&
+      window.WkChatWidget.reset();
     idToken = null;
     accessToken = null;
     refreshToken = null;
@@ -282,6 +285,16 @@
   // ---- App -------------------------------------------------------------
   var accountsCache = [];
   var selectedAcct = null;
+
+  var STATION_LABELS = {
+    A1: "A1 · Station A, flaw",
+    A2: "A2 · Station A, fix",
+    B1: "B1 · Station B, flaw",
+    B2: "B2 · Station B, fix",
+    C1: "C1 · Station C, flaw",
+    C2: "C2 · Station C, fix",
+  };
+  var _chatWidgetInited = false;
 
   function enterApp() {
     hide($("authScreen"));

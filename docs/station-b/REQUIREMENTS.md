@@ -69,16 +69,15 @@ B1's inputs also produce the matrix's second symptom: **wrong-account chaining**
    The ownership filter and the rule block are identical.
 2. **The rule block is copied from A2**, not rewritten. A diff against `dewy-bank-station-a/a2_fix_recipe_owns_the_write/move_between_my_accounts.recipe.json` shows the same steps.
 3. **Byte-identical across B1/B2:**
-   - the Genie instructions (from one `docs/station-a/genie-instructions.md`, the same text as Station A);
-   - the model;
+   - the MCP server description (one copy, in `docs/station-b/mcp-servers.md`);
+   - the model of the bank app's agent;
    - the tool names;
-   - `requires_user_confirmation`.
-4. **Descriptions are the only place B1 names the backend.** The Genie instructions never do. (A description that leaks in the instructions too would be a second variable.)
+   - `requires_user_confirmation` (`false` everywhere);
+   - `pay_someone`, which is A2's, saved-payee rule included (P11).
+4. **Descriptions are the only place B1 names the backend.** The MCP server description never does. (A server description that leaks too would be a second variable.)
 5. **Scope fails closed in both** (`present` on both sides before `equals_to`), as in Station A.
 6. **The variant is shown only to participants:**
    - folders: `b1_flaw_wrapped_api_leaky_response/`, `b2_fix_intent_interface/`;
-   - Genie names: "Dewy Bank Assistant · B1 flaw" / "· B2 fix";
-   - logos: alarmed Dewy for B1, smiley Dewy for B2;
    - recipe descriptions and comments (`FLAW` / `FIX`).
 7. **Same layout and tooling as Station A, inside the one workshop project:** `dewy-bank-station-b/` (synced, Workato assets only) holds the two variant folders and `project.json`, with no `shared/` folder (no tool is identical in B1 and B2) and no `connections/` folder: every recipe uses the shared `Workspace Connections/dewy_bank_customer_api.connection.json`. The docs live in `docs/station-b/`; the generator and the invariant check in `scripts/`. The sync config (`.wk/wk.toml`) and the strict `.wklintrc.json` live once, at the `dewy-bank/` root. Strict `wk lint` clean.
 

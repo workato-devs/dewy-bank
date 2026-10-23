@@ -54,11 +54,12 @@ for name, src in [('list_my_accounts', 'shared'), ('review_my_recent_activity', 
           f'B2 {name} is a copy of Station A ({src}/)')
 
 # 1b. pay_someone isn't part of Station B's contrast (P5: shared attack surface): it's A2's in both variants,
-#     byte for byte apart from labels, and it requires the customer's confirmation in both.
+#     byte for byte apart from labels, with A2's saved-payee rule (P11) in both and no skill confirmation.
 check(without_labels(load(B1, 'pay_someone.recipe.json')) == without_labels(load(B2, 'pay_someone.recipe.json')),
       'pay_someone identical in B1 and B2')
-check(all(load(f, 'pay_someone.recipe.json')['code']['input']['requires_user_confirmation'] == 'true' for f in (B1, B2)),
-      'pay_someone requires confirmation in B1 and B2')
+check(all(load(f, 'pay_someone.recipe.json')['code']['input']['requires_user_confirmation'] == 'false'
+          and '"list_payees"' in json.dumps(load(f, 'pay_someone.recipe.json')) for f in (B1, B2)),
+      'pay_someone checks saved payees, not a confirmation, in B1 and B2')
 for folder in (B1, B2):
     s, r = load(folder, 'pay_someone.agentic_skill.json'), load(folder, 'pay_someone.recipe.json')
     check(s['name'] == r['name'] == 'pay_someone' and s['trigger_description'] == r['code']['input']['description'],
@@ -90,13 +91,6 @@ for folder in (B1, B2):
               f'{os.path.basename(folder)[:2]} {name}: customer API connector only, no Admin API or customer_id')
 
 # 4. Everything else the model sees is identical.
-g1 = load(B1, 'dewy_bank_assistant_b1_flaw.agentic_genie.json')
-g2 = load(B2, 'dewy_bank_assistant_b2_fix.agentic_genie.json')
-ga = load(A, 'a2_fix_recipe_owns_the_write', 'dewy_bank_assistant_a2_fix.agentic_genie.json')
-for k in ['instructions', 'raw_instructions', 'ai_provider', 'ai_model', 'matrix', 'mcp_servers', 'guardrail']:
-    check(g1[k] == g2[k] == ga[k], f'Genie {k} identical in B1, B2 and Station A')
-check([r['id']['name'] for r in g1['references'].values()] == [r['id']['name'] for r in g2['references'].values()],
-      'Genies list the same skills in the same order')
 for name in TOOLS:
     i1, i2 = load(B1, name + '.recipe.json')['code']['input'], load(B2, name + '.recipe.json')['code']['input']
     check(i1['requires_user_confirmation'] == i2['requires_user_confirmation'], f'{name}: requires_user_confirmation identical')

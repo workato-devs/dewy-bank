@@ -276,6 +276,12 @@ export class DewyBankStack extends cdk.Stack {
       provisioningFn.functionName,
     );
 
+    // P11: wire the payees table into both Lambdas that need it.
+    customerApiFn.addEnvironment("PAYEES_TABLE", payeesTable.tableName);
+    provisioningFn.addEnvironment("PAYEES_TABLE", payeesTable.tableName);
+    payeesTable.grantReadWriteData(customerApiFn);
+    payeesTable.grantReadWriteData(provisioningFn);
+
     // C-P4: create the fictional customers at deploy, so Station C's support
     // tools have someone to reach before any reset runs.
     const fictionalSetup = new cr.AwsCustomResource(
@@ -358,6 +364,8 @@ export class DewyBankStack extends cdk.Stack {
 
     // Bedrock + MCP chat handler (Bedrock migration). Streams SSE via Lambda
     // Function URL; JWT validation is in-Lambda (Function URL has AuthType.NONE).
+    // Placed here (after userPool + userPoolClient) because the environment needs
+    // both Cognito ids.
     const chatBedrockFn = new NodejsFunction(this, "ChatBedrockFn", {
       ...commonFnProps,
       functionName: `${prefix}-chat-bedrock`,
@@ -540,7 +548,6 @@ export class DewyBankStack extends cdk.Stack {
         integration: customerIntegration,
       });
     }
-
     // --- Support API (static x-api-key; NO Cognito authorizer) ------------
     const supportIntegration = new HttpLambdaIntegration(
       "SupportIntegration",
