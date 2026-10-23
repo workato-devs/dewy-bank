@@ -32,7 +32,7 @@ dewy-bank/
 
 - **The bank** ([`infra/`](infra/README.md)): a Customer API (Cognito sign-in), a Support API (one shared support code, reaching only three fictional customers), the bank app with its chat panel, and a facilitator console. The panel's agent connects to the selected station's MCP server. **That agent is planned:** today the panel still talks to Workato Genies through a chat proxy (P8).
 - **The Workato project**: one `wk` CLI project for the whole workshop. Each synced folder is a top-level server folder of the same name in kebab-case (`Dewy Bank Station A` is `dewy-bank-station-a/`). Rules for changing anything here are in [`AGENTS.md`](AGENTS.md).
-- **The MCP servers**: one per variant, each exposing that variant's recipes as tools: `StationA1`, `StationA2`, `StationB1`, `StationB2`, `StationC1` and `StationC2 Customer`. They aren't files in the synced folders, so `wk push` doesn't create them. Each station's `docs/station-<x>/mcp-servers.md` holds its servers' names, tools and descriptions.
+- **The MCP servers**: one per variant, each exposing that variant's recipes as tools: `StationA1`, `StationA2`, `StationB1`, `StationB2`, `StationC1` and `StationC2 Customer`. They aren't files in the synced folders, so `wk push` doesn't create them; `scripts/setup_mcp_servers.py` does, as the deploy script's last step. Each station's `docs/station-<x>/mcp-servers.md` holds its servers' names, tools and descriptions.
 
 ## Prerequisites
 
@@ -40,48 +40,42 @@ dewy-bank/
 - `wk` CLI installed and on your PATH
 - The bank app URL from your facilitator (a CloudFront `https://` URL)
 - The support code from your facilitator (needed for Station C)
-- Your Workato API token — go to **User menu → Settings → API key** and copy it; add it to a `.env` file at the repo root:
-  ```
-  WORKATO_API_TOKEN=<your-token>
-  ```
+- A Workato API client token (**Workspace admin → API clients**). Its role needs Projects & folders, Connections, Recipes, Skills, MCP servers, Recipe lifecycle management, Export manifests, Connector SDKs and Workspace details.
 
 ## Deploy your Workato workspace
 
-`scripts/deploy_workato.py` handles the full end-to-end deployment: it stamps the bank URL into the connectors, pushes all Workato assets in the right order, waits while you authenticate the connections, starts the skill recipes, configures the chat clients, and prints the JSON blob you paste into the bank app.
+`scripts/deploy_workato.py` does the whole deployment: it stamps the bank URL into the connectors, pushes the Workato assets in order, waits while you connect the two connections, starts the skill recipes, and runs `scripts/setup_mcp_servers.py` to create the six MCP servers. It then waits for the servers' URLs and writes `mcp_conf.json`, the config you paste into the bank app.
 
-> **Not yet updated for MCP servers.** Its last step (`setup_chat_clients.py`) still sets up chat with Genies, which the stations no longer have, so it fails. Until the script creates the MCP servers, create them yourself after the recipes are running: see each station's `mcp-servers.md`.
+**Before running**, copy `.env.example` to `.env` and fill in:
 
-**Before running**, make sure:
+- `WORKATO_API_TOKEN`: your API client's token
+- `SPA_URL`: the bank app URL from your facilitator
+- `DEWY_SUPPORT_API_KEY`: the support code from your facilitator (or pass `--support-api-key <key>`)
 
-- `wk` CLI is installed and on your PATH
-- You have a `wk` auth profile linked to your Workato workspace:
-  ```bash
-  wk auth login -p <profile>
-  ```
-- `WORKATO_API_TOKEN` is set in `.env` (see Prerequisites above)
-- `DEWY_SUPPORT_API_KEY` is set in `.env` or the environment — your facilitator gives you this value:
-  ```
-  DEWY_SUPPORT_API_KEY=<support-code>
-  ```
-  Alternatively, pass it on the command line with `--support-api-key <key>`.
+Leave the `A1`–`C2` lines for later. Then create a `wk` profile for your workspace:
+
+```bash
+wk auth login --region trial --environment dev --name <profile>
+```
 
 **Run the script:**
 
 ```bash
-python3 scripts/deploy_workato.py --profile <wk-profile> --bank-url <cloudfront-url>
+python3 scripts/deploy_workato.py -p <profile>
 ```
-
-The bank URL can also be set in `.env` as `BANK_APP_URL` instead of passing it each time.
 
 **What happens:**
 
-1. The connector files are stamped with the bank URL and API endpoints.
-2. Workspace Connections are pushed to Workato.
-3. The script pauses and gives you a URL — open it and authenticate both connections (see below).
-4. After you press Enter, it discovers the new connector IDs, rebuilds and pushes all station folders, and starts the skill recipes.
-5. `setup_chat_clients.py` runs automatically and prints a JSON blob.
+1. The connector files are stamped with the bank URL and API endpoints, and Workspace Connections is pushed.
+2. The script pauses and prints your connections URL. Connect both connections (see below), then press Enter.
+3. It remaps the connector IDs, rebuilds and pushes the three stations, starts the skill recipes, and restores the working tree.
+4. `setup_mcp_servers.py` creates `StationA1`, `StationA2`, `StationB1`, `StationB2`, `StationC1` and `StationC2 Customer`, each in its station's folder, and prints `<server>: N tools, as specified` for each.
+5. It pauses again for the servers' URLs. In Workato, open each server, generate a token, and paste its URL (with the token) into `.env` on its line (`A1=` … `C2=`). Press Enter.
+6. It writes `mcp_conf.json`. Paste its contents into the bank app's chat (**⚙ Config**). The file holds your MCP tokens, so keep it private.
 
-**The one manual step — copy and paste the JSON blob** into the bank app at **Settings → Chat** (or **Ask Dewy → Set up chat**). The JSON is also saved to `.agents/tasks/chat-config.json` in case you need it again; re-running the script regenerates fresh keys.
+Without a terminal (a coding agent, or stdin closed), the script exits at each pause instead of waiting. Do the pause's step, then run the script again. At the second pause it exits with status 3; once `.env` has the URLs, run `python3 scripts/setup_mcp_servers.py -p <profile>` to write `mcp_conf.json`.
+
+**If no MCP servers appear:** the MCP step stopped before it created them, most often with `no skill …; push the project first`, because Workato hadn't finished registering the stations' skills. Wait a minute and run `python3 scripts/setup_mcp_servers.py -p <profile>`. It's safe to rerun: it finds each server by name, changes only what differs from `docs/station-*/mcp-servers.md`, and never renews a token.
 
 ## Manual authentication step
 
