@@ -16,21 +16,22 @@
  * ../shared/seed, shared with the sign-up trigger so the two can't drift apart.
  * Every step is idempotent, so a reset can be re-run safely.
  */
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   BatchWriteCommand,
   DynamoDBDocumentClient,
   QueryCommand,
   ScanCommand,
-} from '@aws-sdk/lib-dynamodb';
+} from "@aws-sdk/lib-dynamodb";
 import {
+  FACILITATOR_SEED_CUSTOMER,
   FICTIONAL_CUSTOMERS,
   SEED_ACCOUNTS,
   SEED_TXNS,
   accountIdFor,
   isoDaysAgo,
   seedTxnId,
-} from '../shared/seed';
+} from "../shared/seed";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
   marshallOptions: { removeUndefinedValues: true },
@@ -39,58 +40,86 @@ const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
 const CUSTOMERS_TABLE = process.env.CUSTOMERS_TABLE!;
 const ACCOUNTS_TABLE = process.env.ACCOUNTS_TABLE!;
 const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE!;
-const OWNER_INDEX = 'owner-index';
-const EMAIL_INDEX = 'email-index';
+const OWNER_INDEX = "owner-index";
+const EMAIL_INDEX = "email-index";
 
 type ProvisioningEvent = {
-  action?: 'setup' | 'teardown' | 'reseed';
+  action?: "setup" | "teardown" | "reseed";
   email?: string;
   [k: string]: unknown;
 };
 
-type Result = { status: string; message: string; participants?: number; fictional?: number };
+type Result = {
+  status: string;
+  message: string;
+  participants?: number;
+  fictional?: number;
+};
 
 export const handler = async (event: ProvisioningEvent): Promise<Result> => {
-  console.log('provisioning', JSON.stringify({ action: event.action, email: event.email }));
+  console.log(
+    "provisioning",
+    JSON.stringify({ action: event.action, email: event.email }),
+  );
   const now = Date.now();
 
   switch (event.action) {
-    case 'setup': {
+    case "setup": {
       await restoreFictionalCustomers(now);
-      return { status: 'ok', message: 'Fictional customers ready', fictional: FICTIONAL_CUSTOMERS.length };
+      return {
+        status: "ok",
+        message: "Fictional customers ready",
+        fictional: FICTIONAL_CUSTOMERS.length,
+      };
     }
 
-    case 'reseed': {
+    case "reseed": {
       if (event.email) {
         const customer = await findCustomerByEmail(event.email);
         if (!customer || customer.fictional === true) {
-          return { status: 'not-found', message: `No participant with email ${event.email}` };
+          return {
+            status: "not-found",
+            message: `No participant with email ${event.email}`,
+          };
         }
         await reseedParticipant(customer.customerId, now);
-        return { status: 'ok', message: `Reset ${event.email}`, participants: 1 };
+        return {
+          status: "ok",
+          message: `Reset ${event.email}`,
+          participants: 1,
+        };
       }
       const customers = await scanAll(CUSTOMERS_TABLE);
       const participants = customers.filter((c) => c.fictional !== true);
       for (const c of participants) await reseedParticipant(c.customerId, now);
       await restoreFictionalCustomers(now);
       return {
-        status: 'ok',
-        message: 'Reset the workshop',
+        status: "ok",
+        message: "Reset the workshop",
         participants: participants.length,
         fictional: FICTIONAL_CUSTOMERS.length,
       };
     }
 
-    case 'teardown':
-      return { status: 'not-implemented', message: 'teardown is not implemented yet' };
+    case "teardown":
+      return {
+        status: "not-implemented",
+        message: "teardown is not implemented yet",
+      };
 
     default:
-      return { status: 'error', message: `Unknown action ${String(event.action)}` };
+      return {
+        status: "error",
+        message: `Unknown action ${String(event.action)}`,
+      };
   }
 };
 
 /** Restore one participant to the shared seed: balances and history. */
-async function reseedParticipant(customerId: string, now: number): Promise<void> {
+async function reseedParticipant(
+  customerId: string,
+  now: number,
+): Promise<void> {
   await deleteHistory(customerId);
   const createdAt = new Date(now).toISOString();
   await batchPut(
@@ -117,7 +146,7 @@ async function reseedParticipant(customerId: string, now: number): Promise<void>
         counterparty: t.counterparty,
         memo: t.memo,
         category: t.category,
-        channel: t.channel ?? 'seed',
+        channel: t.channel ?? "seed",
         createdAt: at,
       };
     }),
@@ -130,7 +159,13 @@ async function restoreFictionalCustomers(now: number): Promise<void> {
   for (const c of FICTIONAL_CUSTOMERS) {
     await deleteHistory(c.customerId);
     await batchPut(CUSTOMERS_TABLE, [
-      { customerId: c.customerId, email: c.email, name: c.name, fictional: true, createdAt },
+      {
+        customerId: c.customerId,
+        email: c.email,
+        name: c.name,
+        fictional: true,
+        createdAt,
+      },
     ]);
     await batchPut(
       ACCOUNTS_TABLE,
@@ -139,13 +174,39 @@ async function restoreFictionalCustomers(now: number): Promise<void> {
         customerId: c.customerId,
         name: a.name,
         type: a.type,
-        currency: 'USD',
+        currency: "USD",
         balanceCents: a.balanceCents,
         fictional: true,
         createdAt,
       })),
     );
   }
+
+  // Seed the workshop facilitator customer (P11): exists so participants can
+  // add facilitator@dewybank.example as a payee. Marked fictional so resets
+  // don't treat this record as a participant.
+  const fc = FACILITATOR_SEED_CUSTOMER;
+  await batchPut(CUSTOMERS_TABLE, [
+    {
+      customerId: fc.customerId,
+      email: fc.email,
+      name: fc.name,
+      fictional: true,
+      createdAt,
+    },
+  ]);
+  await batchPut(ACCOUNTS_TABLE, [
+    {
+      accountId: accountIdFor(fc.customerId, "checking"),
+      customerId: fc.customerId,
+      name: "Everyday Checking",
+      type: "checking",
+      currency: "USD",
+      balanceCents: 0,
+      fictional: true,
+      createdAt,
+    },
+  ]);
 }
 
 /** Delete every transaction on every account a customer owns. */
@@ -153,31 +214,35 @@ async function deleteHistory(customerId: string): Promise<void> {
   const accounts = await queryAll({
     TableName: ACCOUNTS_TABLE,
     IndexName: OWNER_INDEX,
-    KeyConditionExpression: 'customerId = :c',
-    ExpressionAttributeValues: { ':c': customerId },
+    KeyConditionExpression: "customerId = :c",
+    ExpressionAttributeValues: { ":c": customerId },
   });
   for (const a of accounts) {
     const txns = await queryAll({
       TableName: TRANSACTIONS_TABLE,
-      KeyConditionExpression: 'accountId = :a',
-      ExpressionAttributeValues: { ':a': a.accountId },
-      ProjectionExpression: 'accountId, txnId',
+      KeyConditionExpression: "accountId = :a",
+      ExpressionAttributeValues: { ":a": a.accountId },
+      ProjectionExpression: "accountId, txnId",
     });
     await batchWrite(
       TRANSACTIONS_TABLE,
-      txns.map((t) => ({ DeleteRequest: { Key: { accountId: t.accountId, txnId: t.txnId } } })),
+      txns.map((t) => ({
+        DeleteRequest: { Key: { accountId: t.accountId, txnId: t.txnId } },
+      })),
     );
   }
 }
 
-async function findCustomerByEmail(email: string): Promise<Record<string, any> | null> {
+async function findCustomerByEmail(
+  email: string,
+): Promise<Record<string, any> | null> {
   for (const candidate of new Set([email, email.toLowerCase()])) {
     const r = await ddb.send(
       new QueryCommand({
         TableName: CUSTOMERS_TABLE,
         IndexName: EMAIL_INDEX,
-        KeyConditionExpression: 'email = :e',
-        ExpressionAttributeValues: { ':e': candidate },
+        KeyConditionExpression: "email = :e",
+        ExpressionAttributeValues: { ":e": candidate },
         Limit: 1,
       }),
     );
@@ -186,11 +251,15 @@ async function findCustomerByEmail(email: string): Promise<Record<string, any> |
   return null;
 }
 
-async function queryAll(input: Record<string, any>): Promise<Record<string, any>[]> {
+async function queryAll(
+  input: Record<string, any>,
+): Promise<Record<string, any>[]> {
   const items: Record<string, any>[] = [];
   let ExclusiveStartKey: Record<string, any> | undefined;
   do {
-    const r: any = await ddb.send(new QueryCommand({ ...input, ExclusiveStartKey } as any));
+    const r: any = await ddb.send(
+      new QueryCommand({ ...input, ExclusiveStartKey } as any),
+    );
     items.push(...(r.Items ?? []));
     ExclusiveStartKey = r.LastEvaluatedKey;
   } while (ExclusiveStartKey);
@@ -201,7 +270,9 @@ async function scanAll(table: string): Promise<Record<string, any>[]> {
   const items: Record<string, any>[] = [];
   let ExclusiveStartKey: Record<string, any> | undefined;
   do {
-    const r: any = await ddb.send(new ScanCommand({ TableName: table, ExclusiveStartKey }));
+    const r: any = await ddb.send(
+      new ScanCommand({ TableName: table, ExclusiveStartKey }),
+    );
     items.push(...(r.Items ?? []));
     ExclusiveStartKey = r.LastEvaluatedKey;
   } while (ExclusiveStartKey);
@@ -209,17 +280,33 @@ async function scanAll(table: string): Promise<Record<string, any>[]> {
 }
 
 const batchPut = (table: string, items: Record<string, any>[]) =>
-  batchWrite(table, items.map((Item) => ({ PutRequest: { Item } })));
+  batchWrite(
+    table,
+    items.map((Item) => ({ PutRequest: { Item } })),
+  );
 
 /** BatchWrite in chunks of 25 (DynamoDB's limit), retrying unprocessed items. */
-async function batchWrite(table: string, requests: Record<string, any>[]): Promise<void> {
+async function batchWrite(
+  table: string,
+  requests: Record<string, any>[],
+): Promise<void> {
   for (let i = 0; i < requests.length; i += 25) {
     let pending: Record<string, any>[] = requests.slice(i, i + 25);
     for (let attempt = 0; pending.length > 0; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, Math.min(1000, 50 * 2 ** attempt)));
-      if (attempt > 8) throw new Error(`batchWrite: ${pending.length} items still unprocessed`);
-      const r = await ddb.send(new BatchWriteCommand({ RequestItems: { [table]: pending } }));
-      pending = (r.UnprocessedItems?.[table] as Record<string, any>[] | undefined) ?? [];
+      if (attempt > 0)
+        await new Promise((r) =>
+          setTimeout(r, Math.min(1000, 50 * 2 ** attempt)),
+        );
+      if (attempt > 8)
+        throw new Error(
+          `batchWrite: ${pending.length} items still unprocessed`,
+        );
+      const r = await ddb.send(
+        new BatchWriteCommand({ RequestItems: { [table]: pending } }),
+      );
+      pending =
+        (r.UnprocessedItems?.[table] as Record<string, any>[] | undefined) ??
+        [];
     }
   }
 }
