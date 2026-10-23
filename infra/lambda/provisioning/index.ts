@@ -24,6 +24,7 @@ import {
   ScanCommand,
 } from "@aws-sdk/lib-dynamodb";
 import {
+  FACILITATOR_SEED_CUSTOMER,
   FICTIONAL_CUSTOMERS,
   SEED_ACCOUNTS,
   SEED_TXNS,
@@ -196,6 +197,32 @@ async function restoreFictionalCustomers(now: number): Promise<void> {
       })),
     );
   }
+
+  // Seed the workshop facilitator customer (P11): exists so participants can
+  // add facilitator@dewybank.example as a payee. Marked fictional so resets
+  // don't treat this record as a participant.
+  const fc = FACILITATOR_SEED_CUSTOMER;
+  await batchPut(CUSTOMERS_TABLE, [
+    {
+      customerId: fc.customerId,
+      email: fc.email,
+      name: fc.name,
+      fictional: true,
+      createdAt,
+    },
+  ]);
+  await batchPut(ACCOUNTS_TABLE, [
+    {
+      accountId: accountIdFor(fc.customerId, "checking"),
+      customerId: fc.customerId,
+      name: "Everyday Checking",
+      type: "checking",
+      currency: "USD",
+      balanceCents: 0,
+      fictional: true,
+      createdAt,
+    },
+  ]);
 }
 
 /** Delete every transaction on every account a customer owns. */
