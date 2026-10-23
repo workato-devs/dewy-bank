@@ -179,10 +179,23 @@ def main():
         for sub, name in server['tools']:
             handle = skills.get((subfolders.get(sub), name))
             if not handle:
-                print(f"  [debug] {server['name']}: looking for skill '{name}' in subfolder '{sub}' (id={subfolders.get(sub)})", file=sys.stderr)
-                print(f"  [debug] available subfolders: {list(subfolders.keys())}", file=sys.stderr)
-                print(f"  [debug] skills in station subfolders: {[(sname, fid) for (fid, sname) in skills if fid in set(subfolders.values())][:10]}", file=sys.stderr)
-                sys.exit(f"{server['name']}: no skill {sub}/{name} — see debug output above")
+                # Fallback: recipe-ID lookup (wk agentic skills list omits some skills)
+                sub_folder_id = subfolders.get(sub)
+                recipe_id = sub_folder_id and recipes_in_folder.get(sub_folder_id, {}).get(name)
+                if recipe_id and recipe_id in skills_by_recipe:
+                    handle = skills_by_recipe[recipe_id]
+                elif recipe_id:
+                    print(f"  [{server['name']}] {sub}/{name}: skill missing from list, creating from recipe {recipe_id}", file=sys.stderr)
+                    if not args.dry_run:
+                        created = wk(args.profile, 'agentic', 'skills', 'create', '--recipe-id', str(recipe_id))
+                        handle = created.get('id') if isinstance(created, dict) else None
+                        if handle:
+                            skills_by_recipe[recipe_id] = handle
+                else:
+                    avail = [(sname, fid) for (fid, sname) in skills if fid in set(subfolders.values())]
+                    print(f"  [debug] {server['name']}: no recipe found for {sub}/{name} (subfolder id={sub_folder_id}), available: {avail[:6]}", file=sys.stderr)
+            if not handle:
+                sys.exit(f"{server['name']}: no skill {sub}/{name}; push the project first")
             if handle not in recipe_of:
                 recipe_of[handle] = wk(args.profile, 'agentic', 'skills', 'get', handle)['provider_id']
             wanted[recipe_of[handle]] = (handle, sub, name)
