@@ -627,11 +627,14 @@
     details.appendChild(summary);
     details.appendChild(body);
 
-    // Insert before typing indicator so it stays visible after tool card
+    // Append the card, then re-anchor the typing indicator at the very end.
+    // This is more robust than insertBefore(details, typingEl): it works
+    // correctly for every tool call in a turn regardless of whether typingEl
+    // is already in the DOM, and avoids any position conflict when the second
+    // (or later) card is inserted.
+    dom.body.appendChild(details);
     if (state.typingEl && dom.body.contains(state.typingEl)) {
-      dom.body.insertBefore(details, state.typingEl);
-    } else {
-      dom.body.appendChild(details);
+      dom.body.appendChild(state.typingEl); // moves to end of body
     }
     dom.body.scrollTop = dom.body.scrollHeight;
 
@@ -855,7 +858,15 @@
   }
 
   function recordToolResult(station, toolUseId, result, isError) {
-    const el = state.pendingToolCalls[toolUseId];
+    // Primary lookup: the in-flight pendingToolCalls map.
+    // Fallback: query the DOM by data-tool-id in case pendingToolCalls was
+    // reset (e.g. by renderChat) after the card was already inserted — this
+    // ensures every tool card gets filled even when the map is stale.
+    const el =
+      state.pendingToolCalls[toolUseId] ??
+      dom.body.querySelector(
+        `.wk-cw-tool-details[data-tool-id="${CSS.escape(String(toolUseId ?? ""))}"]`,
+      );
     // Update persisted transcript entry
     const list = state.transcripts[station] || [];
     for (let i = list.length - 1; i >= 0; i--) {
