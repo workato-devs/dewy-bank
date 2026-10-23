@@ -147,6 +147,22 @@
           { name: 'amount', type: 'number' }
         ]
       end
+    },
+
+    list_payees: {
+      title: 'List my saved payees',
+      description: "GET /payees: the signed-in customer's saved payees",
+
+      execute: lambda do |_connection, _input|
+        get('/payees')
+      end,
+
+      output_fields: lambda do |_object_definitions|
+        [{ name: 'payees', type: 'array', of: 'object', properties: [
+          { name: 'email' },
+          { name: 'addedAt' }
+        ]}]
+      end
     }
   },
 
