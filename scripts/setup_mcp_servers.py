@@ -152,11 +152,24 @@ def main():
         sub_map = {f['name']: f['id'] for f in sub_list}
         print(f"  [debug] Station {station.upper()} folder {top}, subfolders: {list(sub_map.keys())}", file=sys.stderr)
         folders[station] = (top, sub_map)
-    skills = {(s['folder_id'], s['name']): s['id'] for s in wk_items(args.profile, 'agentic', 'skills', 'list')}
-    skills_by_name = {}  # name -> list of handles, fallback when folder-id doesn't match
+    all_skills = wk_items(args.profile, 'agentic', 'skills', 'list')
+    skills = {(s['folder_id'], s['name']): s['id'] for s in all_skills}
+    # Also index by provider_id (recipe ID) as fallback — wk agentic skills list
+    # has a known inconsistency where some skills are omitted from the listing
+    # even though they exist and are reachable via `wk agentic skills get`.
+    skills_by_recipe = {s['provider_id']: s['id'] for s in all_skills if s.get('provider_id')}
+    skills_by_name = {}
     for (fid, sname), handle in skills.items():
         skills_by_name.setdefault(sname, []).append(handle)
     recipe_of = {}  # skill handle -> its recipe ID (an MCP tool's flow_id)
+
+    # Build a recipe-ID lookup for each folder so we can resolve skills by recipe
+    # when the direct (folder_id, name) lookup fails.
+    recipes_in_folder = {}  # folder_id -> {recipe_name: recipe_id}
+    for rec in wk_items(args.profile, 'recipes', 'list'):
+        fid = rec.get('folder_id')
+        if fid:
+            recipes_in_folder.setdefault(fid, {})[rec.get('name', '')] = rec.get('id')
 
     existing = {s['name']: s for s in wk_items(args.profile, 'mcp', 'servers', 'list')}
     blob = {'version': 2, 'stations': {}}
