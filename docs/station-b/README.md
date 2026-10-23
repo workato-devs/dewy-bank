@@ -26,7 +26,7 @@ Station B breaks exactly one layer from the [factor matrix](https://github.com/w
 | `list_my_accounts` | none → `accounts[]`: `accountId`, `customerId`, `name`, `type`, `currency`, `balance` | none → `accounts[]`: `name`, `currency`, `balance` |
 | `review_my_recent_activity` | `account_id`, optional `limit` → `statusCode`, `message`, `transactions[]`: `txnId`, `accountId`, `type`, `amount`, `counterparty`, `memo`, `category`, `createdAt` | `account` (a name), optional `limit` → `status`, `message`, `account`, `activity[]`: `date`, `direction`, `amount`, `other_side`, `category`, `description` |
 | `move_between_my_accounts` | `from_account_id`, `to_account_id`, `amount`, optional `note` → `statusCode`, `message`, `from`, `to`, `amount` (the customer API body) | `from_account`, `to_account` (names), `amount`, optional `note` → `status`, `message`, `from_account`, `to_account`, `amount` |
-| `pay_someone` | identical in both: Station A2's (`from_account` name, `to_email`, `amount`, optional `note` → `status`, `message`, `from_account`, `to_email`, `amount`), with the customer's confirmation | same |
+| `pay_someone` | identical in both: Station A2's (`from_account` name, `to_email`, `amount`, optional `note` → `status`, `message`, `from_account`, `to_email`, `amount`), saved-payee rule included | same |
 
 B2 is Station A's tools, copied (`shared/list_my_accounts`, and A2's `review_my_recent_activity` and `move_between_my_accounts`). Only the recipe descriptions and step comments are relabeled. `pay_someone` is A2's too, and it's identical in B1 and B2: it isn't part of Station B's contrast, it's the shared way money leaves the account (P5). It still lives in each variant folder, like the others.
 

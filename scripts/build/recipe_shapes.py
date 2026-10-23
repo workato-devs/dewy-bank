@@ -28,6 +28,7 @@ ACCOUNT = [('accountId', 'Account ID', 'string'), ('customerId', 'Customer ID', 
 TRANSACTION = [('txnId', 'Transaction ID', 'string'), ('accountId', 'Account ID', 'string'), ('type', 'Type', 'string'),
                ('amount', 'Amount', 'number'), ('counterparty', 'Counterparty', 'string'), ('memo', 'Memo', 'string'),
                ('channel', 'Channel', 'string'), ('category', 'Category', 'string'), ('createdAt', 'Created at', 'string')]
+PAYEE = [('email', 'Email', 'string'), ('addedAt', 'Added at', 'string')]
 SUPPORT_ACCOUNT = [('accountId', 'Account ID', 'string'), ('name', 'Name', 'string'), ('type', 'Type', 'string'),
                    ('currency', 'Currency', 'string'), ('balance', 'Balance', 'number')]
 
@@ -63,6 +64,7 @@ def _object(name, label, fields):
 ACTION_OUTPUTS = {
     'list_accounts': [_list('accounts', 'Accounts', ACCOUNT)],
     'list_account_transactions': [_list('transactions', 'Transactions', TRANSACTION)],
+    'list_payees': [_list('payees', 'Payees', PAYEE)],
     'create_transfer': item_schema([('message', 'Message', 'string'), ('from', 'From', 'string'),
                                     ('to', 'To', 'string'), ('amount', 'Amount', 'number')]),
     'create_payment': item_schema([('message', 'Message', 'string'), ('from', 'From', 'string'),

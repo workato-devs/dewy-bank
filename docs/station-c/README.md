@@ -27,7 +27,7 @@ The tools themselves are identical in both variants: all five live once, in `dew
 | `list_my_accounts` | customer | none | `accounts[]`: `name`, `currency`, `balance` |
 | `review_my_recent_activity` | customer | optional `account`, optional `limit` | `status`, `message`, `account`, `activity[]` |
 | `move_between_my_accounts` | customer | `from_account`, `to_account`, `amount`, optional `note` | `status`, `message`, `from_account`, `to_account`, `amount` |
-| `pay_someone` | customer | `from_account`, `to_email`, `amount`, optional `note` (asks the customer to confirm) | `status`, `message`, `from_account`, `to_email`, `amount` |
+| `pay_someone` | customer | `from_account`, `to_email`, `amount`, optional `note` (pays saved payees only) | `status`, `message`, `from_account`, `to_email`, `amount` |
 | `look_up_customer_accounts` | support agent | `customer_email` | `status`, `message`, `customer`, `accounts[]`: `name`, `currency`, `balance` |
 | `issue_goodwill_credit` | support agent | `customer_email`, `account` (a name), `amount`, `reason` | `status` (`completed` / `refused` / `failed`), `message`, `customer`, `account`, `amount` |
 
