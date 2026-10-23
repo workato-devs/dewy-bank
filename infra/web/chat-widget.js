@@ -466,6 +466,9 @@
         }
         break;
       }
+      case "status":
+        appendStatusMessage(entry.text);
+        break;
     }
   }
 
@@ -551,6 +554,14 @@
   function appendSystemMessage(text, isError) {
     const el = document.createElement("div");
     el.className = "wk-cw-system-msg" + (isError ? " is-error" : "");
+    el.textContent = text; // safe — textContent
+    dom.body.appendChild(el);
+    dom.body.scrollTop = dom.body.scrollHeight;
+  }
+
+  function appendStatusMessage(text) {
+    const el = document.createElement("div");
+    el.className = "wk-cw-status-msg";
     el.textContent = text; // safe — textContent
     dom.body.appendChild(el);
     dom.body.scrollTop = dom.body.scrollHeight;
@@ -799,7 +810,13 @@
   function handleSseEvent(station, evt) {
     switch (evt.type) {
       case "status":
-        break; // no-op
+        appendStatusMessage(evt.message);
+        (state.transcripts[station] = state.transcripts[station] || []).push({
+          kind: "status",
+          text: evt.message,
+        });
+        saveState();
+        break;
       case "tools":
         break; // no-op
       case "tool_start":
