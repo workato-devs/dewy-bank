@@ -111,7 +111,7 @@ export const handler = async (event: ProvisioningEvent): Promise<Result> => {
     default:
       return {
         status: "error",
-        message: `Unknown action ${String(event.action)}`,
+        message: `Unknown action ${String(event.action)}`, // noboost
       };
   }
 };
