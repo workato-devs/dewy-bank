@@ -118,7 +118,7 @@
           </div>
           <button class="wk-cw-header-btn" id="wk-cw-station-btn"
                   aria-label="Select station" aria-haspopup="true">
-            ${SVG.sparkle}
+            ${SVG.bot}
           </button>
           <button class="wk-cw-header-btn" id="wk-cw-config-btn"
                   aria-label="Config" aria-haspopup="true">
@@ -742,13 +742,21 @@
     state.abortCtrl = new AbortController();
 
     try {
-      const res = await fetch(getEffectiveUrl(station), {
+      // Always POST to the Bedrock Lambda Function URL.
+      // Pass the station's MCP URL (if configured) in the body so the Lambda
+      // can connect to the correct Workato server.  The widget never calls
+      // Workato directly — the Cognito Bearer token is only valid for the Lambda.
+      const res = await fetch(state.chatFunctionUrl, {
         method: "POST",
         headers: {
           Authorization: "Bearer " + state.getToken(),
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ station, messages: state.messages[station] }),
+        body: JSON.stringify({
+          station,
+          messages: state.messages[station],
+          mcp_url: state.stationUrls[station] || null,
+        }),
         signal: state.abortCtrl.signal,
       });
       if (!res.ok) {
@@ -848,12 +856,6 @@
   }
 
   // ─── 6. State management ─────────────────────────────────────────────────
-  function getEffectiveUrl(station) {
-    return (
-      (state.stationUrls && state.stationUrls[station]) || state.chatFunctionUrl
-    );
-  }
-
   function loadState() {
     try {
       const t = sessionStorage.getItem(STORAGE.transcripts);

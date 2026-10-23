@@ -139,9 +139,20 @@ export const handler = awslambda.streamifyResponse(
       const rawMessages = Array.isArray(body.messages) ? body.messages : [];
 
       // ── 4. Resolve MCP URL ─────────────────────────────────────────────────
-      // SSRF prevention: MCP URLs come exclusively from env vars.
-      // The request body cannot influence which URL is called.
-      const mcpUrl = process.env[`MCP_URL_${station}`];
+      // Accept a per-session MCP URL from the request body (set by the SPA
+      // when a facilitator pastes the station URL map into the config panel).
+      // Fall back to the env-var URL for the station; error only when neither
+      // is present.
+      //
+      // Body-supplied Workato URLs carry the auth token as ?wkt_token=… in the
+      // query string.  Adding an Authorization header alongside that causes
+      // Workato to return 401 ("auth_denied"), so we intentionally omit it when
+      // using a URL from the request body.
+      const bodyMcpUrl =
+        typeof body.mcp_url === "string" && body.mcp_url.length > 0
+          ? body.mcp_url
+          : null;
+      const mcpUrl = bodyMcpUrl ?? process.env[`MCP_URL_${station}`];
       if (!mcpUrl) {
         send({
           type: "error",
@@ -167,7 +178,10 @@ export const handler = awslambda.streamifyResponse(
 
       // ── 6. Connect MCP with 10-second timeout ─────────────────────────────
       send({ type: "status", message: "Connecting to tools\u2026" });
-      const mcpToken = getMcpToken(station as Station);
+      // Body-supplied URLs (Workato) authenticate via ?wkt_token=… in the URL;
+      // adding an Authorization header causes a 401.  Only apply a bearer token
+      // when the URL comes from an env var that may require one.
+      const mcpToken = bodyMcpUrl ? undefined : getMcpToken(station as Station);
       const requestInit = mcpToken
         ? { headers: { Authorization: `Bearer ${mcpToken}` } }
         : undefined;
