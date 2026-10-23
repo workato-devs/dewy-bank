@@ -203,6 +203,7 @@ export function bankTables(): FakeDdb {
   });
   db.define("Transactions", { pk: "accountId", sk: "txnId" });
   db.define("Statements", { pk: "accountId", sk: "statementId" });
+  db.define("Payees", { pk: "customerId", sk: "email" });
   return db;
 }
 
@@ -211,4 +212,5 @@ export const TABLE_ENV = {
   ACCOUNTS_TABLE: "Accounts",
   TRANSACTIONS_TABLE: "Transactions",
   STATEMENTS_TABLE: "Statements",
+  PAYEES_TABLE: "Payees",
 };

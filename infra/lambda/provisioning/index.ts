@@ -43,6 +43,7 @@ const TRANSACTIONS_TABLE = process.env.TRANSACTIONS_TABLE!;
 const PAYEES_TABLE = process.env.PAYEES_TABLE ?? "";
 const OWNER_INDEX = "owner-index";
 const EMAIL_INDEX = "email-index";
+const PAYEES_TABLE = process.env.PAYEES_TABLE ?? "";
 
 type ProvisioningEvent = {
   action?: "setup" | "teardown" | "reseed";

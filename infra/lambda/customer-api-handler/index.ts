@@ -193,7 +193,6 @@ export const handler = async (event: ApiEvent): Promise<Resp> => {
       const customer = await findCustomerByEmail(email);
       if (!customer)
         return json(404, { message: "No Dewy Bank customer with that email" });
-
       const existing = await ddb.send(
         new GetCommand({
           TableName: PAYEES_TABLE,
