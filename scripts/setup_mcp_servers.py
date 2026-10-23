@@ -35,15 +35,25 @@ TOOL = re.compile(r'`([\w-]+)/(\w+)`')
 DESCRIPTION = re.compile(r'<!-- description ([^>]+?) -->\n(.*?)\n<!-- /description -->', re.S)
 
 
-def wk(profile, *args):
-    """Run a wk command with --json and return its parsed output (or its text, for commands that print none)."""
-    out = subprocess.run(['wk', *args, '-p', profile, '--json', '--no-input'], capture_output=True, text=True)
-    if out.returncode != 0:
-        sys.exit(f"wk {' '.join(args)} failed: {(out.stderr or out.stdout).strip()}")
-    try:
-        return json.loads(out.stdout) if out.stdout.strip() else None
-    except json.JSONDecodeError:
-        return out.stdout.strip()
+def wk(profile, *args, _retries=4, _delay=3):
+    """Run a wk command with --json and return its parsed output.
+    Retries up to _retries times on transient EOF / network errors."""
+    import time
+    cmd = ['wk', *args, '-p', profile, '--json', '--no-input']
+    for attempt in range(1, _retries + 2):
+        out = subprocess.run(cmd, capture_output=True, text=True)
+        if out.returncode == 0:
+            try:
+                return json.loads(out.stdout) if out.stdout.strip() else None
+            except json.JSONDecodeError:
+                return out.stdout.strip()
+        err = (out.stderr or out.stdout).strip()
+        # Retry on transient network errors (EOF, connection reset, timeout)
+        if attempt <= _retries and any(t in err for t in ('EOF', 'connection reset', 'timeout', 'dial tcp', 'no such host')):
+            print(f"  [retry {attempt}/{_retries}] wk {' '.join(args)}: {err}", file=sys.stderr)
+            time.sleep(_delay * attempt)
+            continue
+        sys.exit(f"wk {' '.join(args)} failed: {err}")
 
 
 def wk_items(profile, *args):
