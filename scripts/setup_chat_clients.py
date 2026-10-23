@@ -21,6 +21,10 @@ Only the six customer-facing Genies get a client. C2's support Genie never does:
 the bank app is the customer's app, and in C2 the support role is unreachable
 from it. That's the fix.
 """
+# DEPRECATED (Bedrock+MCP migration): This script set up Workato Genie API chat clients
+# for the bank app. The Genie Headless API integration has been replaced by AWS Bedrock
+# with Workato MCP servers. MCP server URLs are now set as CDK context at deploy time;
+# no per-participant setup is needed. This script is no longer invoked or maintained.
 import argparse, json, subprocess, sys, urllib.error, urllib.parse, urllib.request
 
 STATIONS = {  # station key in the bank app -> Genie name, as pushed
