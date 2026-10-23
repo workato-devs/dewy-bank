@@ -785,11 +785,11 @@ def main():
             )
 
     # ------------------------------------------------------------------
-    # Step 11 — run setup_mcp_servers.py
+    # Step 11 — run setup_mcp_servers.py (Zayne's script: creates/updates Workato MCP servers)
     # ------------------------------------------------------------------
-    print('\nStep 11: generating MCP chat config...', file=sys.stderr)
+    print('\nStep 11: setting up MCP servers in Workato...', file=sys.stderr)
     result = subprocess.run(
-        [sys.executable, os.path.join(HERE, 'setup_mcp_servers.py')],
+        [sys.executable, os.path.join(HERE, 'setup_mcp_servers.py'), '-p', args.profile],
         check=False, cwd=ROOT,
     )
     if result.returncode != 0:
