@@ -1207,6 +1207,27 @@
               <h2>📊 Spending this month</h2>
               <div class="spend" id="spend">—</div>
             </div>
+            <div class="card">
+              <h2>👤 Saved payees</h2>
+              <div id="payeesList"></div>
+              <div class="row" style="margin-top: 14px">
+                <div class="field" style="flex: 1; min-width: 200px; margin: 0">
+                  <label for="payeeEmail">Email address</label>
+                  <input
+                    id="payeeEmail"
+                    type="email"
+                    placeholder="payee@example.com"
+                  />
+                </div>
+                <button
+                  id="payeeAddBtn"
+                  style="flex-shrink: 0; align-self: flex-end"
+                >
+                  Add
+                </button>
+              </div>
+              <div id="payeesMsg"></div>
+            </div>
           </div>
 
           <!-- Right column: chat panel (fills remaining height) -->
