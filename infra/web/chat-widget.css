@@ -182,8 +182,9 @@
 .wk-cw-header-logo {
   width: 32px;
   height: 32px;
-  background: rgba(255, 255, 255, 0.2);
+  background: #ffffff;
   border-radius: 50%;
+  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -214,15 +215,15 @@
   text-overflow: ellipsis;
 }
 .wk-cw-header-btn {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: none;
   /* Solid white circle so SVG icons (bot/gear) are visible against the
-     accent-coloured header. Icon colour is set to var(--wk-accent) so the
+     accent-coloured header. Icon colour is #1e293b (dark slate) so the
      dark-on-white contrast is crisp. */
   background: #ffffff;
-  color: var(--wk-accent);
+  color: #1e293b;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -239,8 +240,8 @@
   outline-offset: 2px;
 }
 .wk-cw-header-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
 }
 
 /* ── Slide panels (history + genie) ────────────────────── */

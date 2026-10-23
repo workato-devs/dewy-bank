@@ -627,14 +627,12 @@
     details.appendChild(summary);
     details.appendChild(body);
 
-    // Append the card, then re-anchor the typing indicator at the very end.
-    // This is more robust than insertBefore(details, typingEl): it works
-    // correctly for every tool call in a turn regardless of whether typingEl
-    // is already in the DOM, and avoids any position conflict when the second
-    // (or later) card is inserted.
-    dom.body.appendChild(details);
+    // Insert before the typing indicator if it is present, otherwise append
+    // to the end of the body. This is the proven approach from before 8ffe363.
     if (state.typingEl && dom.body.contains(state.typingEl)) {
-      dom.body.appendChild(state.typingEl); // moves to end of body
+      dom.body.insertBefore(details, state.typingEl);
+    } else {
+      dom.body.appendChild(details);
     }
     dom.body.scrollTop = dom.body.scrollHeight;
 
@@ -858,15 +856,11 @@
   }
 
   function recordToolResult(station, toolUseId, result, isError) {
-    // Primary lookup: the in-flight pendingToolCalls map.
-    // Fallback: query the DOM by data-tool-id in case pendingToolCalls was
-    // reset (e.g. by renderChat) after the card was already inserted — this
-    // ensures every tool card gets filled even when the map is stale.
-    const el =
-      state.pendingToolCalls[toolUseId] ??
-      dom.body.querySelector(
-        `.wk-cw-tool-details[data-tool-id="${CSS.escape(String(toolUseId ?? ""))}"]`,
-      );
+    let el = state.pendingToolCalls[toolUseId];
+    if (!el) {
+      // No stored card; create a new placeholder rather than querying the DOM.
+      el = appendToolCard(String(toolUseId), toolUseId, {});
+    }
     // Update persisted transcript entry
     const list = state.transcripts[station] || [];
     for (let i = list.length - 1; i >= 0; i--) {
@@ -876,10 +870,7 @@
         break;
       }
     }
-    if (el) {
-      fillToolCard(el, result, isError);
-      delete state.pendingToolCalls[toolUseId];
-    }
+    fillToolCard(el, result, isError);
     saveState();
   }
 
