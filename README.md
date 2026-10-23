@@ -23,7 +23,7 @@ dewy-bank/
 ├── dewy-bank-station-a/       # Workato: Station A's recipes and skills
 ├── dewy-bank-station-b/       # Workato: Station B (generated from A by scripts/build/build_station_b.py)
 ├── dewy-bank-station-c/       # Workato: Station C (generated from A by scripts/build/build_station_c.py)
-├── docs/                      # station guides, the design, the shared memo, the backend spec
+├── docs/                      # workshop slides, station guides, the design, the shared memo, the backend spec
 ├── scripts/                   # workshop tools: connector stamping (facilitator), chat setup (participant)
 │   └── build/                 # content build: the station builders and invariant checks (authors and CI only)
 ├── .wk/wk.toml                # the one wk sync config (link your own profile)
@@ -88,7 +88,7 @@ Both connections must show **Connected** before you press Enter to continue.
 
 ## Workshop stations
 
-Work through the stations in order. Each station guide walks you through the attack and the fix:
+Work through the stations in order. Each station guide walks you through the attack and the fix. The workshop slides, with the hacks to try at each station, are at [workato-devs.github.io/dewy-bank/dewy-bank-workshop.html](https://workato-devs.github.io/dewy-bank/dewy-bank-workshop.html) (source: [`docs/dewy-bank-workshop.html`](docs/dewy-bank-workshop.html)).
 
 - [Station A](docs/station-a/README.md) — Factor II: Deterministic Mutations
 - [Station B](docs/station-b/README.md) — Factor III: Intent-Based Communication
