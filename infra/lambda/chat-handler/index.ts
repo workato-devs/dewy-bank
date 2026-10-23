@@ -152,14 +152,8 @@ export const handler = awslambda.streamifyResponse(
         typeof body.mcp_url === "string" && body.mcp_url.length > 0
           ? body.mcp_url
           : null;
-      const mcpUrl = bodyMcpUrl ?? process.env[`MCP_URL_${station}`];
-      if (!mcpUrl) {
-        send({
-          type: "error",
-          message: `Station ${station} is not configured`,
-        });
-        return;
-      }
+      // MCP URL is optional — Bedrock responds with the base model when absent.
+      const mcpUrl = bodyMcpUrl ?? process.env[`MCP_URL_${station}`] ?? null;
 
       // ── 5. Convert messages to Bedrock format ──────────────────────────────
       const bedrockMessages: Message[] = rawMessages
@@ -176,51 +170,90 @@ export const handler = awslambda.streamifyResponse(
         return;
       }
 
-      // ── 6. Connect MCP with 10-second timeout ─────────────────────────────
-      send({ type: "status", message: "Connecting to tools\u2026" });
-      // Body-supplied URLs (Workato) authenticate via ?wkt_token=… in the URL;
-      // adding an Authorization header causes a 401.  Only apply a bearer token
-      // when the URL comes from an env var that may require one.
-      const mcpToken = bodyMcpUrl ? undefined : getMcpToken(station as Station);
-      const requestInit = mcpToken
-        ? { headers: { Authorization: `Bearer ${mcpToken}` } }
-        : undefined;
+      // ── 6. Connect MCP (optional, best-effort) ────────────────────────────
+      // MCP is independent of Bedrock.  If the server is unavailable we send a
+      // non-fatal status warning and continue the conversation without tools.
+      // Body-supplied Workato URLs carry the token as ?wkt_token=… so we must
+      // NOT add an Authorization header — Workato returns 401 if both are sent.
+      let bedrockTools: Array<{ toolSpec: any }> = [];
 
-      const url = new URL(mcpUrl);
-      try {
-        mcpClient = new Client({ name: "dewy-bank-chat", version: "1.0.0" });
-        mcpTransport = new StreamableHTTPClientTransport(url, { requestInit });
-        await connectWithTimeout(() => mcpClient!.connect(mcpTransport!));
-      } catch {
-        // Fall back to SSE transport — pass the same requestInit so bearer
-        // auth works regardless of which transport the MCP server accepts.
-        mcpClient = new Client({ name: "dewy-bank-chat", version: "1.0.0" });
-        mcpTransport = new SSEClientTransport(url, { requestInit });
-        await connectWithTimeout(() => mcpClient!.connect(mcpTransport!));
+      if (mcpUrl) {
+        send({ type: "status", message: "Connecting to tools\u2026" });
+        const mcpToken = bodyMcpUrl
+          ? undefined
+          : getMcpToken(station as Station);
+        const requestInit = mcpToken
+          ? { headers: { Authorization: `Bearer ${mcpToken}` } }
+          : undefined;
+
+        try {
+          const url = new URL(mcpUrl);
+          try {
+            mcpClient = new Client({
+              name: "dewy-bank-chat",
+              version: "1.0.0",
+            });
+            mcpTransport = new StreamableHTTPClientTransport(url, {
+              requestInit,
+            });
+            await connectWithTimeout(() => mcpClient!.connect(mcpTransport!));
+          } catch {
+            // Fall back to SSE transport.
+            mcpClient = new Client({
+              name: "dewy-bank-chat",
+              version: "1.0.0",
+            });
+            mcpTransport = new SSEClientTransport(url, { requestInit });
+            await connectWithTimeout(() => mcpClient!.connect(mcpTransport!));
+          }
+
+          const { tools: mcpTools } = await mcpClient.listTools();
+          bedrockTools = mcpTools.map((t) => ({
+            toolSpec: {
+              name: t.name,
+              description: t.description ?? `Tool: ${t.name}`,
+              inputSchema: {
+                json: t.inputSchema ?? { type: "object", properties: {} },
+              },
+            },
+          }));
+
+          send({
+            type: "tools",
+            tools: mcpTools.map((t) => ({
+              name: t.name,
+              description: t.description,
+            })),
+          });
+        } catch (mcpErr: any) {
+          // Non-fatal MCP failure: warn the browser and continue without tools.
+          const mcpErrMsg = mcpErr?.message ?? String(mcpErr);
+          console.error(
+            "chat-bedrock mcp-connect error",
+            mcpErr?.name,
+            mcpErrMsg,
+          );
+          send({
+            type: "status",
+            message: `MCP unavailable: ${mcpErrMsg}`,
+          });
+          // Clean up any partially-opened connection.
+          try {
+            await (mcpTransport as any)?.terminateSession?.();
+          } catch {}
+          try {
+            await mcpClient?.close();
+          } catch {}
+          mcpClient = null;
+          mcpTransport = null;
+        }
       }
-
-      const { tools: mcpTools } = await mcpClient.listTools();
-      const bedrockTools = mcpTools.map((t) => ({
-        toolSpec: {
-          name: t.name,
-          description: t.description ?? `Tool: ${t.name}`,
-          inputSchema: {
-            json: t.inputSchema ?? { type: "object", properties: {} },
-          },
-        },
-      }));
-
-      send({
-        type: "tools",
-        tools: mcpTools.map((t) => ({
-          name: t.name,
-          description: t.description,
-        })),
-      });
 
       // Build the effective system prompt: base SYSTEM_PROMPT + any MCP
       // server instructions appended (same pattern as the reference POC).
-      const mcpInstructions = (mcpClient as any).getInstructions?.();
+      const mcpInstructions = mcpClient
+        ? (mcpClient as any).getInstructions?.()
+        : undefined;
       const effectiveSystemPrompt = mcpInstructions
         ? `${SYSTEM_PROMPT}\n\n--- MCP Server Instructions ---\n${mcpInstructions}`
         : SYSTEM_PROMPT;
