@@ -101,7 +101,45 @@ Without `--exclude "config.*"` the sync will delete or overwrite `config.js` and
 
 ---
 
-## 7. Tearing down a workshop
+## 7. Controlling participant self-registration
+
+By default, anyone who can reach the bank app can create a Cognito account. Before a session you may want to lock signups so only pre-seeded accounts can log in, then unlock them again when open registration is appropriate.
+
+The toggle is the `AllowAdminCreateUserOnly` policy on the User Pool. Setting it to `true` blocks the self-signup flow in the bank app; setting it to `false` re-enables it. **The change is immediate — no CDK redeploy is needed.**
+
+User Pool ID: `us-west-2_elt2K65Ma`
+
+### Lock signups (before a workshop session)
+
+```bash
+aws cognito-idp update-user-pool \
+  --profile <your-profile> \
+  --user-pool-id us-west-2_elt2K65Ma \
+  --admin-create-user-config AllowAdminCreateUserOnly=true
+```
+
+After this command, the bank app's signup page will reject new registration attempts. Existing accounts are unaffected.
+
+### Unlock signups (open registration)
+
+```bash
+aws cognito-idp update-user-pool \
+  --profile <your-profile> \
+  --user-pool-id us-west-2_elt2K65Ma \
+  --admin-create-user-config AllowAdminCreateUserOnly=false
+```
+
+### When to use it
+
+| Situation                                                                                      | Setting                                   |
+| ---------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Before a live workshop session — prevent unexpected accounts from appearing on the leaderboard | Lock (`AllowAdminCreateUserOnly=true`)    |
+| Self-paced or open-enrollment — participants sign up themselves                                | Unlock (`AllowAdminCreateUserOnly=false`) |
+| Between sessions — lock while you reset, unlock when you're ready                              | Lock → Reset → Unlock                     |
+
+---
+
+## 8. Tearing down a workshop
 
 ```bash
 npx cdk destroy DewyBank-<workshopId> -c workshopId=<workshopId> --profile <your-profile>
