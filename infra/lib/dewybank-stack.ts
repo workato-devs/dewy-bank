@@ -406,15 +406,85 @@ export class DewyBankStack extends cdk.Stack {
 
     // Lambda Function URL — bypasses API GW 29s timeout, essential for
     // multi-tool-call Bedrock loops. RESPONSE_STREAM pushes SSE immediately.
+    // AuthType.AWS_IAM blocks anonymous callers at the IAM layer before the
+    // Lambda runs. The SPA uses a Cognito Identity Pool to exchange the user's
+    // ID token for temporary STS credentials, then signs requests with SigV4.
     const chatFnUrl = chatBedrockFn.addFunctionUrl({
-      authType: lambda.FunctionUrlAuthType.NONE,
+      authType: lambda.FunctionUrlAuthType.AWS_IAM,
       invokeMode: lambda.InvokeMode.RESPONSE_STREAM,
       cors: {
         allowedOrigins: ["*"],
-        allowedHeaders: ["authorization", "content-type"],
+        allowedHeaders: [
+          "authorization",
+          "content-type",
+          "x-amz-security-token",
+          "x-amz-date",
+          "x-amz-content-sha256",
+          "x-cognito-token",
+        ],
         allowedMethods: [lambda.HttpMethod.POST],
       },
     });
+
+    // ── Cognito Identity Pool — SigV4-authenticated chat access ─────────────
+    // Authenticated Cognito users exchange their ID token for temporary STS
+    // credentials via this pool. allowUnauthenticatedIdentities=false means
+    // only signed-in users get credentials; unauthenticated access is blocked
+    // by the identity pool itself before STS is ever called.
+    const chatIdentityPool = new cognito.CfnIdentityPool(
+      this,
+      "ChatIdentityPool",
+      {
+        identityPoolName: `${prefix}-chat`,
+        allowUnauthenticatedIdentities: false,
+        cognitoIdentityProviders: [
+          {
+            clientId: userPoolClient.userPoolClientId,
+            providerName: userPool.userPoolProviderName,
+          },
+        ],
+      },
+    );
+
+    // IAM role assumed by authenticated identities to call InvokeFunctionUrl.
+    // The trust policy requires BOTH aud=identityPool.ref AND amr=authenticated
+    // so credentials obtained from a different identity pool cannot be used here.
+    const chatCallerRole = new iam.Role(this, "ChatCallerRole", {
+      roleName: `${prefix}-chat-caller`,
+      assumedBy: new iam.FederatedPrincipal(
+        "cognito-identity.amazonaws.com",
+        {
+          StringEquals: {
+            "cognito-identity.amazonaws.com:aud": chatIdentityPool.ref,
+          },
+          "ForAnyValue:StringLike": {
+            "cognito-identity.amazonaws.com:amr": "authenticated",
+          },
+        },
+        "sts:AssumeRoleWithWebIdentity",
+      ),
+      description:
+        "Assumed by authenticated Cognito identities to invoke the chat Lambda Function URL via SigV4.",
+    });
+
+    chatCallerRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["lambda:InvokeFunctionUrl"],
+        resources: [
+          chatBedrockFn.functionArn,
+          `${chatBedrockFn.functionArn}:*`,
+        ],
+      }),
+    );
+
+    new cognito.CfnIdentityPoolRoleAttachment(
+      this,
+      "ChatIdentityPoolRoleAttachment",
+      {
+        identityPoolId: chatIdentityPool.ref,
+        roles: { authenticated: chatCallerRole.roleArn },
+      },
+    );
 
     // Admin group (decision 6.2 / 6.5). Facilitators are members of this group.
     const facilitatorsGroup = new cognito.CfnUserPoolGroup(
@@ -624,6 +694,7 @@ export class DewyBankStack extends cdk.Stack {
       supportApiUrl,
       workshopId,
       chatFunctionUrl: chatFnUrl.url,
+      identityPoolId: chatIdentityPool.ref,
     };
 
     new s3deploy.BucketDeployment(this, "SpaDeployment", {
@@ -669,6 +740,7 @@ export class DewyBankStack extends cdk.Stack {
       value: distribution.distributionId,
     });
     new cdk.CfnOutput(this, "ChatFunctionUrl", { value: chatFnUrl.url });
+    new cdk.CfnOutput(this, "IdentityPoolId", { value: chatIdentityPool.ref });
   }
 }
 

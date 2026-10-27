@@ -85,17 +85,29 @@ const MAX_HISTORY = 80;
 export const handler = awslambda.streamifyResponse(
   async (event: any, responseStream: any): Promise<void> => {
     // ── 1. Validate JWT BEFORE opening the SSE stream ───────────────────────
+    // Two-layer auth model:
+    //   Layer 1 (outer): Lambda Function URL AuthType.AWS_IAM + SigV4.
+    //     The AWS runtime rejects unsigned/invalid requests with HTTP 403
+    //     before this handler is ever invoked. Anonymous callers are blocked
+    //     here, before any Lambda compute runs.
+    //   Layer 2 (inner / defense-in-depth): we still validate the Cognito JWT
+    //     to ensure the caller holds a valid Cognito identity token, not just
+    //     any valid AWS credentials. The JWT is forwarded in the custom
+    //     x-cognito-token header because Authorization now carries the SigV4
+    //     signature and must not be overwritten.
     // Auth failures return HTTP 401 with a JSON body, not a 200 SSE error.
-    const authHeader: string | undefined =
-      event.headers?.authorization ?? event.headers?.Authorization;
-    const token = authHeader?.replace(/^Bearer\s+/i, "");
+    const cognitoTokenHeader: string | undefined =
+      event.headers?.["x-cognito-token"] ?? event.headers?.["X-Cognito-Token"];
+    const token = cognitoTokenHeader?.replace(/^Bearer\s+/i, "");
 
     if (!token) {
       const s = awslambda.HttpResponseStream.from(responseStream, {
         statusCode: 401,
         headers: { "content-type": "application/json" },
       });
-      s.end(JSON.stringify({ message: "Unauthorized: missing token" }));
+      s.end(
+        JSON.stringify({ message: "Unauthorized: missing x-cognito-token" }),
+      );
       return;
     }
     try {

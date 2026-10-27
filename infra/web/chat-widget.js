@@ -48,6 +48,10 @@
     abortCtrl: null,
   };
 
+  // Temporary AWS credentials from Cognito Identity, cached until near-expiry.
+  // Cleared on logout (chatReset) so the next session starts fresh.
+  let _awsCredsCache = null;
+
   // ─── DOM refs ────────────────────────────────────────────────────────────
   let dom = {};
 
@@ -743,6 +747,75 @@
   }
 
   // ─── 5. Bedrock SSE ──────────────────────────────────────────────────────
+  /**
+   * Exchange a Cognito ID token for temporary AWS STS credentials via the
+   * Cognito Identity service. Results are cached for the lifetime of the
+   * session (or until within 60 s of expiry) to avoid a GetId + GetCreds
+   * round-trip on every message send.
+   *
+   * Cognito Identity returns `SecretKey` (not `SecretAccessKey`) and
+   * `Expiration` as a Unix timestamp in seconds — both handled below.
+   *
+   * @param {string} idToken  Cognito ID token from the user pool
+   * @returns {Promise<{accessKeyId, secretAccessKey, sessionToken, expiration}>}
+   */
+  async function getAwsCreds(idToken) {
+    // Return cached creds if they have more than 60 seconds of life left.
+    if (_awsCredsCache && _awsCredsCache.expiration - 60000 > Date.now()) {
+      return _awsCredsCache;
+    }
+
+    const cfg = window.DEWY_CONFIG || {};
+    const region = cfg.region || "us-west-2";
+    const { userPoolId, identityPoolId } = cfg;
+    const endpoint = `https://cognito-identity.${region}.amazonaws.com/`;
+    const logins = {
+      [`cognito-idp.${region}.amazonaws.com/${userPoolId}`]: idToken,
+    };
+
+    // Step 1: GetId — resolve or create a Cognito Identity ID for this user.
+    const getIdRes = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-amz-json-1.1",
+        "x-amz-target": "AWSCognitoIdentityService.GetId",
+      },
+      body: JSON.stringify({ IdentityPoolId: identityPoolId, Logins: logins }),
+    });
+    if (!getIdRes.ok) {
+      const text = await getIdRes.text().catch(() => "");
+      throw new Error(`Cognito GetId failed: ${getIdRes.status} ${text}`);
+    }
+    const { IdentityId } = await getIdRes.json();
+
+    // Step 2: GetCredentialsForIdentity — exchange for STS temporary credentials.
+    const getCredsRes = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-amz-json-1.1",
+        "x-amz-target": "AWSCognitoIdentityService.GetCredentialsForIdentity",
+      },
+      body: JSON.stringify({ IdentityId, Logins: logins }),
+    });
+    if (!getCredsRes.ok) {
+      const text = await getCredsRes.text().catch(() => "");
+      throw new Error(
+        `Cognito GetCredentialsForIdentity failed: ${getCredsRes.status} ${text}`,
+      );
+    }
+    const { Credentials: c } = await getCredsRes.json();
+
+    // Cognito Identity uses `SecretKey` (not `SecretAccessKey`).
+    // `Expiration` is a Unix timestamp in seconds; convert to ms for Date.now().
+    _awsCredsCache = {
+      accessKeyId: c.AccessKeyId,
+      secretAccessKey: c.SecretKey,
+      sessionToken: c.SessionToken,
+      expiration: c.Expiration * 1000,
+    };
+    return _awsCredsCache;
+  }
+
   async function handleSend() {
     const station = state.activeStation;
     const text = dom.textarea.value.trim();
@@ -776,21 +849,47 @@
     state.abortCtrl = new AbortController();
 
     try {
-      // Always POST to the Bedrock Lambda Function URL.
-      // Pass the station's MCP URL (if configured) in the body so the Lambda
-      // can connect to the correct Workato server.  The widget never calls
-      // Workato directly — the Cognito Bearer token is only valid for the Lambda.
+      // POST to the Bedrock Lambda Function URL with SigV4 signing.
+      //
+      // Two-layer auth:
+      //   1. aws4.sign() adds Authorization (SigV4), X-Amz-Date, and
+      //      X-Amz-Security-Token — the Function URL AuthType.AWS_IAM
+      //      validates these before invoking the Lambda.
+      //   2. x-cognito-token carries the Cognito ID token so the Lambda
+      //      can still validate the user's identity (defense-in-depth).
+      const idToken = state.getToken();
+      const creds = await getAwsCreds(idToken);
+      const requestBody = JSON.stringify({
+        station,
+        messages: state.messages[station],
+        mcp_url: state.stationUrls[station] || null,
+      });
+      const fnUrl = new URL(state.chatFunctionUrl);
+      const signedOpts = aws4.sign(
+        {
+          host: fnUrl.host,
+          method: "POST",
+          path: fnUrl.pathname || "/",
+          headers: {
+            "Content-Type": "application/json",
+            "x-cognito-token": "Bearer " + idToken,
+          },
+          body: requestBody,
+          service: "lambda",
+          region: (window.DEWY_CONFIG || {}).region || "us-west-2",
+        },
+        {
+          accessKeyId: creds.accessKeyId,
+          secretAccessKey: creds.secretAccessKey,
+          sessionToken: creds.sessionToken,
+        },
+      );
+      // signedOpts.headers now contains: Authorization (SigV4), X-Amz-Date,
+      // X-Amz-Security-Token, Content-Type, x-cognito-token.
       const res = await fetch(state.chatFunctionUrl, {
         method: "POST",
-        headers: {
-          Authorization: "Bearer " + state.getToken(),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          station,
-          messages: state.messages[station],
-          mcp_url: state.stationUrls[station] || null,
-        }),
+        headers: signedOpts.headers,
+        body: requestBody,
         signal: state.abortCtrl.signal,
       });
       if (!res.ok) {
@@ -945,6 +1044,7 @@
     state.pendingToolCalls = {};
     state.isBusy = false;
     state.typingEl = null;
+    _awsCredsCache = null;
     closeWidget();
     dom.fab.style.display = "none"; // hide until next login
   }
