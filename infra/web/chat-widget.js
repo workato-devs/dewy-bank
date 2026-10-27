@@ -826,6 +826,19 @@
     ].join("\n");
 
     const scope = `${dateStamp}/${req.region}/${req.service}/aws4_request`;
+    console.log(
+      "[chat-sigv4] signing: method=" +
+        req.method +
+        " host=" +
+        req.host +
+        " region=" +
+        req.region +
+        " service=" +
+        req.service +
+        " signedHeaders=" +
+        signedHeaderNames,
+    );
+    console.log("[chat-sigv4] credential scope: " + scope);
     const stringToSign = [
       "AWS4-HMAC-SHA256",
       amzDate,
@@ -853,55 +866,79 @@
       return _awsCredsCache;
     }
 
-    const cfg = window.DEWY_CONFIG || {};
-    const region = cfg.region || "us-west-2";
-    const { userPoolId, identityPoolId } = cfg;
-    const endpoint = `https://cognito-identity.${region}.amazonaws.com/`;
-    const logins = {
-      [`cognito-idp.${region}.amazonaws.com/${userPoolId}`]: idToken,
-    };
+    try {
+      const cfg = window.DEWY_CONFIG || {};
+      const region = cfg.region || "us-west-2";
+      const { userPoolId, identityPoolId } = cfg;
+      const endpoint = `https://cognito-identity.${region}.amazonaws.com/`;
+      const logins = {
+        [`cognito-idp.${region}.amazonaws.com/${userPoolId}`]: idToken,
+      };
 
-    // Step 1: GetId — resolve or create a Cognito Identity ID for this user.
-    const getIdRes = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-amz-json-1.1",
-        "x-amz-target": "AWSCognitoIdentityService.GetId",
-      },
-      body: JSON.stringify({ IdentityPoolId: identityPoolId, Logins: logins }),
-    });
-    if (!getIdRes.ok) {
-      const text = await getIdRes.text().catch(() => "");
-      throw new Error(`Cognito GetId failed: ${getIdRes.status} ${text}`);
-    }
-    const { IdentityId } = await getIdRes.json();
-
-    // Step 2: GetCredentialsForIdentity — exchange for STS temporary credentials.
-    const getCredsRes = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-amz-json-1.1",
-        "x-amz-target": "AWSCognitoIdentityService.GetCredentialsForIdentity",
-      },
-      body: JSON.stringify({ IdentityId, Logins: logins }),
-    });
-    if (!getCredsRes.ok) {
-      const text = await getCredsRes.text().catch(() => "");
-      throw new Error(
-        `Cognito GetCredentialsForIdentity failed: ${getCredsRes.status} ${text}`,
+      // Step 1: GetId — resolve or create a Cognito Identity ID for this user.
+      console.log(
+        "[chat-auth] GetId request: identityPoolId=" + identityPoolId,
       );
-    }
-    const { Credentials: c } = await getCredsRes.json();
+      const getIdRes = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-amz-json-1.1",
+          "x-amz-target": "AWSCognitoIdentityService.GetId",
+        },
+        body: JSON.stringify({
+          IdentityPoolId: identityPoolId,
+          Logins: logins,
+        }),
+      });
+      if (!getIdRes.ok) {
+        const text = await getIdRes.text().catch(() => "");
+        const msg = `Cognito GetId failed: ${getIdRes.status} ${text}`;
+        console.log("[chat-auth] ERROR: " + msg);
+        throw new Error(msg);
+      }
+      const { IdentityId } = await getIdRes.json();
+      console.log("[chat-auth] GetId response: IdentityId=" + IdentityId);
 
-    // Cognito Identity uses `SecretKey` (not `SecretAccessKey`).
-    // `Expiration` is a Unix timestamp in seconds; convert to ms for Date.now().
-    _awsCredsCache = {
-      accessKeyId: c.AccessKeyId,
-      secretAccessKey: c.SecretKey,
-      sessionToken: c.SessionToken,
-      expiration: c.Expiration * 1000,
-    };
-    return _awsCredsCache;
+      // Step 2: GetCredentialsForIdentity — exchange for STS temporary credentials.
+      console.log(
+        "[chat-auth] GetCredentialsForIdentity request: IdentityId=" +
+          IdentityId,
+      );
+      const getCredsRes = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-amz-json-1.1",
+          "x-amz-target": "AWSCognitoIdentityService.GetCredentialsForIdentity",
+        },
+        body: JSON.stringify({ IdentityId, Logins: logins }),
+      });
+      if (!getCredsRes.ok) {
+        const text = await getCredsRes.text().catch(() => "");
+        const msg = `Cognito GetCredentialsForIdentity failed: ${getCredsRes.status} ${text}`;
+        console.log("[chat-auth] ERROR: " + msg);
+        throw new Error(msg);
+      }
+      const { Credentials: c } = await getCredsRes.json();
+      console.log(
+        "[chat-auth] GetCredentialsForIdentity response: AccessKeyId=" +
+          c.AccessKeyId.slice(0, 8) +
+          "..., Expiration=" +
+          c.Expiration,
+      );
+
+      // Cognito Identity uses `SecretKey` (not `SecretAccessKey`).
+      // `Expiration` is a Unix timestamp in seconds; convert to ms for Date.now().
+      _awsCredsCache = {
+        accessKeyId: c.AccessKeyId,
+        secretAccessKey: c.SecretKey,
+        sessionToken: c.SessionToken,
+        expiration: c.Expiration * 1000,
+      };
+      return _awsCredsCache;
+    } catch (err) {
+      console.log("[chat-auth] ERROR: " + err.message);
+      throw err;
+    }
   }
 
   async function handleSend() {
@@ -972,6 +1009,20 @@
       );
       // signedHeaders contains: Authorization (SigV4), X-Amz-Date,
       // X-Amz-Security-Token, Content-Type, x-cognito-token.
+      console.log(
+        "[chat-send] POST " +
+          state.chatFunctionUrl +
+          " signedHeaders=" +
+          Object.keys(signedHeaders).join(","),
+      );
+      console.log(
+        "[chat-send] Authorization header prefix: " +
+          (
+            signedHeaders["authorization"] ||
+            signedHeaders["Authorization"] ||
+            ""
+          ).slice(0, 80),
+      );
       const res = await fetch(state.chatFunctionUrl, {
         method: "POST",
         headers: signedHeaders,
@@ -979,7 +1030,14 @@
         signal: state.abortCtrl.signal,
       });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
+        const bodyText = await res.text().catch(() => "");
+        console.log(
+          "[chat-send] ERROR status=" + res.status + " body=" + bodyText,
+        );
+        let j = {};
+        try {
+          j = JSON.parse(bodyText);
+        } catch (_) {}
         throw new Error(j.message || "HTTP " + res.status);
       }
       await consumeSseStream(station, res.body.getReader());

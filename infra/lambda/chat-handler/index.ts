@@ -84,6 +84,25 @@ const MAX_HISTORY = 80;
 // ── Handler ──────────────────────────────────────────────────────────────────
 export const handler = awslambda.streamifyResponse(
   async (event: any, responseStream: any): Promise<void> => {
+    // ── 0. Startup logging — runs before any auth check ──────────────────
+    console.log("[chat] request received");
+    console.log(
+      "[chat] method=%s path=%s",
+      event.requestContext?.http?.method ?? event.httpMethod ?? "unknown",
+      event.requestContext?.http?.path ?? event.rawPath ?? "/",
+    );
+    const _redactedHeaders = Object.fromEntries(
+      Object.entries((event.headers as Record<string, string>) || {}).map(
+        ([k, v]) => [
+          k,
+          k.toLowerCase() === "x-cognito-token"
+            ? String(v).slice(0, 20) + "…"
+            : v,
+        ],
+      ),
+    );
+    console.log("[chat] headers=%j", _redactedHeaders);
+
     // ── 1. Validate JWT BEFORE opening the SSE stream ───────────────────────
     // Two-layer auth model:
     //   Layer 1 (outer): Lambda Function URL AuthType.AWS_IAM + SigV4.
