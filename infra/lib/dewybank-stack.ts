@@ -476,6 +476,18 @@ export class DewyBankStack extends cdk.Stack {
         ],
       }),
     );
+    // Lambda resource-based policy: also required for same-account federated
+    // (Cognito Identity Pool) callers with AuthType.AWS_IAM.
+    chatBedrockFn.addPermission("AllowChatCallerRole", {
+      principal: new iam.ArnPrincipal(chatCallerRole.roleArn),
+      action: "lambda:InvokeFunctionUrl",
+      functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
+    });
+    chatBedrockFn.addPermission("AllowFacilitatorsRole", {
+      principal: new iam.ArnPrincipal(facilitatorsRole.roleArn),
+      action: "lambda:InvokeFunctionUrl",
+      functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
+    });
 
     new cognito.CfnIdentityPoolRoleAttachment(
       this,
