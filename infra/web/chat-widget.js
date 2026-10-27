@@ -877,13 +877,19 @@
     const { IdentityId } = await getIdRes.json();
 
     // Step 2: GetCredentialsForIdentity — exchange for STS temporary credentials.
+    // Pass CustomRoleArn to bypass Cognito's enhanced-flow role selection, which
+    // would otherwise pick the role from cognito:roles in the ID token (e.g. the
+    // facilitators role) instead of the chat-caller role we need here.
+    const chatCallerRoleArn = (window.DEWY_CONFIG || {}).chatCallerRoleArn;
+    const getCredsBody = { IdentityId, Logins: logins };
+    if (chatCallerRoleArn) getCredsBody.CustomRoleArn = chatCallerRoleArn;
     const getCredsRes = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-amz-json-1.1",
         "x-amz-target": "AWSCognitoIdentityService.GetCredentialsForIdentity",
       },
-      body: JSON.stringify({ IdentityId, Logins: logins }),
+      body: JSON.stringify(getCredsBody),
     });
     if (!getCredsRes.ok) {
       const text = await getCredsRes.text().catch(() => "");

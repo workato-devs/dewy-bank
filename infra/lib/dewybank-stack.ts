@@ -695,6 +695,7 @@ export class DewyBankStack extends cdk.Stack {
       workshopId,
       chatFunctionUrl: chatFnUrl.url,
       identityPoolId: chatIdentityPool.ref,
+      chatCallerRoleArn: chatCallerRole.roleArn,
     };
 
     new s3deploy.BucketDeployment(this, "SpaDeployment", {
