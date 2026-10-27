@@ -759,6 +759,94 @@
    * @param {string} idToken  Cognito ID token from the user pool
    * @returns {Promise<{accessKeyId, secretAccessKey, sessionToken, expiration}>}
    */
+  // ── Inline SigV4 signing (Web Crypto API, no external library) ────────────
+  async function sigv4Sign(credentials, req) {
+    const enc = new TextEncoder();
+    const hmac = async (key, data) => {
+      const k = typeof key === "string" ? enc.encode(key) : key;
+      const cryptoKey = await crypto.subtle.importKey(
+        "raw",
+        k,
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"],
+      );
+      return new Uint8Array(
+        await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(data)),
+      );
+    };
+    const hash = async (data) => {
+      const buf = await crypto.subtle.digest("SHA-256", enc.encode(data));
+      return Array.from(new Uint8Array(buf))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    };
+    const hex = (buf) =>
+      Array.from(buf)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
+    const now = new Date();
+    const dateStamp = now.toISOString().slice(0, 10).replace(/-/g, "");
+    const amzDate =
+      now
+        .toISOString()
+        .replace(/[:\-]|\.\d{3}/g, "")
+        .slice(0, 15) + "Z";
+
+    const headers = {
+      "content-type": "application/json",
+      host: req.host,
+      "x-amz-date": amzDate,
+      ...Object.fromEntries(
+        Object.entries(req.extraHeaders || {}).map(([k, v]) => [
+          k.toLowerCase(),
+          v,
+        ]),
+      ),
+    };
+    if (credentials.sessionToken) {
+      headers["x-amz-security-token"] = credentials.sessionToken;
+    }
+
+    const signedHeaderNames = Object.keys(headers).sort().join(";");
+    const canonicalHeaders =
+      Object.keys(headers)
+        .sort()
+        .map((k) => k + ":" + headers[k])
+        .join("\n") + "\n";
+    const bodyHash = await hash(req.body || "");
+    const canonicalRequest = [
+      req.method,
+      req.path,
+      "",
+      canonicalHeaders,
+      signedHeaderNames,
+      bodyHash,
+    ].join("\n");
+
+    const scope = `${dateStamp}/${req.region}/${req.service}/aws4_request`;
+    const stringToSign = [
+      "AWS4-HMAC-SHA256",
+      amzDate,
+      scope,
+      await hash(canonicalRequest),
+    ].join("\n");
+
+    let signingKey = await hmac(
+      "AWS4" + credentials.secretAccessKey,
+      dateStamp,
+    );
+    signingKey = await hmac(signingKey, req.region);
+    signingKey = await hmac(signingKey, req.service);
+    signingKey = await hmac(signingKey, "aws4_request");
+    const signature = hex(await hmac(signingKey, stringToSign));
+
+    headers["authorization"] =
+      `AWS4-HMAC-SHA256 Credential=${credentials.accessKeyId}/${scope}, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
+    return headers;
+  }
+
   async function getAwsCreds(idToken) {
     // Return cached creds if they have more than 60 seconds of life left.
     if (_awsCredsCache && _awsCredsCache.expiration - 60000 > Date.now()) {
@@ -852,7 +940,7 @@
       // POST to the Bedrock Lambda Function URL with SigV4 signing.
       //
       // Two-layer auth:
-      //   1. aws4.sign() adds Authorization (SigV4), X-Amz-Date, and
+      //   1. sigv4Sign() adds Authorization (SigV4), X-Amz-Date, and
       //      X-Amz-Security-Token — the Function URL AuthType.AWS_IAM
       //      validates these before invoking the Lambda.
       //   2. x-cognito-token carries the Cognito ID token so the Lambda
@@ -865,30 +953,28 @@
         mcp_url: state.stationUrls[station] || null,
       });
       const fnUrl = new URL(state.chatFunctionUrl);
-      const signedOpts = aws4.sign(
-        {
-          host: fnUrl.host,
-          method: "POST",
-          path: fnUrl.pathname || "/",
-          headers: {
-            "Content-Type": "application/json",
-            "x-cognito-token": "Bearer " + idToken,
-          },
-          body: requestBody,
-          service: "lambda",
-          region: (window.DEWY_CONFIG || {}).region || "us-west-2",
-        },
+      const region = (window.DEWY_CONFIG || {}).region || "us-west-2";
+      const signedHeaders = await sigv4Sign(
         {
           accessKeyId: creds.accessKeyId,
           secretAccessKey: creds.secretAccessKey,
           sessionToken: creds.sessionToken,
         },
+        {
+          method: "POST",
+          host: fnUrl.host,
+          path: fnUrl.pathname || "/",
+          body: requestBody,
+          service: "lambda",
+          region,
+          extraHeaders: { "x-cognito-token": "Bearer " + idToken },
+        },
       );
-      // signedOpts.headers now contains: Authorization (SigV4), X-Amz-Date,
+      // signedHeaders contains: Authorization (SigV4), X-Amz-Date,
       // X-Amz-Security-Token, Content-Type, x-cognito-token.
       const res = await fetch(state.chatFunctionUrl, {
         method: "POST",
-        headers: signedOpts.headers,
+        headers: signedHeaders,
         body: requestBody,
         signal: state.abortCtrl.signal,
       });
