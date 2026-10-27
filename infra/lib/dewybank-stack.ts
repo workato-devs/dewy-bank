@@ -518,6 +518,17 @@ export class DewyBankStack extends cdk.Stack {
         "Role assumed by Cognito `facilitators` group members; may invoke provisioning Lambda.",
     });
     provisioningFn.grantInvoke(facilitatorsRole);
+    // Facilitators also need to invoke the chat function URL (they use the chat widget too,
+    // but their cognito:roles token claim overrides the Identity Pool's default chatCallerRole).
+    facilitatorsRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["lambda:InvokeFunctionUrl"],
+        resources: [
+          chatBedrockFn.functionArn,
+          `${chatBedrockFn.functionArn}:*`,
+        ],
+      }),
+    );
     facilitatorsGroup.roleArn = facilitatorsRole.roleArn;
 
     // ---------------------------------------------------------------------
