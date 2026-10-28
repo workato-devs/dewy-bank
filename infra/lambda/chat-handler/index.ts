@@ -78,7 +78,12 @@ const verifier = CognitoJwtVerifier.create({
 });
 
 const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? "us.moonshotai.kimi-k3";
+// Inference parameters — edit here to tune model behaviour across all stations.
+// temperature=0 → greedy/deterministic decoding (always picks the highest-probability token).
+// topP=1.0     → no nucleus restriction; irrelevant at temperature=0 but set explicitly for clarity.
 const MAX_TOKENS = 4096;
+const TEMPERATURE = 0.0;
+const TOP_P = 1.0;
 const MAX_HISTORY = 80;
 
 // ── Handler ──────────────────────────────────────────────────────────────────
@@ -296,7 +301,11 @@ export const handler = awslambda.streamifyResponse(
         const input: any = {
           modelId: MODEL_ID,
           messages: bedrockMessages,
-          inferenceConfig: { maxTokens: MAX_TOKENS },
+          inferenceConfig: {
+            maxTokens: MAX_TOKENS,
+            temperature: TEMPERATURE,
+            topP: TOP_P,
+          },
           system,
           ...(bedrockTools.length && { toolConfig: { tools: bedrockTools } }),
         };
