@@ -467,27 +467,16 @@ export class DewyBankStack extends cdk.Stack {
         "Assumed by authenticated Cognito identities to invoke the chat Lambda Function URL via SigV4.",
     });
 
+    // Oct 2025: new Function URLs require both InvokeFunctionUrl AND InvokeFunction.
     chatCallerRole.addToPolicy(
       new iam.PolicyStatement({
-        actions: ["lambda:InvokeFunctionUrl"],
+        actions: ["lambda:InvokeFunctionUrl", "lambda:InvokeFunction"],
         resources: [
           chatBedrockFn.functionArn,
           `${chatBedrockFn.functionArn}:*`,
         ],
       }),
     );
-    // Lambda resource-based policy: also required for same-account federated
-    // (Cognito Identity Pool) callers with AuthType.AWS_IAM.
-    chatBedrockFn.addPermission("AllowChatCallerRole", {
-      principal: new iam.ArnPrincipal(chatCallerRole.roleArn),
-      action: "lambda:InvokeFunctionUrl",
-      functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
-    });
-    chatBedrockFn.addPermission("AllowFacilitatorsRole", {
-      principal: new iam.ArnPrincipal(facilitatorsRole.roleArn),
-      action: "lambda:InvokeFunctionUrl",
-      functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
-    });
 
     new cognito.CfnIdentityPoolRoleAttachment(
       this,
@@ -518,7 +507,7 @@ export class DewyBankStack extends cdk.Stack {
         "cognito-identity.amazonaws.com",
         {
           StringEquals: {
-            "cognito-identity.amazonaws.com:aud": userPool.userPoolId,
+            "cognito-identity.amazonaws.com:aud": chatIdentityPool.ref,
           },
           "ForAnyValue:StringLike": {
             "cognito-identity.amazonaws.com:amr": "authenticated",
@@ -534,13 +523,26 @@ export class DewyBankStack extends cdk.Stack {
     // but their cognito:roles token claim overrides the Identity Pool's default chatCallerRole).
     facilitatorsRole.addToPolicy(
       new iam.PolicyStatement({
-        actions: ["lambda:InvokeFunctionUrl"],
+        actions: ["lambda:InvokeFunctionUrl", "lambda:InvokeFunction"],
         resources: [
           chatBedrockFn.functionArn,
           `${chatBedrockFn.functionArn}:*`,
         ],
       }),
     );
+    // Lambda resource-based policy: required for same-account federated
+    // (Cognito Identity Pool) callers with AuthType.AWS_IAM. Placed here,
+    // after facilitatorsRole is declared, to avoid the temporal dead zone.
+    chatBedrockFn.addPermission("AllowChatCallerRole", {
+      principal: new iam.ArnPrincipal(chatCallerRole.roleArn),
+      action: "lambda:InvokeFunctionUrl",
+      functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
+    });
+    chatBedrockFn.addPermission("AllowFacilitatorsRole", {
+      principal: new iam.ArnPrincipal(facilitatorsRole.roleArn),
+      action: "lambda:InvokeFunctionUrl",
+      functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
+    });
     facilitatorsGroup.roleArn = facilitatorsRole.roleArn;
 
     // ---------------------------------------------------------------------
