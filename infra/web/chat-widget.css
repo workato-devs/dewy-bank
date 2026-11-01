@@ -203,7 +203,6 @@
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
-  margin-left: auto;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -212,7 +211,6 @@
   opacity: 0.8;
   margin-top: 1px;
   white-space: nowrap;
-  margin-left: auto;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -374,7 +372,6 @@
   font-weight: 600;
   color: var(--wk-text);
   white-space: nowrap;
-  margin-left: auto;
   overflow: hidden;
   text-overflow: ellipsis;
   display: block;
@@ -384,7 +381,6 @@
   color: var(--wk-text-muted);
   margin-top: 2px;
   white-space: nowrap;
-  margin-left: auto;
   overflow: hidden;
   text-overflow: ellipsis;
   display: block;
@@ -414,6 +410,7 @@
   padding: 10px 10px 4px; /* matches item horizontal padding */
 }
 .wk-cw-new-chat-btn {
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
   width: auto;
@@ -432,7 +429,6 @@
     color 0.15s;
   outline: none;
   white-space: nowrap;
-  margin-left: auto;
 }
 .wk-cw-new-chat-btn:hover {
   background: var(--wk-accent-light);
@@ -490,7 +486,6 @@
   font-size: 13px;
   color: var(--wk-text);
   white-space: nowrap;
-  margin-left: auto;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -760,7 +755,6 @@
   flex: 1;
   min-width: 0;
   white-space: nowrap;
-  margin-left: auto;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -920,7 +914,6 @@
   font-size: 11px;
   color: var(--wk-text-light);
   white-space: nowrap;
-  margin-left: auto;
 }
 .wk-cw-input-hint {
   font-size: 10px;
