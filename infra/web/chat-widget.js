@@ -181,8 +181,9 @@
             </button>
           </div>
           <div class="wk-cw-input-hint-row">
+            <label class="wk-cw-reasoning-label" for="wk-cw-reasoning-select">Thinking:</label>
             <select class="wk-cw-reasoning-select" id="wk-cw-reasoning-select"
-                    aria-label="Reasoning effort" title="Reasoning effort">
+                    aria-label="Reasoning effort">
               <option value="low">Low</option>
               <option value="high">High</option>
               <option value="max" selected>Max</option>

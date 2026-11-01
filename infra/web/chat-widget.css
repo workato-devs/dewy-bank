@@ -904,8 +904,15 @@
 .wk-cw-input-hint-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-top: 8px;
+  flex-wrap: nowrap;
+}
+.wk-cw-reasoning-label {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--wk-text-light);
+  white-space: nowrap;
 }
 .wk-cw-input-hint {
   font-size: 10px;
@@ -1155,10 +1162,10 @@
 
 /* ── Reasoning effort selector ─────────────────────────────────── */
 .wk-cw-reasoning-select {
-  flex: 0 0 auto;
-  display: inline-block;
+  flex: 0 0 76px;    /* explicit width — only reliable cross-browser sizing for <select> */
+  width: 76px;
   height: 26px;
-  padding: 0 6px;
+  padding: 0 4px;
   border: 1px solid var(--wk-border);
   border-radius: 6px;
   background: transparent;
@@ -1167,7 +1174,6 @@
   font-weight: 500;
   cursor: pointer;
   outline: none;
-  -webkit-appearance: auto;
 }
 .wk-cw-reasoning-select option {
   background: #1e293b;
