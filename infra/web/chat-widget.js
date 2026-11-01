@@ -1026,6 +1026,8 @@
       console.log(
         "[chat-send] POST " +
           state.chatFunctionUrl +
+          " reasoning_effort=" +
+          state.reasoningEffort +
           " signedHeaders=" +
           Object.keys(signedHeaders).join(","),
       );
