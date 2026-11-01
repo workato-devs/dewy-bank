@@ -125,12 +125,6 @@
                   aria-label="Select station" aria-haspopup="true">
             ${SVG.bot}
           </button>
-          <select class="wk-cw-reasoning-select" id="wk-cw-reasoning-select"
-                  aria-label="Reasoning effort" title="Reasoning effort">
-            <option value="low">Low</option>
-            <option value="high">High</option>
-            <option value="max" selected>Max</option>
-          </select>
           <button class="wk-cw-header-btn" id="wk-cw-config-btn"
                   aria-label="Config" aria-haspopup="true">
             ${SVG.gear}
@@ -187,7 +181,12 @@
             </button>
           </div>
           <div class="wk-cw-input-hint-row">
-            <p class="wk-cw-input-hint">Shift + Enter for newline</p>
+            <select class="wk-cw-reasoning-select" id="wk-cw-reasoning-select"
+                    aria-label="Reasoning effort" title="Reasoning effort">
+              <option value="low">Low</option>
+              <option value="high">High</option>
+              <option value="max" selected>Max</option>
+            </select>
             <button class="wk-cw-new-chat-btn" id="wk-cw-new-chat-btn" aria-label="Clear chat">Clear chat</button>
           </div>
         </div>
