@@ -819,7 +819,7 @@
 
 /* ── Input area ─────────────────────────────────────────── */
 .wk-cw-input-area {
-  padding: 10px 16px 14px; /* 16px sides match body; 14px bottom clears the panel radius */
+  padding: 10px 16px 20px; /* 16px sides match body; 14px bottom clears the panel radius */
   border-top: 1px solid var(--wk-border);
   flex-shrink: 0;
   background: var(--wk-bg);
@@ -903,11 +903,9 @@
 /* Hint: hidden by default, fades in on focus */
 .wk-cw-input-hint-row {
   display: flex;
-  justify-content: flex-start;
   align-items: center;
   gap: 8px;
   margin-top: 8px;
-  padding: 0 2px;
 }
 .wk-cw-input-hint {
   font-size: 10px;
@@ -1158,10 +1156,9 @@
 /* ── Reasoning effort selector ─────────────────────────────────── */
 .wk-cw-reasoning-select {
   flex: 0 0 auto;
-  width: auto;
-  max-width: fit-content;
+  display: inline-block;
   height: 26px;
-  padding: 0 8px;
+  padding: 0 6px;
   border: 1px solid var(--wk-border);
   border-radius: 6px;
   background: transparent;
@@ -1170,6 +1167,7 @@
   font-weight: 500;
   cursor: pointer;
   outline: none;
+  -webkit-appearance: auto;
 }
 .wk-cw-reasoning-select option {
   background: #1e293b;
