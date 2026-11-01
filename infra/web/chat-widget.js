@@ -233,8 +233,25 @@
     dom.reasoningSelect.addEventListener("change", () => {
       state.reasoningEffort = dom.reasoningSelect.value;
       console.log(
-        `[chat] reasoning_effort changed to: ${state.reasoningEffort}`,
+        `[chat] reasoning_effort changed to: ${state.reasoningEffort} — clearing history for fresh context`,
       );
+      // Clear current station history so model starts fresh at the new reasoning level
+      const s = state.activeStation;
+      state.transcripts[s] = [];
+      state.messages[s] = [];
+      try {
+        sessionStorage.setItem(
+          STORAGE.transcripts,
+          JSON.stringify(state.transcripts),
+        );
+      } catch (_) {}
+      try {
+        sessionStorage.setItem(
+          STORAGE.messages,
+          JSON.stringify(state.messages),
+        );
+      } catch (_) {}
+      renderChat();
     });
 
     dom.configBtn.addEventListener("click", () => {
