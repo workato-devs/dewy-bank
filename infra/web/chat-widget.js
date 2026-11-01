@@ -38,6 +38,7 @@
     isBusy: false,
     activePanel: null, // null | 'station' | 'config'
     activeStation: "A1",
+    reasoningEffort: "max", // "low" | "high" | "max"
     getToken: null,
     chatFunctionUrl: null,
     messages: {}, // { [station]: [{role, content}] }  Bedrock history
@@ -47,6 +48,10 @@
     typingEl: null,
     abortCtrl: null,
   };
+
+  // Temporary AWS credentials from Cognito Identity, cached until near-expiry.
+  // Cleared on logout (chatReset) so the next session starts fresh.
+  let _awsCredsCache = null;
 
   // ─── DOM refs ────────────────────────────────────────────────────────────
   let dom = {};
@@ -120,6 +125,12 @@
                   aria-label="Select station" aria-haspopup="true">
             ${SVG.bot}
           </button>
+          <select class="wk-cw-reasoning-select" id="wk-cw-reasoning-select"
+                  aria-label="Reasoning effort" title="Reasoning effort">
+            <option value="low">Low</option>
+            <option value="high">High</option>
+            <option value="max" selected>Max</option>
+          </select>
           <button class="wk-cw-header-btn" id="wk-cw-config-btn"
                   aria-label="Config" aria-haspopup="true">
             ${SVG.gear}
@@ -193,6 +204,7 @@
       headerTitle: root.querySelector("#wk-cw-header-title"),
       headerDesc: root.querySelector("#wk-cw-header-desc"),
       stationBtn: root.querySelector("#wk-cw-station-btn"),
+      reasoningSelect: root.querySelector("#wk-cw-reasoning-select"),
       configBtn: root.querySelector("#wk-cw-config-btn"),
       stationPanel: root.querySelector("#wk-cw-station-panel"),
       stationBack: root.querySelector("#wk-cw-station-back"),
@@ -218,6 +230,18 @@
 
     dom.stationBtn.addEventListener("click", () => {
       openPanel(state.activePanel === "station" ? null : "station");
+    });
+    dom.reasoningSelect.addEventListener("change", () => {
+      state.reasoningEffort = dom.reasoningSelect.value;
+      console.log(
+        `[chat] reasoning_effort changed to: ${state.reasoningEffort}`,
+      );
+    });
+    dom.reasoningSelect.addEventListener("change", () => {
+      state.reasoningEffort = dom.reasoningSelect.value;
+      console.log(
+        `[chat] reasoning_effort changed to: ${state.reasoningEffort}`,
+      );
     });
 
     dom.configBtn.addEventListener("click", () => {
@@ -743,6 +767,200 @@
   }
 
   // ─── 5. Bedrock SSE ──────────────────────────────────────────────────────
+  /**
+   * Exchange a Cognito ID token for temporary AWS STS credentials via the
+   * Cognito Identity service. Results are cached for the lifetime of the
+   * session (or until within 60 s of expiry) to avoid a GetId + GetCreds
+   * round-trip on every message send.
+   *
+   * Cognito Identity returns `SecretKey` (not `SecretAccessKey`) and
+   * `Expiration` as a Unix timestamp in seconds — both handled below.
+   *
+   * @param {string} idToken  Cognito ID token from the user pool
+   * @returns {Promise<{accessKeyId, secretAccessKey, sessionToken, expiration}>}
+   */
+  // ── Inline SigV4 signing (Web Crypto API, no external library) ────────────
+  async function sigv4Sign(credentials, req) {
+    const enc = new TextEncoder();
+    const hmac = async (key, data) => {
+      const k = typeof key === "string" ? enc.encode(key) : key;
+      const cryptoKey = await crypto.subtle.importKey(
+        "raw",
+        k,
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"],
+      );
+      return new Uint8Array(
+        await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(data)),
+      );
+    };
+    const hash = async (data) => {
+      const buf = await crypto.subtle.digest("SHA-256", enc.encode(data));
+      return Array.from(new Uint8Array(buf))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    };
+    const hex = (buf) =>
+      Array.from(buf)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
+    const now = new Date();
+    const dateStamp = now.toISOString().slice(0, 10).replace(/-/g, "");
+    const amzDate =
+      now
+        .toISOString()
+        .replace(/[:\-]|\.\d{3}/g, "")
+        .slice(0, 15) + "Z";
+
+    const headers = {
+      "content-type": "application/json",
+      host: req.host,
+      "x-amz-date": amzDate,
+      ...Object.fromEntries(
+        Object.entries(req.extraHeaders || {}).map(([k, v]) => [
+          k.toLowerCase(),
+          v,
+        ]),
+      ),
+    };
+    if (credentials.sessionToken) {
+      headers["x-amz-security-token"] = credentials.sessionToken;
+    }
+
+    const signedHeaderNames = Object.keys(headers).sort().join(";");
+    const canonicalHeaders =
+      Object.keys(headers)
+        .sort()
+        .map((k) => k + ":" + headers[k])
+        .join("\n") + "\n";
+    const bodyHash = await hash(req.body || "");
+    const canonicalRequest = [
+      req.method,
+      req.path,
+      "",
+      canonicalHeaders,
+      signedHeaderNames,
+      bodyHash,
+    ].join("\n");
+
+    const scope = `${dateStamp}/${req.region}/${req.service}/aws4_request`;
+    console.log(
+      "[chat-sigv4] signing: method=" +
+        req.method +
+        " host=" +
+        req.host +
+        " region=" +
+        req.region +
+        " service=" +
+        req.service +
+        " signedHeaders=" +
+        signedHeaderNames,
+    );
+    console.log("[chat-sigv4] credential scope: " + scope);
+    const stringToSign = [
+      "AWS4-HMAC-SHA256",
+      amzDate,
+      scope,
+      await hash(canonicalRequest),
+    ].join("\n");
+
+    let signingKey = await hmac(
+      "AWS4" + credentials.secretAccessKey,
+      dateStamp,
+    );
+    signingKey = await hmac(signingKey, req.region);
+    signingKey = await hmac(signingKey, req.service);
+    signingKey = await hmac(signingKey, "aws4_request");
+    const signature = hex(await hmac(signingKey, stringToSign));
+
+    headers["authorization"] =
+      `AWS4-HMAC-SHA256 Credential=${credentials.accessKeyId}/${scope}, SignedHeaders=${signedHeaderNames}, Signature=${signature}`;
+    return headers;
+  }
+
+  async function getAwsCreds(idToken) {
+    // Return cached creds if they have more than 60 seconds of life left.
+    if (_awsCredsCache && _awsCredsCache.expiration - 60000 > Date.now()) {
+      return _awsCredsCache;
+    }
+
+    try {
+      const cfg = window.DEWY_CONFIG || {};
+      const region = cfg.region || "us-west-2";
+      const { userPoolId, identityPoolId } = cfg;
+      const endpoint = `https://cognito-identity.${region}.amazonaws.com/`;
+      const logins = {
+        [`cognito-idp.${region}.amazonaws.com/${userPoolId}`]: idToken,
+      };
+
+      // Step 1: GetId — resolve or create a Cognito Identity ID for this user.
+      console.log(
+        "[chat-auth] GetId request: identityPoolId=" + identityPoolId,
+      );
+      const getIdRes = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-amz-json-1.1",
+          "x-amz-target": "AWSCognitoIdentityService.GetId",
+        },
+        body: JSON.stringify({
+          IdentityPoolId: identityPoolId,
+          Logins: logins,
+        }),
+      });
+      if (!getIdRes.ok) {
+        const text = await getIdRes.text().catch(() => "");
+        const msg = `Cognito GetId failed: ${getIdRes.status} ${text}`;
+        console.log("[chat-auth] ERROR: " + msg);
+        throw new Error(msg);
+      }
+      const { IdentityId } = await getIdRes.json();
+      console.log("[chat-auth] GetId response: IdentityId=" + IdentityId);
+
+      // Step 2: GetCredentialsForIdentity — exchange for STS temporary credentials.
+      console.log(
+        "[chat-auth] GetCredentialsForIdentity request: IdentityId=" +
+          IdentityId,
+      );
+      const getCredsRes = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-amz-json-1.1",
+          "x-amz-target": "AWSCognitoIdentityService.GetCredentialsForIdentity",
+        },
+        body: JSON.stringify({ IdentityId, Logins: logins }),
+      });
+      if (!getCredsRes.ok) {
+        const text = await getCredsRes.text().catch(() => "");
+        const msg = `Cognito GetCredentialsForIdentity failed: ${getCredsRes.status} ${text}`;
+        console.log("[chat-auth] ERROR: " + msg);
+        throw new Error(msg);
+      }
+      const { Credentials: c } = await getCredsRes.json();
+      console.log(
+        "[chat-auth] GetCredentialsForIdentity response: AccessKeyId=" +
+          c.AccessKeyId.slice(0, 8) +
+          "..., Expiration=" +
+          c.Expiration,
+      );
+
+      // Cognito Identity uses `SecretKey` (not `SecretAccessKey`).
+      // `Expiration` is a Unix timestamp in seconds; convert to ms for Date.now().
+      _awsCredsCache = {
+        accessKeyId: c.AccessKeyId,
+        secretAccessKey: c.SecretKey,
+        sessionToken: c.SessionToken,
+        expiration: c.Expiration * 1000,
+      };
+      return _awsCredsCache;
+    } catch (err) {
+      console.log("[chat-auth] ERROR: " + err.message);
+      throw err;
+    }
+  }
+
   async function handleSend() {
     const station = state.activeStation;
     const text = dom.textarea.value.trim();
@@ -776,25 +994,71 @@
     state.abortCtrl = new AbortController();
 
     try {
-      // Always POST to the Bedrock Lambda Function URL.
-      // Pass the station's MCP URL (if configured) in the body so the Lambda
-      // can connect to the correct Workato server.  The widget never calls
-      // Workato directly — the Cognito Bearer token is only valid for the Lambda.
+      // POST to the Bedrock Lambda Function URL with SigV4 signing.
+      //
+      // Two-layer auth:
+      //   1. sigv4Sign() adds Authorization (SigV4), X-Amz-Date, and
+      //      X-Amz-Security-Token — the Function URL AuthType.AWS_IAM
+      //      validates these before invoking the Lambda.
+      //   2. x-cognito-token carries the Cognito ID token so the Lambda
+      //      can still validate the user's identity (defense-in-depth).
+      const idToken = state.getToken();
+      const creds = await getAwsCreds(idToken);
+      const requestBody = JSON.stringify({
+        station,
+        messages: state.messages[station],
+        mcp_url: state.stationUrls[station] || null,
+        reasoning_effort: state.reasoningEffort,
+      });
+      const fnUrl = new URL(state.chatFunctionUrl);
+      const region = (window.DEWY_CONFIG || {}).region || "us-west-2";
+      const signedHeaders = await sigv4Sign(
+        {
+          accessKeyId: creds.accessKeyId,
+          secretAccessKey: creds.secretAccessKey,
+          sessionToken: creds.sessionToken,
+        },
+        {
+          method: "POST",
+          host: fnUrl.host,
+          path: fnUrl.pathname || "/",
+          body: requestBody,
+          service: "lambda",
+          region,
+          extraHeaders: { "x-cognito-token": "Bearer " + idToken },
+        },
+      );
+      // signedHeaders contains: Authorization (SigV4), X-Amz-Date,
+      // X-Amz-Security-Token, Content-Type, x-cognito-token.
+      console.log(
+        "[chat-send] POST " +
+          state.chatFunctionUrl +
+          " signedHeaders=" +
+          Object.keys(signedHeaders).join(","),
+      );
+      console.log(
+        "[chat-send] Authorization header prefix: " +
+          (
+            signedHeaders["authorization"] ||
+            signedHeaders["Authorization"] ||
+            ""
+          ).slice(0, 80),
+      );
       const res = await fetch(state.chatFunctionUrl, {
         method: "POST",
-        headers: {
-          Authorization: "Bearer " + state.getToken(),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          station,
-          messages: state.messages[station],
-          mcp_url: state.stationUrls[station] || null,
-        }),
+        headers: signedHeaders,
+        body: requestBody,
         signal: state.abortCtrl.signal,
       });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
+        const bodyText = await res.text().catch(() => "");
+        console.log(
+          "[chat-send] ERROR status=" + res.status + " body=" + bodyText,
+        );
+        let j = {};
+        try {
+          j = JSON.parse(bodyText);
+        } catch (_) {}
         throw new Error(j.message || "HTTP " + res.status);
       }
       await consumeSseStream(station, res.body.getReader());
@@ -945,6 +1209,7 @@
     state.pendingToolCalls = {};
     state.isBusy = false;
     state.typingEl = null;
+    _awsCredsCache = null;
     closeWidget();
     dom.fab.style.display = "none"; // hide until next login
   }

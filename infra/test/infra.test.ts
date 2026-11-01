@@ -165,8 +165,49 @@ test("creates a Lambda Function URL with RESPONSE_STREAM invoke mode", () => {
   t.resourceCountIs("AWS::Lambda::Url", 1);
   t.hasResourceProperties("AWS::Lambda::Url", {
     InvokeMode: "RESPONSE_STREAM",
-    AuthType: "NONE",
+    AuthType: "AWS_IAM",
   });
+});
+
+test("Function URL CORS allowedHeaders includes SigV4 and x-cognito-token headers", () => {
+  const t = synth();
+  t.hasResourceProperties("AWS::Lambda::Url", {
+    Cors: Match.objectLike({
+      AllowHeaders: Match.arrayWith([
+        "x-amz-security-token",
+        "x-amz-date",
+        "x-amz-content-sha256",
+        "x-cognito-token",
+      ]),
+    }),
+  });
+});
+
+test("creates a Cognito Identity Pool with allowUnauthenticatedIdentities=false", () => {
+  const t = synth();
+  t.resourceCountIs("AWS::Cognito::IdentityPool", 1);
+  t.hasResourceProperties("AWS::Cognito::IdentityPool", {
+    AllowUnauthenticatedIdentities: false,
+  });
+});
+
+test("authenticated chat IAM role grants lambda:InvokeFunctionUrl on the chat function ARN", () => {
+  const t = synth();
+  const policies = JSON.stringify(t.findResources("AWS::IAM::Policy"));
+  expect(policies).toMatch(/lambda:InvokeFunctionUrl/);
+});
+
+test("creates a CfnIdentityPoolRoleAttachment for the chat identity pool", () => {
+  const t = synth();
+  t.resourceCountIs("AWS::Cognito::IdentityPoolRoleAttachment", 1);
+  t.hasResourceProperties("AWS::Cognito::IdentityPoolRoleAttachment", {
+    Roles: Match.objectLike({ authenticated: Match.anyValue() }),
+  });
+});
+
+test("IdentityPoolId is in the stack outputs", () => {
+  const t = synth();
+  t.hasOutput("IdentityPoolId", {});
 });
 
 test("chat-bedrock Lambda has Bedrock InvokeModel IAM policy", () => {

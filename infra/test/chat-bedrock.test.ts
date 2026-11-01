@@ -69,7 +69,7 @@ const { handler, SYSTEM_PROMPT, STATIONS } = require("../lambda/chat-handler");
 /** Build a minimal fake Lambda event. */
 function makeEvent(overrides: Record<string, any> = {}) {
   return {
-    headers: { authorization: "Bearer valid-token" },
+    headers: { "x-cognito-token": "Bearer valid-token" },
     body: JSON.stringify({
       station: "A1",
       messages: [{ role: "user", content: "hello" }],
@@ -119,7 +119,7 @@ test("STATIONS exports the six expected station IDs", () => {
   expect(STATIONS).toEqual(["A1", "A2", "B1", "B2", "C1", "C2"]);
 });
 
-test("returns 401 when Authorization header is missing", async () => {
+test("returns 401 when x-cognito-token header is missing", async () => {
   const streams: Array<{ __meta: { statusCode: number } }> = [];
   const origFrom = (global as any).awslambda.HttpResponseStream.from;
   (global as any).awslambda.HttpResponseStream.from = (
