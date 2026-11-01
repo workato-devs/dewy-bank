@@ -530,15 +530,10 @@ export class DewyBankStack extends cdk.Stack {
         ],
       }),
     );
-    // Lambda resource-based policy: required for same-account federated
-    // (Cognito Identity Pool) callers with AuthType.AWS_IAM.
-    // Using AccountPrincipal avoids CDK role-ARN token resolution issues with
-    // Lambda::Permission; same-account callers are still gated by IAM identity policies.
-    chatBedrockFn.addPermission("AllowSameAccountCallers", {
-      principal: new iam.AccountPrincipal(this.account),
-      action: "lambda:InvokeFunctionUrl",
-      functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
-    });
+    // Lambda resource-based policy is NOT required for same-account federated
+    // (Cognito Identity Pool) callers with AuthType.AWS_IAM — identity policies
+    // on chatCallerRole and facilitatorsRole are sufficient.
+    // (Resource policies via CDK addPermission fail with functionUrlAuthType.)
     facilitatorsGroup.roleArn = facilitatorsRole.roleArn;
 
     // ---------------------------------------------------------------------
