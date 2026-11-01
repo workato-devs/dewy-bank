@@ -78,12 +78,10 @@ const verifier = CognitoJwtVerifier.create({
 });
 
 const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? "us.moonshotai.kimi-k3";
-// Inference parameters — edit here to tune model behaviour across all stations.
-// temperature=0 → greedy/deterministic decoding (always picks the highest-probability token).
-// topP=1.0     → no nucleus restriction; irrelevant at temperature=0 but set explicitly for clarity.
+// Kimi does not accept temperature or topP overrides.
+// reasoning_effort controls thinking depth: "low" | "high" | "max" (default).
 const MAX_TOKENS = 4096;
-const TEMPERATURE = 0.0;
-const TOP_P = 1.0;
+const DEFAULT_REASONING_EFFORT = "max" as const;
 const MAX_HISTORY = 80;
 
 // ── Handler ──────────────────────────────────────────────────────────────────
@@ -173,6 +171,15 @@ export const handler = awslambda.streamifyResponse(
         return;
       }
       const rawMessages = Array.isArray(body.messages) ? body.messages : [];
+
+      // Accept reasoning_effort from the request body; validate and fall back to default.
+      const validEfforts = ["low", "high", "max"] as const;
+      type ReasoningEffort = (typeof validEfforts)[number];
+      const reasoningEffort: ReasoningEffort = validEfforts.includes(
+        body.reasoning_effort as ReasoningEffort,
+      )
+        ? (body.reasoning_effort as ReasoningEffort)
+        : DEFAULT_REASONING_EFFORT;
 
       // ── 4. Resolve MCP URL ─────────────────────────────────────────────────
       // Accept a per-session MCP URL from the request body (set by the SPA
@@ -301,10 +308,9 @@ export const handler = awslambda.streamifyResponse(
         const input: any = {
           modelId: MODEL_ID,
           messages: bedrockMessages,
-          inferenceConfig: {
-            maxTokens: MAX_TOKENS,
-            temperature: TEMPERATURE,
-            topP: TOP_P,
+          inferenceConfig: { maxTokens: MAX_TOKENS },
+          additionalModelRequestFields: {
+            reasoning_effort: reasoningEffort,
           },
           system,
           ...(bedrockTools.length && { toolConfig: { tools: bedrockTools } }),

@@ -38,6 +38,7 @@
     isBusy: false,
     activePanel: null, // null | 'station' | 'config'
     activeStation: "A1",
+    reasoningEffort: "max", // "low" | "high" | "max"
     getToken: null,
     chatFunctionUrl: null,
     messages: {}, // { [station]: [{role, content}] }  Bedrock history
@@ -124,6 +125,12 @@
                   aria-label="Select station" aria-haspopup="true">
             ${SVG.bot}
           </button>
+          <select class="wk-cw-reasoning-select" id="wk-cw-reasoning-select"
+                  aria-label="Reasoning effort" title="Reasoning effort">
+            <option value="low">Low</option>
+            <option value="high">High</option>
+            <option value="max" selected>Max</option>
+          </select>
           <button class="wk-cw-header-btn" id="wk-cw-config-btn"
                   aria-label="Config" aria-haspopup="true">
             ${SVG.gear}
@@ -197,6 +204,7 @@
       headerTitle: root.querySelector("#wk-cw-header-title"),
       headerDesc: root.querySelector("#wk-cw-header-desc"),
       stationBtn: root.querySelector("#wk-cw-station-btn"),
+      reasoningSelect: root.querySelector("#wk-cw-reasoning-select"),
       configBtn: root.querySelector("#wk-cw-config-btn"),
       stationPanel: root.querySelector("#wk-cw-station-panel"),
       stationBack: root.querySelector("#wk-cw-station-back"),
@@ -222,6 +230,18 @@
 
     dom.stationBtn.addEventListener("click", () => {
       openPanel(state.activePanel === "station" ? null : "station");
+    });
+    dom.reasoningSelect.addEventListener("change", () => {
+      state.reasoningEffort = dom.reasoningSelect.value;
+      console.log(
+        `[chat] reasoning_effort changed to: ${state.reasoningEffort}`,
+      );
+    });
+    dom.reasoningSelect.addEventListener("change", () => {
+      state.reasoningEffort = dom.reasoningSelect.value;
+      console.log(
+        `[chat] reasoning_effort changed to: ${state.reasoningEffort}`,
+      );
     });
 
     dom.configBtn.addEventListener("click", () => {
@@ -988,6 +1008,7 @@
         station,
         messages: state.messages[station],
         mcp_url: state.stationUrls[station] || null,
+        reasoning_effort: state.reasoningEffort,
       });
       const fnUrl = new URL(state.chatFunctionUrl);
       const region = (window.DEWY_CONFIG || {}).region || "us-west-2";
