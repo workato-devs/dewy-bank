@@ -106,6 +106,22 @@ export const handler = awslambda.streamifyResponse(
     );
     console.log("[chat] headers=%j", _redactedHeaders);
 
+    // ── Log request body for debugging ───────────────────────────────────
+    try {
+      const rawBody =
+        typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+      console.log("[chat] body=%j", {
+        station: rawBody?.station,
+        reasoning_effort: rawBody?.reasoning_effort ?? "(not set)",
+        mcp_url: rawBody?.mcp_url ? "[set]" : null,
+        message_count: Array.isArray(rawBody?.messages)
+          ? rawBody.messages.length
+          : 0,
+      });
+    } catch (_) {
+      /* ignore parse errors */
+    }
+
     // ── 1. Validate JWT BEFORE opening the SSE stream ───────────────────────
     // Two-layer auth model:
     //   Layer 1 (outer): Lambda Function URL AuthType.AWS_IAM + SigV4.
