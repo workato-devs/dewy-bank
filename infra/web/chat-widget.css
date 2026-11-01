@@ -905,8 +905,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 12px;
   flex-wrap: nowrap;
+  width: 100%;
 }
 .wk-cw-reasoning-label {
   flex-shrink: 0;
