@@ -530,19 +530,10 @@ export class DewyBankStack extends cdk.Stack {
         ],
       }),
     );
-    // Lambda resource-based policy: required for same-account federated
-    // (Cognito Identity Pool) callers with AuthType.AWS_IAM. Placed here,
-    // after facilitatorsRole is declared, to avoid the temporal dead zone.
-    chatBedrockFn.addPermission("AllowChatCallerRole", {
-      principal: new iam.ArnPrincipal(chatCallerRole.roleArn),
-      action: "lambda:InvokeFunctionUrl",
-      functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
-    });
-    chatBedrockFn.addPermission("AllowFacilitatorsRole", {
-      principal: new iam.ArnPrincipal(facilitatorsRole.roleArn),
-      action: "lambda:InvokeFunctionUrl",
-      functionUrlAuthType: lambda.FunctionUrlAuthType.AWS_IAM,
-    });
+    // Lambda resource-based policy is NOT required for same-account federated
+    // (Cognito Identity Pool) callers with AuthType.AWS_IAM — identity policies
+    // on chatCallerRole and facilitatorsRole are sufficient.
+    // (Resource policies via CDK addPermission fail with functionUrlAuthType.)
     facilitatorsGroup.roleArn = facilitatorsRole.roleArn;
 
     // ---------------------------------------------------------------------

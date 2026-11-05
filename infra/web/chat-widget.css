@@ -410,11 +410,11 @@
   padding: 10px 10px 4px; /* matches item horizontal padding */
 }
 .wk-cw-new-chat-btn {
+  margin-left: auto; /* pushes Clear chat to the right */
   display: inline-flex;
   align-items: center;
-  width: auto;
-  margin: 0;
-  padding: 3px 10px;
+  height: 26px;
+  padding: 0 10px;
   border-radius: 6px;
   border: 1px solid var(--wk-border);
   background: transparent;
@@ -422,11 +422,12 @@
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  outline: none;
   transition:
     background 0.15s,
     color 0.15s;
-  outline: none;
-  white-space: nowrap;
 }
 .wk-cw-new-chat-btn:hover {
   background: var(--wk-accent-light);
@@ -902,9 +903,17 @@
 /* Hint: hidden by default, fades in on focus */
 .wk-cw-input-hint-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-top: 6px;
+  gap: 6px;
+  margin-top: 12px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+.wk-cw-reasoning-label {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--wk-text-light);
+  white-space: nowrap;
 }
 .wk-cw-input-hint {
   font-size: 10px;
@@ -1154,23 +1163,15 @@
 
 /* ── Reasoning effort selector ─────────────────────────────────── */
 .wk-cw-reasoning-select {
-  height: 28px;
-  padding: 0 6px;
-  border: none;
+  flex: 0 0 76px;
+  width: 76px;
+  height: 26px;
+  padding: 0 4px;
+  border: 1px solid var(--wk-border);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.22);
-  color: #fff;
+  background: transparent;
+  color: var(--wk-text-light);
   font-size: 11px;
-  font-weight: 600;
   cursor: pointer;
   outline: none;
-  flex-shrink: 0;
-}
-.wk-cw-reasoning-select option {
-  background: #1e293b;
-  color: #fff;
-}
-.wk-cw-reasoning-select:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.7);
-  outline-offset: 2px;
 }
